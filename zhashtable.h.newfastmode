@@ -1,0 +1,391 @@
+// @ZBS {
+//		*MODULE_OWNER_NAME zhashtable
+// }
+
+#ifndef ZHASHTABLE_H
+#define ZHASHTABLE_H
+
+// The HashTable class is a generic associative array
+// that associate keys which are nul-terminate strings with
+// generic typed buffers of arbitrary length.
+//
+// HashTables will automatically rebuild themselves when
+// they get to dense which can be an expensive operation
+// therefore it is best if you create them with an
+// initial size roughly double what you expect will be used.
+
+#include <stdio.h>
+	// for FILE* used by zHashTableLoad/Save
+
+//#ifdef WIN32
+//typedef __int64 S64;
+//#endif
+//#ifdef __USE_GNU
+//typedef long long S64;
+//#endif
+
+typedef long long S64;
+
+struct ZHashRecord {
+	short flags;
+		#define zhNONE    (0x00)
+		#define zhDELETED (0x01)
+		#define zhCHANGED (0x02)
+	short type;
+		#define zhBIN     (0x01)  // binary
+		#define zhSTR     (0x02)  // nul-terminated string
+		#define zhS32     (0x03)  // signed 32
+		#define zhU32     (0x04)  // unsigned 32
+		#define zhS64     (0x05)  // signed int64
+		#define zhFLT     (0x06)  // float
+		#define zhDBL     (0x07)  // double
+		#define zhPTR     (0x08)  // The record contains a pointer
+		#define zhPFR     (0x09)  // The pointer is to be freed on delete or overwrite
+	int keyLen;
+	int valLen;
+	char key[1];
+		// This is really keyLen long
+		// The val follows this after keyLen bytes
+};
+
+class ZHashTable {
+  friend struct ZHashWalk;
+  protected:
+	char *last;
+	int lastLen;
+		// These store the last return from convert
+		// Note that the use of these return buffers among other parts
+		// of this means that access to these hash tables is NOT thread safe
+		// Be sure to use mutexes if you are accessing a hash from more than one thread
+
+	int collisions;
+		// Incremented each time the set() function collides.
+		// Useful for profiling the hash function
+	int resizeCount;
+		// Incremented each time the hah table has to be reallocated
+		// Useful for profiling
+	int initialSize;
+		// How big the initial array is
+	int hasAnyChanged;
+		// Has anything in here changed since the last time this was cleared
+	int hashTableSize;
+		// Number of pointers in the hash table
+	int numRecords;
+		// Actual active records in the table
+	ZHashRecord **hashTable;
+		// Array of hash records
+		
+	int fastModeAllocate;
+		// When set, the hashtable allocates a single chunk of memory of this size
+		// and simply frees it when clear or destructor is called
+	char *fastModeBuffer;
+		// This is the allocated buffer for fast mode
+	char *fastModePtr;
+		// This points to the next free location
+	int fastModeResizes;
+		// Number of times that the resize had to be called because it ran out of pre-allocated room
+
+	int useNRHash;
+
+	static void nrHashInit();
+	static unsigned int hashBurtle( char *key, int keyLen );
+		// Hashing function. currently using the one from http://burtleburtle.net/bob/hash/doobs.html
+	static unsigned long long nrHash( char *key, int keyLen );
+		// Hashing function NR3
+	unsigned int hash( char *key, int keyLen );
+
+	int internalSet( ZHashRecord **_hashTable, int _hashTableSize, char *key, int keyLen, ZHashRecord *_recPtr );
+		// Internal method to functionalize rebuilds of tables
+		// Returns 1 if the key is new, 0 if it is replacing an existing
+
+  public:
+	ZHashTable( int _initialSize=64, int _fastModeAllocate=0, int _useNRHash=0 );
+		// For optimal performance make _initialSize twice as big as expected size
+
+	ZHashTable( const ZHashTable &copy );
+		// Copy constructor
+
+	virtual ~ZHashTable();
+
+	void init( int _initSize=64 );
+	void clear( int _initSize=-1, int freeFirst=1 );
+		// kill everything, start fresh.  Will reset initSize if you request it
+
+	int getCollisions() { return collisions; }
+	int getResizeCount() { return resizeCount; }
+	int getFastModeResizes() { return fastModeResizes; }
+	
+	int size() { return hashTableSize; }
+		// The size of the hashtable including empty records
+
+	int activeCount() { return numRecords; }
+		// The actual number of active records
+
+	virtual void resetCallback() { };
+	    // Overrid this if you need to know when the internal hash pointers move around
+
+	void copyFrom( ZHashTable &table );
+		// Copies all the items from table.
+		// Does *NOT* clear first, if you want to
+		// start off fresh, call clear() first
+
+	// NOMENCLATURE
+	//
+	// "put" is used to place into the hashtable and is prefixed and postfixed to denote type
+	// which are are encoded as:
+	//
+	//   S = nul terminated string
+	//   I = signed integer value encoded as a string
+	//   U = unsigned integer value encoded as a string
+	//   L = int64 encoded as a string
+	//   F = float value encoded as a string
+	//   D = double value encoded as a string
+	//   b = binary data (there may be embedded nuls)
+	//   i = int stored in binary
+	//   u = unsigned int stored in binary
+	//   l = int64 stored in binary
+	//   f = float stored in binary
+	//   d = double stored in binary
+	//   p = a pointer to a buffer (see special rules below)
+	//
+	// The prefix denotes the type of the hash key.  No prefix means "string"
+	//   none = string
+	//   i = binary int
+	//
+	// The generic "put" and "get" take a key, keyLen, val, and valLen and
+	// they assume that len values of -1 mean that it is a nul-termineated
+	// string on which the len should be calculated
+	//
+	// IMPORTANT NOTE. The functions putI putF and putD are deprecated.  You
+	// should now use the puti putf and putd functions because the type is
+	// encoded in the flags and thus you can use the getI getF and getD functions
+	// to do the conversion to string if desired.
+	//
+	// PUT:
+	//   When a value is put into the hash, it will overwrite any existing value
+	//   which is already associated with that key.  If the value is a pointer to a buffer
+	//   then it may free that buffer (see putp Special Rules below)
+	//   A val ptr of zero indicates delete.
+	//   The memory of a records is not necessarily deleted immediately.  Instead,
+	//   the record is marked as deleted and, if the valLen is large, it may choose
+	//   to reallocate the record and free the old one to save memory.
+	//
+	// PUTP SPECIAL RULES:
+	//   Sometimes you may wish to associate an arbitrary buffer with the hash table which,
+	//   when the key is freed, you wish to free.  In this way, the hash table becomes a
+	//   kind of "dynamic variable heap".
+	//   When a buffer is placed into the hash using putp() you give it a void * val ptr.
+	//   Two extra flags are then associated with the record.  One indicates that you wish
+	//   this ptr to be freed upon deletion and the other indicates that you wish consider
+	//   a val ptr of null to indicate "delete" as opposed to a nul pointer.  In the case
+	//   that you do not set delOnNul, passing a val ptr of 0 will mean that the record key
+	//   will still exist in the hash but that a call to get will report success and a 0 value.
+	//
+	// GET:
+	//   You may either get by hash key (typical) or by record number (used for iterating, see below)
+	//   When getting, you may optionally specify a value to return in the case that the record
+	//   does not exist, the default for all types is zero.
+	//
+	//   The various get functions do optional typecasting
+	//   The uppercase versions do their best to convert to the type requested
+	//   The lowercase versions do not.
+	//   For example, imagine in the cache there is a string "key" associated with the *string* "1.234"
+	//   The getF function will convert the string into a floating point number but getf will return 0.f
+	//
+	// GET ITERATING:
+	//   Sometimes you want to traverse every record in a hash table.  You may use "getVal and getKey" for this
+	//   Example:
+	//   for( int i=0; i<hash.size(); i++ ) {
+	//		char *k = hash.getKey( i );
+	//		char *v = hash.getValS( i );
+	//   }
+	//
+	// WALKING:
+	//   The above code can also use the ZHashWalk class
+	//   Example:
+	//   for( ZHashWalk w(hash); hash.next(); ) {
+	//		printf( "%s %s\n", w.key, w.val );
+	//   }
+	//
+	
+//	ZHashRecord *fetchRec( int i );
+//	ZHashRecord *fetchRec( char *key, int keyLen=-1 );
+//	ZHashRecord *ifetchRec( int key );
+
+	void clearLast();
+	void convert( int srcType, char *src, int srcLen, int dstType, char **dst, int *dstLen );
+	ZHashRecord *lookup( char *key, int keyLen=-1 );
+
+	int has( char *key, int keyLen=-1 );
+
+	int getFlags( char *key, int keyLen=-1 );
+	int getType( char *key, int keyLen=-1 );
+
+	// All of the following in UPPERCASE convert type, others ASSERT type
+	// These use a nul-terminated key
+	char        *getS( char *key, char *onEmpty=0 );
+	int          getI( char *key, int onEmpty=0 );
+	unsigned int getU( char *key, unsigned int onEmpty=0 );
+	S64          getL( char *key, S64 onEmpty=0 );
+	float        getF( char *key, float onEmpty=0.f );
+	double       getD( char *key, double onEmpty=0.0 );
+	void        *getp( char *key, void *onEmpty=0 );
+	char        *getb( char *key, void *onEmpty=0 );
+	int          geti( char *key, int onEmpty=0 );
+	unsigned int getu( char *key, unsigned int onEmpty=0 );
+	S64          getl( char *key, S64 onEmpty=0 );
+	float        getf( char *key, float onEmpty=0.f );
+	double       getd( char *key, double onEmpty=0.0 );
+
+	// These use binary data as the key thus must have a keyLen parameter
+	char        *bgetb( void *key, int keyLen=-1, int *valLen=0, int *type=0, int touch=0 );
+	char        *bgetS( void *key, int keyLen, char *onEmpty=0 );
+	int          bgetI( void *key, int keyLen, int onEmpty=0 );
+	unsigned int bgetU( void *key, int keyLen, unsigned int onEmpty=0 );
+	S64          bgetL( void *key, int keyLen, S64 onEmpty=0 );
+	float        bgetF( void *key, int keyLen, float onEmpty=0.f );
+	double       bgetD( void *key, int keyLen, double onEmpty=0.0 );
+	void        *bgetp( void *key, int keyLen, void *onEmpty=0 );
+	int          bgeti( void *key, int keyLen, int onEmpty=0 );
+	unsigned int bgetu( void *key, int keyLen, unsigned int onEmpty=0 );
+	S64          bgetl( void *key, int keyLen, S64 onEmpty=0 );
+	float        bgetf( void *key, int keyLen, float onEmpty=0.f );
+	double       bgetd( void *key, int keyLen, double onEmpty=0.0 );
+
+	char        *getKey( int i, int *keyLen=0 );
+	int          getFlags( int i );
+	int          getType( int i );
+	char        *getValS( int i );
+	int          getValI( int i );
+	S64          getValL( int i );
+	unsigned int getValU( int i );
+	float        getValF( int i );
+	double       getValD( int i );
+	void        *getValb( int i, int *valLen=0 );
+	void        *getValp( int i );
+	int          getVali( int i );
+	unsigned int getValu( int i );
+	float        getValf( int i );
+	double       getVald( int i );
+
+	int isS( char *key, char *cmp );
+		// Convenient utility funciton
+		// Boolean if value is same as cmp
+
+	void  putB( char *key, char *val, int valLen );
+	void  putS( char *key, char *val, int valLen=-1 );
+	void  putI( char *key, int val );
+	void  putU( char *key, unsigned int val );
+	void  putL( char *key, S64 val );
+	void  putF( char *key, float val );
+	void  putD( char *key, double val );
+	void  putP( char *key, void *ptr, int freeOnReplace=0, int delOnNul=0 );
+
+	char *bputB( void *key, int keyLen, char *val, int valLen, int type=zhBIN, int flags=zhNONE );
+	void  bputS( void *key, int keyLen, char *val, int valLen=-1 );
+	void  bputI( void *key, int keyLen, int val );
+	void  bputU( void *key, int keyLen, unsigned int val );
+	void  bputL( void *key, int keyLen, S64 val );
+	void  bputF( void *key, int keyLen, float val );
+	void  bputD( void *key, int keyLen, double val );
+	void  bputP( void *key, int keyLen, void *ptr, int freeOnReplace=0, int delOnNul=0 );
+
+	// The touch functions return a typed pointer to the value, creating it if it doesn't already exist
+	char         *touchS( char *key, int keyLen=-1 );
+	int          *touchI( char *key, int keyLen=-1 );
+	unsigned int *touchU( char *key, int keyLen=-1 );
+	S64          *touchL( char *key, int keyLen=-1 );
+	float        *touchF( char *key, int keyLen=-1 );
+	double       *touchD( char *key, int keyLen=-1 );
+
+	void putEncoded( char *string );
+		// This sets a series of key elements based on a standard
+		// encoded string like: "key1=val1 key2='val 2' 'key 3'=val3"
+		// Backslash is an escape char for quotes. Eg: set( "key='This string won\\'t fail'" )
+		// Also, set( "key='This\\\\string\\\\has\\\\backslashes\\\\for\\\\spaces!'" )
+
+	void del( char *key, int keyLen=-1 ) { bputB( key, keyLen, (char*)0, 0 ); }
+
+	// The hash table  keeps track of what has changed with a 
+	// flag for each object.  This can be useful for loading and saving
+	// differences, for example in the config system.
+	int hasChanged();
+	int hasChanged( int i );
+	int hasChanged( char *key, int keyLen=-1 );
+	void setChanged( int i );
+	void setChanged( char *key, int keyLen=-1 );
+	void clearChanged( int i );
+	void clearChanged( char *key, int keyLen=-1 );
+	void clearChangedAll();
+
+	void dump( int toStdout=0 );
+		// Dumps the contents to OutputDebugString in Win32 or stdout in UNIX
+	char *dumpToString();
+		// Mallocs a string to dump into
+
+	char **getKeys( int &count );
+		// Mallocs a vector of char * and return count of the list
+};
+
+ZHashTable *zHashTable( char *fmt, ... );
+	// Given an encoded string (see parseString above) this
+	// allocates a hashtable and fills it in with the key/vals 
+	// in the sprintf formatted argument string and returns it.
+	// Note that the buffer for this fmt is 512 bytes
+	
+struct ZHashWalk {
+	// Example usage:
+	// for( ZHashWalk n( nodes ); n.next(); ) {
+
+
+	int i;
+	char *key;
+	char *val;
+	int keyLen;
+	int valLen;
+	int flags;
+	int type;
+	ZHashTable *hash;
+
+	ZHashWalk( ZHashTable &_hash ) {
+		hash = &_hash;
+		i=-1;
+	}
+
+	int next() {
+		ZHashRecord *rec;
+		do {
+			i++;
+			if( i>=hash->size() ) {
+				return 0;
+			}
+			rec = hash->hashTable[i];
+			if( rec && !(rec->flags&zhDELETED) ) {
+				key = rec->key;
+				val = &rec->key[rec->keyLen];
+				keyLen = rec->keyLen;
+				valLen = rec->valLen;
+				flags = rec->flags;
+				type = rec->type;
+			}
+		} while( !rec || (rec->flags&zhDELETED) );
+		return rec == 0 ? 0 : 1;
+	}
+};
+
+char *zHashTablePack( ZHashTable &hash, unsigned int *size=0 );
+	// Packs the hash into malloced mem, optionally returns size of malloc
+
+int zHashTableUnpack( char *bin, ZHashTable &hash );
+	// Unpacks from mem to hash
+
+void zHashTableSave( ZHashTable &hash, FILE *f );
+	// save to disk
+
+void zHashTableLoad( FILE *f, ZHashTable &hash );
+	// load from disk
+
+
+#endif
+
+
