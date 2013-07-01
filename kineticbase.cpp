@@ -4808,7 +4808,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	// of the list of constants for cosmetic reasons.
 	int o = 0;
 	ZRegExp scaleFactor( "scale_\\d+[a-z]" );
-	ZRegExp numericFactor( "^\\s*\\d*(\\.\\d*)?\\s*$" );
+	ZRegExp numericValue( "^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$" );
 	for( int pass=0; pass<2; pass++ ) {
 		for( i=0; i<orderedObsConsts.count; i++ ) {
 			char *name = orderedObsConsts.get( i );
@@ -4822,12 +4822,15 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 			KineticParameterInfo info;
 			strcpy( info.name, name );
 			saved=(SavedKineticParameterInfo*)paramValues->getS( info.name, 0 );
-			info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.1 : 1.0;
-			if( !saved && numericFactor.test( info.name ) ) {
+			if( numericValue.test( info.name ) ) {
 				info.value = atof( info.name );
+				info.fitFlag = 0;
+			}
+			else {
+				info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.1 : 1.0;
+				info.fitFlag = saved ? saved->fitFlag : 1;
 			}
 			info.group   = saved ? saved->group   : 0;
-			info.fitFlag = saved ? saved->fitFlag : 1;
 			info.type = PI_OBS_CONST;
 			info.obsConst = o;
 			info.qIndex = q++;

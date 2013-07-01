@@ -69,7 +69,6 @@ char *lowerString( char *s );
 // field validation
 
 int isNumericValue( char *text, double *val=0 );
-	// not particularly robust
 
 //-----------------------------------------------------------------------------
 // color utils
