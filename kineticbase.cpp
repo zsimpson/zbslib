@@ -4808,7 +4808,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	// of the list of constants for cosmetic reasons.
 	int o = 0;
 	ZRegExp scaleFactor( "scale_\\d+[a-z]" );
-	ZRegExp numericValue( "^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$" );
+	ZRegExp numericValue( "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$" );
 	for( int pass=0; pass<2; pass++ ) {
 		for( i=0; i<orderedObsConsts.count; i++ ) {
 			char *name = orderedObsConsts.get( i );
