@@ -76,7 +76,7 @@ char * getTail( char *s, int len, int prependEllipses ) {
 //-----------------------------------------------------------------------------------------
 // field validation
 //-----------------------------------------------------------------------------------------
-ZRegExp numericValue( "^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$" );
+ZRegExp numericValue( "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$" );
 int isNumericValue( char *text, double *val ) {
 	if( text && *text ) {
 		if( numericValue.test( text )) {
