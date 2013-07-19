@@ -115,7 +115,8 @@ char *zTimeGetLocalTimeString( int includeMils=1 );
 	// Returns a complete time string, useful for logging
 char *zTimeGetLocalTimeStringNumeric( int includeMils=1 );
 	// Same, but numeric, more compact.
-
+char *zTimeGetUTCTimeStringNumeric( int includeMils=1 );
+	// UTC version - appropriate format for inserts on SQL
 
 typedef unsigned int ZTimeUTC;
 ZTimeUTC zTimeUTC();

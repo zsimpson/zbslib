@@ -484,6 +484,42 @@ char *zTimeGetLocalTimeStringNumeric( int includeMils ) {
 	return str;
 }
 
+char *zTimeGetUTCTimeStringNumeric( int includeMils ) {
+	static char str[256];
+#ifdef WIN32
+	SYSTEMTIME st;
+	GetSystemTime( &st );
+	sprintf( str, "%d%02d%02d %02d:%02d:%02d",
+			st.wYear,
+			st.wMonth,
+			st.wDay,
+			st.wHour,
+			st.wMinute,
+			st.wSecond
+			);
+	if( includeMils ) {
+		char buf[8];
+		sprintf( buf, ".%03d", st.wMilliseconds );
+		strcat( str, buf );
+	}
+#else
+	time_t t = time( 0 );
+	struct tm *timeinfo = gmtime( &t );
+	sprintf( str, "%d%02d%02d %02d:%02d:%02d",
+			timeinfo->tm_year + 1900,
+			timeinfo->tm_mon + 1,
+			timeinfo->tm_mday,
+			timeinfo->tm_hour,
+			timeinfo->tm_min,
+			timeinfo->tm_sec
+			);
+	if( includeMils ) {
+		// @TODO
+	}
+#endif
+	return str;
+}
+
 ZTimeUTC zTimeUTC() {
 	return (ZTimeUTC)time( 0 );
 }
