@@ -8,6 +8,7 @@
 // ZBSLIB
 #include "zrgbhsv.h"
 #include "ztmpstr.h"
+#include "zregexp.h"
 
 // C
 //#define MALLOC_DEBUG
@@ -75,7 +76,21 @@ char * getTail( char *s, int len, int prependEllipses ) {
 //-----------------------------------------------------------------------------------------
 // field validation
 //-----------------------------------------------------------------------------------------
+ZRegExp numericValue( "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$" );
+int isNumericValue( char *text, double *val ) {
+	if( text && *text ) {
+		if( numericValue.test( text )) {
+			if( val ) {
+				*val = atof( text );
+			}
+			return 1;
+		}
+	}
+	return 0;
+}
 
+
+/* Replaced 9 june 2013
 int isNumericValue( char *text, double *val ) {
 	// Is the passed text a valid numeric value?  That is, the text
 	// must be nonempty, and each character valid as part of a numeric string.
@@ -86,6 +101,7 @@ int isNumericValue( char *text, double *val ) {
 	// @TODO: regex for actually validating a string as numeric value
 	
 	if( text && *text ) {
+		^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$
 		char *p = text;
 		while( *p ) {
 			if( !isdigit( *p ) && *p!='.' && *p!='-' && *p!='+' && *p!='e' && *p!='E' ) {
@@ -101,6 +117,7 @@ int isNumericValue( char *text, double *val ) {
 	return 0;
 	
 }
+*/
 
 //-----------------------------------------------------------------------------------------
 // format a floating-point value for display with a given number of significant digits
