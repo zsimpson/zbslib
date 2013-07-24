@@ -3787,6 +3787,7 @@ void KineticSystem::delSeriesExperiments( int masterExpIndex ) {
 	}
 	series[0]->reagentIndexForSeries = -1;
 	series[0]->mixstepIndexForSeries = -1;
+	series[0]->viewInfo.del( "seriesType" );
 		// note that we did not delete series[0], which is the 'master' 
 }
 
