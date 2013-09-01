@@ -541,6 +541,12 @@ void KineticTrace::copyRow( KineticTrace &src, int srcRow, int dstRow, int copyT
 	}
 }
 
+void KineticTrace::copyDerivsToData( int row ) {
+	for( int i=0; i<cols; i++ ) {
+		set( i, row, getDeriv( i, row ) );
+	}
+	properties.putI( ZTmpStr("row%d_derivative_only",row), 1 );
+}
 
 void KineticTrace::stealOwnershipFrom( KineticTrace &src ) {
 	clear();
@@ -713,7 +719,11 @@ void KineticTrace::polyFit() {
 	// ALLOCATE the polyMats;
 	polyMat.clear();
 	for( r=0; r<rows; r++ ) {
-		polyMat.add( new ZMat(6, cols-2, zmatF64) );
+		int _rows=6, _cols=cols-2;
+		if( properties.getI( ZTmpStr("row%d_derivative_only") )) {
+			_rows = _cols = 0;
+		}
+		polyMat.add( new ZMat(_rows, _cols, zmatF64) );
 	}
 
 	gsl_vector *gslX = gsl_vector_alloc( 6 );
@@ -789,6 +799,10 @@ void KineticTrace::polyFit() {
 		int err = gsl_linalg_LU_decomp( &gslM.matrix, gslP, &s );
 		
 		for( r=0; r<rows; r++ ) {
+			if( polyMat[r]->rows==0 ) {
+				continue;
+					// can't polyfit this row, see "row%d_derivative_only"
+			}
 			double b[6];
 			b[0] = getColPtr(c+0)[r];
 			b[1] = getColPtr(c+1)[r];
@@ -819,7 +833,7 @@ double KineticTrace::getElemSLERP( double _time, int row ) {
 	if( rows == 0 || cols == 0 ) {
 		return 0.0;
 	}
-	if( polyMat.count != rows || polyMat[0]->cols != cols-2 || polyMat[0]->rows != 6 ) {
+	if( polyMat.count != rows || polyMat[row]->cols != cols-2 || polyMat[row]->rows != 6 ) {
 		return getElemLERP( _time, row );
 	}
 
@@ -840,7 +854,7 @@ double KineticTrace::getElemSLERP( double _time, int row ) {
 		}
 		else {
 			// SLERP
-			assert( polyMat.count == rows && polyMat[0]->cols == cols-2 && polyMat[0]->rows == 6 );
+			assert( polyMat.count == rows && polyMat[row]->cols == cols-2 && polyMat[row]->rows == 6 );
 
 			double startTime = time[col+0];
 			double deltaTime = time[col+1] - startTime;
@@ -1587,6 +1601,18 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 		computeOCMixsteps( pVecs, system->getPLength() );
 	}
 	zprofEnd();
+	
+	// Potentially copy derivative info into data section on a per-row basis
+	// if the [DERIV] command is present in the observable expression.
+	for( i=0; i<traceOC.rows; i++ ) {
+		char *obs = observableInstructions[ i ];
+		if( !strncmp( obs, "[DERIV]", 7 ) ) {
+			traceOC.copyDerivsToData( i );
+		}
+		else {
+			traceOC.properties.del( ZTmpStr("row%d_derivative_only",i) );
+		}
+	}
 
 	// DO a polyFit on the observable trace such that SLERPS can be performed
 	// whereever desired.  Should this be an option?  Is it expensive?
@@ -4470,8 +4496,8 @@ void KineticSystem::updateTemperatureAmplitudesFromReferenceFit( FitData *fd ) {
 	
 
 int isReservedWord( char *symbolBegin, int len ) {
-	char *fns[]  = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC" };
-	int fnLens[] = {3, 2, 3, 3, 4, 4, 4, 4};
+	char *fns[]  = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC", "DERIV" };
+	int fnLens[] = {3, 2, 3, 3, 4, 4, 4, 4, 5};
 	int count = sizeof( fns ) / sizeof( fns[0] );
 	for( int i=0; i<count; i++ ) {
 		if( len == fnLens[i] && !strncmp( fns[i], symbolBegin, len ) ) {
@@ -6560,6 +6586,10 @@ int KineticVMCodeOC::compile() {
 		char *dst = (char *)malloc( strlen(src) + 1 );
 		char *d = dst;
 		char *s = src;
+		if( !strncmp( s, "[DERIV]", 7 ) ) {
+			s += 7;
+			// skip special command to use time-derivative of this obs
+		}
 		while( *s && !err ) {
 			if( *s != ' ' && *s != '\t' && *s != '\r' && *s != '\n' && (*s != '>' || s != src) ) {
 					// (*s != '>' || s != src) : > is legal as first char only, but not compiled
@@ -6766,6 +6796,10 @@ int KineticVMCodeOG::compile() {
 		char *dst = (char *)malloc( strlen(src) + 1 );
 		char *d = dst;
 		char *s = src;
+		if( !strncmp( s, "[DERIV]", 7 ) ) {
+			s += 7;
+				// skip special command to use time-derivative of this obs
+		}
 		while( *s ) {
 			if( *s != ' ' && *s != '\t' && *s != '\r' && *s != '\n' && (*s != '>' || s != src) ) {
 				// (*s != '>' || s != src) : > is legal as first char only, but not compiled

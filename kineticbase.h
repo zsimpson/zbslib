@@ -206,6 +206,10 @@ struct KineticTrace {
 	void copyRow(  KineticTrace &src, int srcRow, int dstRow, int copyTime );
 		// Copy row from src to our data, optionally copying time.
 		// We should be prealloc to match col-dims of src
+	
+	void copyDerivsToData( int row );
+		// copies our own deriv to data and sets property to prevent polyFit on
+		// that row.
 
 	void stealOwnershipFrom( KineticTrace &src );
 		// Copies over the data from src and replaces it with zeros
