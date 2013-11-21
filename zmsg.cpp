@@ -221,7 +221,7 @@ void zMsgDispatch( double time ) {
 
 	zMsgDispatching++;
 
-	#define ZMSG_REQUEUE_SIZE (30)
+	#define ZMSG_REQUEUE_SIZE (64)
 	ZMsg *requeue[ZMSG_REQUEUE_SIZE];
 	int requeueCount = 0;
 
