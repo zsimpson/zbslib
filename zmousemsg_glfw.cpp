@@ -18,7 +18,11 @@
 // OPERATING SYSTEM specific includes:
 #include "wingl.h"
 // SDK includes:
+#ifdef __APPLE__
+#include "OpenGL/gl.h"
+#else
 #include "GL/gl.h"
+#endif
 #include "GL/glfw.h"
 // STDLIB includes:
 #include "stdio.h"

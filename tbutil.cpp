@@ -353,7 +353,11 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 
 #include "wingl.h"
 // SDK includes:
+#ifdef __APPLE__
+#include "OpenGL/gl.h"
+#else
 #include "GL/gl.h"
+#endif
 #include "zglfont.h"
 void spectralLegend( float _x, float _y, float width, float height, float minVal, float maxVal, int invert  ) {
 	// SPECTRAL COLOR LEGEND in 2d

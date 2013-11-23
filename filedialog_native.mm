@@ -3,28 +3,30 @@
 #import <Cocoa/Cocoa.h>
 
 void GetOpenFileFromUser( char *title, char *path, char *file, char *ext, char *okMsg, char *cancelMsg ) {
-	int i; 
+	
+	
+	int i;
+	NSOpenPanel* openDlg = [NSOpenPanel openPanel];
 	
 	NSString *nsPath = [NSString stringWithUTF8String:path];
 	NSString *nsFile = [NSString stringWithUTF8String:file];
 	NSString *nsExt  = [NSString stringWithUTF8String:ext];
-
-	NSOpenPanel* openDlg = [NSOpenPanel openPanel];
-
-	[openDlg setCanChooseFiles:YES];
-	[openDlg setResolvesAliases: true]; 
-	[openDlg setAllowsMultipleSelection: false]; 
-	[openDlg setCanChooseDirectories:NO];
-	[openDlg setRequiredFileType:nsExt];
 	
+	[openDlg setCanChooseFiles:YES];
+	[openDlg setResolvesAliases: true];
+	[openDlg setAllowsMultipleSelection: false];
+	[openDlg setCanChooseDirectories:NO];
+	[openDlg setAllowedFileTypes:[NSArray arrayWithObjects:nsExt, nil]];
+	[openDlg setDirectoryURL:[NSURL fileURLWithPath:nsPath]];
+
 	// Display the dialog.  If the OK button was pressed,
 	// process the files.
-	if ( [openDlg runModalForDirectory:nsPath file:nsFile ] == NSOKButton ) {
+	if ( [openDlg runModal] == NSOKButton ) {
 	    // Get an array containing the full filenames of all
 	    // files and directories selected.
-	    NSArray* files = [openDlg filenames];
-
-	    // Loop through all the files and process them: (for future possibility of 
+		NSArray* files = [openDlg URLs];
+		
+	    // Loop through all the files and process them: (for future possibility of
 		// multiple selection, which is disabled above)
 	    for( i = 0; i < [files count]; i++ ) {
         	NSString* fileName = [files objectAtIndex:i];
@@ -42,7 +44,9 @@ void GetOpenFileFromUser( char *title, char *path, char *file, char *ext, char *
 	}
 }
 
+
 void GetSaveFileFromUser( char *title, char *path, char *file, char *ext, char *okMsg, char *cancelMsg ) {
+	
 	int i;
 	NSSavePanel* saveDlg = [NSSavePanel savePanel];
 	
@@ -50,20 +54,17 @@ void GetSaveFileFromUser( char *title, char *path, char *file, char *ext, char *
 	NSString *nsFile = [NSString stringWithUTF8String:file];
 	NSString *nsExt  = [NSString stringWithUTF8String:ext];
 
-	[saveDlg setRequiredFileType:nsExt];
+	[saveDlg setAllowedFileTypes:[NSArray arrayWithObjects:nsExt, nil]];
+	[saveDlg setNameFieldStringValue:nsFile];
 
-	if ( [saveDlg runModalForDirectory:nsPath file:nsFile] == NSOKButton ) {
+	if ( [saveDlg runModal] == NSOKButton ) {
 	    // Get an array containing the full filenames of all
 	    // files and directories selected.
-	    NSArray* files = [saveDlg filenames];
-
-	    for( i = 0; i < [files count]; i++ ) {
-        	NSString* fileName = [files objectAtIndex:i];
-			if( okMsg ) {
-				const char *utf8 = [fileName fileSystemRepresentation];
-				zMsgQueue( "%s overwriteExisting=1 osx=1 filespec='%s'", okMsg, escapeQuotes( (char*)utf8 ) );
-					// on OSX, the confirm to overwrite existing files happens as part of the native dialog
-			}
+	    NSURL* file = [saveDlg URL];
+		if( okMsg ) {
+			const char *utf8 = [file fileSystemRepresentation];
+			zMsgQueue( "%s overwriteExisting=1 osx=1 filespec='%s'", okMsg, escapeQuotes( (char*)utf8 ) );
+				// on OSX, the confirm to overwrite existing files happens as part of the native dialog
 		}
 	}
 	else {
@@ -77,16 +78,21 @@ void chooseFileNative( char *title, char *path, int openingFile, char *okMsg, ch
 	
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSWindow *keyWindow = [NSApp keyWindow];
+	NSOpenGLContext *gl = [NSOpenGLContext currentContext];
 	
 	ZFileSpec fs( path );
 	
+	char dir[256];
+	strncpy( dir, fs.getDir(), 255 );
+	
 	if( openingFile ) {
-		GetOpenFileFromUser( title, path, fs.getFile(), fs.getExt(), okMsg, cancelMsg ); 
+		GetOpenFileFromUser( title, dir, fs.getFile(), fs.getExt(), okMsg, cancelMsg );
 	}
 	else {
-		GetSaveFileFromUser( title, path, fs.getFile(), fs.getExt(), okMsg, cancelMsg ); 
+		GetSaveFileFromUser( title, dir, fs.getFile(), fs.getExt(), okMsg, cancelMsg );
 	}
 	
+	[gl makeCurrentContext];
 	[keyWindow makeKeyWindow];
 	[[NSCursor arrowCursor] set];
 	[pool release];

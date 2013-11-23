@@ -39,8 +39,13 @@ ZUIEnable, ZUIDisable, ZUISelect, ZUIDeselect
 // OPERATING SYSTEM specific includes:
 #include "wingl.h"
 // SDK includes:
+#ifdef __APPLE__
+#include "OpenGL/gl.h"
+#include "OpenGL/glu.h"
+#else
 #include "GL/gl.h"
 #include "GL/glu.h"
+#endif
 // STDLIB includes:
 #include "assert.h"
 #include "string.h"
@@ -1487,7 +1492,7 @@ void ZUI::recurseRender( int whichDirtyRect ) {
 	glTranslatef( scrollX, scrollY, 0.f );
 
 	for( ZUI *o=headChild; o; o=o->nextSibling ) {
-		int attDepth1, attDepth2;
+		int attDepth1=0, attDepth2=0;
 		int matDepth1, matDepth2;
 
 		glGetIntegerv( GL_ATTRIB_STACK_DEPTH,    &attDepth1 );
@@ -1497,6 +1502,13 @@ void ZUI::recurseRender( int whichDirtyRect ) {
 
 		glGetIntegerv( GL_ATTRIB_STACK_DEPTH,    &attDepth2 );
 		glGetIntegerv( GL_MODELVIEW_STACK_DEPTH, &matDepth2 );
+		
+		if( matDepth1 != matDepth2 ) {
+			printf( "matDepth problem: matDepth1=%d, matDepth2=%d", matDepth1, matDepth2 );
+		}
+		if( attDepth1 != attDepth2 ) {
+			printf( "attDepth problem: attDepth1=%d, attDepth2=%d", attDepth1, attDepth2 );
+		}
 
 		assert( matDepth1 == matDepth2 );
 		assert( attDepth1 == attDepth2 );
