@@ -24,7 +24,7 @@ void GetOpenFileFromUser( char *title, char *path, char *file, char *ext, char *
 	if ( [openDlg runModal] == NSOKButton ) {
 	    // Get an array containing the full filenames of all
 	    // files and directories selected.
-		NSArray* files = [openDlg URLs];
+		NSArray* files = [openDlg filenames];
 		
 	    // Loop through all the files and process them: (for future possibility of
 		// multiple selection, which is disabled above)
@@ -60,9 +60,10 @@ void GetSaveFileFromUser( char *title, char *path, char *file, char *ext, char *
 	if ( [saveDlg runModal] == NSOKButton ) {
 	    // Get an array containing the full filenames of all
 	    // files and directories selected.
-	    NSURL* file = [saveDlg URL];
-		if( okMsg ) {
-			const char *utf8 = [file fileSystemRepresentation];
+        NSArray* files = [saveDlg filenames];
+        if( okMsg ) {
+            NSString* fileName = [files objectAtIndex:0];
+            const char *utf8 = [fileName fileSystemRepresentation];
 			zMsgQueue( "%s overwriteExisting=1 osx=1 filespec='%s'", okMsg, escapeQuotes( (char*)utf8 ) );
 				// on OSX, the confirm to overwrite existing files happens as part of the native dialog
 		}
