@@ -60,10 +60,10 @@ void GetSaveFileFromUser( char *title, char *path, char *file, char *ext, char *
 	if ( [saveDlg runModal] == NSOKButton ) {
 	    // Get an array containing the full filenames of all
 	    // files and directories selected.
-        NSArray* files = [saveDlg filenames];
-        if( okMsg ) {
-            NSString* fileName = [files objectAtIndex:0];
-            const char *utf8 = [fileName fileSystemRepresentation];
+		NSArray* files = [saveDlg filenames];
+		NSString* fileName = [files objectAtIndex:0];
+		if( okMsg ) {
+			const char *utf8 = [fileName fileSystemRepresentation];
 			zMsgQueue( "%s overwriteExisting=1 osx=1 filespec='%s'", okMsg, escapeQuotes( (char*)utf8 ) );
 				// on OSX, the confirm to overwrite existing files happens as part of the native dialog
 		}
