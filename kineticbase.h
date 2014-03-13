@@ -575,7 +575,7 @@ struct KineticExperiment {
 		// trace that may have been constructed from the vector of mixteps should be recomputed.
 		// see: int createMeasuredFromMixstepDataRefs()
 
-	#define MAX_MIX_STEPS (4)
+	#define MAX_MIX_STEPS (12)
 	Mixstep mixsteps[MAX_MIX_STEPS];
 
 	void mixstepInfo( int mixstep, double &startTime, double &endTime, double &dilution );
