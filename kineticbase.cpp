@@ -1212,9 +1212,9 @@ void KineticTrace::saveText( char *filename, int row, double stepSize ) {
 			}
 			else {
 				for( int c=0; c<cols; c++ ) {
-					ZTmpStr time("%g",time[c]);
-					ZTmpStr val("%g",getData( c, r ) );
-					sprintf( buf, "%15s%15s\n", time.s, val.s  );
+					ZTmpStr t("%g",time[c]);
+					ZTmpStr v("%g",getData( c, r ) );
+					sprintf( buf, "%15s%15s\n", t.s, v.s  );
 					fprintf( f, "%s", buf );
 				}
 			}
@@ -1340,6 +1340,8 @@ void KineticExperiment::clear( int retainMeasured /*=0*/) {
 	if( !retainMeasured ) {
 		measuredClear();
 	}
+	
+	titrationProfile.clear();
 
 	render_measured.clear();
 	render_traceC.clear();
@@ -2571,7 +2573,7 @@ int KineticExperiment::loadBinary( FILE *f, int byteswap ) {
 					}
 				}
 			}
-
+			
 			if( version == 20101112 ) {
 				// measuredTransform: a temporary (unreleased) dev feature that was backed out and not used.
 				int hasMeasuredTransform;

@@ -777,7 +777,13 @@ struct KineticExperiment {
 	
 	int measuredDataHasSigma();
 		// True if all measured traces have known sigma
-
+	
+	// Titration Profile
+	//------------------------------------------------------------
+	
+	KineticTrace titrationProfile;
+	virtual int loadTitrationProfile( char *filespec ) {}
+	
 	// Optional Threading
 	//------------------------------------------------------------
 

@@ -15,7 +15,7 @@ void GetOpenFileFromUser( char *title, char *path, char *file, char *ext, char *
 	[openDlg setCanChooseFiles:YES];
 	[openDlg setResolvesAliases: true];
 	[openDlg setAllowsMultipleSelection: false];
-	[openDlg setCanChooseDirectories:NO];
+	[openDlg setCanChooseDirectories:YES];
 	[openDlg setAllowedFileTypes:[NSArray arrayWithObjects:nsExt, nil]];
 	[openDlg setDirectoryURL:[NSURL fileURLWithPath:nsPath]];
 
