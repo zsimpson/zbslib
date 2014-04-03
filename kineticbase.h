@@ -1046,7 +1046,7 @@ struct KineticSystem {
 	int eCount() { return experiments.count; }
 		// count of experiments
 
-	int getMasterExperiments( ZTLVec< KineticExperiment* > &exps );
+	int getMasterExperiments( ZTLVec< KineticExperiment* > &exps, int plottedOnly=0 );
 		// populate list of the master experiments (those not slaved to
 		// another experiment, returning count added to list.
 	

@@ -5158,12 +5158,14 @@ void KineticSystem::simulate( int forceAllExp /* =1 */, int steps /* =-1 */) {
 
 }
 
-int KineticSystem::getMasterExperiments( ZTLVec< KineticExperiment* > &exps ) {
+int KineticSystem::getMasterExperiments( ZTLVec< KineticExperiment* > &exps, int plottedOnly ) {
 	int count = 0;
 	for( int i=0; i<experiments.count; i++ ) {
 		if( experiments[i]->slaveToExperimentId == -1 ) {
-			exps.add( experiments[i] );
-			count++;
+			if( !plottedOnly || experiments[i]->viewInfo.getI("expPlot",1) ) {
+				exps.add( experiments[i] );
+				count++;
+			}
 		}
 	}
 	return count;
