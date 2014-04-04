@@ -782,7 +782,7 @@ struct KineticExperiment {
 	//------------------------------------------------------------
 	
 	KineticTrace titrationProfile;
-	virtual int loadTitrationProfile( char *filespec ) {}
+	virtual int loadTitrationProfile( char *filespec ) { return 1; }
 	
 	// Optional Threading
 	//------------------------------------------------------------
