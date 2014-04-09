@@ -107,6 +107,10 @@ void ZUIPlot::render() {
 
 	float xmag = x1 - x0;
 	float ymag = y1 - y0;
+	if( ymag == 0 ) {
+		ymag = 0.01f;
+	}
+
 
 	float xd = xmag / myW;
 	float yd = ymag / myH;
