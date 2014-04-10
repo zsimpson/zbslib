@@ -840,7 +840,15 @@ double KineticTrace::getElemSLERP( double _time, int row ) {
 	assert( polyMat.count > 0 );
 
 	int col = findClosestTimeCol( _time );
-
+	if( col == cols - 2 ) {
+		return getElemLERP( _time, row );
+			// can't slerp with only two points
+	}
+	else if( col == cols - 1 ) {
+		return data[col*rows+row];
+			// or with one.
+	}
+	
 	double t1, t2, t3, t4, t5;
 	t1 = _time;
 	t2 = t1 * _time;
@@ -848,36 +856,31 @@ double KineticTrace::getElemSLERP( double _time, int row ) {
 	t4 = t3 * _time;
 	t5 = t4 * _time;
 
-	if( col >= 0 ) {
-		if( col == cols-1 ) {
-			return data[col*rows+row];
-		}
-		else {
-			// SLERP
-			assert( polyMat.count == rows && polyMat[row]->cols == cols-2 && polyMat[row]->rows == 6 );
+	if( col >= 0  && col < cols-2 ) {
+		// SLERP
+		assert( polyMat.count == rows && polyMat[row]->cols == cols-2 && polyMat[row]->rows == 6 );
 
-			double startTime = time[col+0];
-			double deltaTime = time[col+1] - startTime;
-			double timeMinusStartTime = _time - startTime;
+		double startTime = time[col+0];
+		double deltaTime = time[col+1] - startTime;
+		double timeMinusStartTime = _time - startTime;
 
-			// The last two points don't have their own coefficients
-			//col = min( col, col-3 );
-			col = min( col, cols-3 );
+		// The last two points don't have their own coefficients
+		//col = min( col, col-3 );
+		col = min( col, cols-3 );
 
-			// @TODO: Thre are actually overlapping answers to this
-			// should I take the mean of the two approximations?
+		// @TODO: Thre are actually overlapping answers to this
+		// should I take the mean of the two approximations?
 
-			ZMat &coefs = *polyMat[row];
-			double a0 = coefs.getD( 0, col );
-			double a1 = coefs.getD( 1, col );
-			double a2 = coefs.getD( 2, col );
-			double a3 = coefs.getD( 3, col );
-			double a4 = coefs.getD( 4, col );
-			double a5 = coefs.getD( 5, col );
+		ZMat &coefs = *polyMat[row];
+		double a0 = coefs.getD( 0, col );
+		double a1 = coefs.getD( 1, col );
+		double a2 = coefs.getD( 2, col );
+		double a3 = coefs.getD( 3, col );
+		double a4 = coefs.getD( 4, col );
+		double a5 = coefs.getD( 5, col );
 
-			// @TODO: Factor all these multiplies
-			return a0 + a1*t1 + a2*t2 + a3*t3 + a4*t4 + a5*t5;
-		}
+		// @TODO: Factor all these multiplies
+		return a0 + a1*t1 + a2*t2 + a3*t3 + a4*t4 + a5*t5;
 	}
 
 	assert( ! "getElemSLERP out of bounds" );
