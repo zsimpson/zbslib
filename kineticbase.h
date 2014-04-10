@@ -24,7 +24,9 @@
 // defined.
 	#include "kinfit_v2.h"		// for fitDataContext, until v2 fitting is replaced with v3
 	#include "fitdata.h"		// for FitData, until v2 fitting is replaced with v3
-										// these are both members of KineticExperiment!
+								// these are both members of KineticExperiment!
+	extern int Kin_simSmoothing3;
+		// use 3rd order interpolation instead of 5th
 // @ZBSENDIF
 #else
 // during fitting, residuals may be normalized in various ways:
@@ -247,6 +249,11 @@ struct KineticTrace {
 		// scale the data by the passed value; return the cumulative scale,
 		// which is also stored in our properties hash.
 
+	void cubicFit();
+	double getElemCubic( double time, int row );
+	void getColCubic( double time, double *_vector );
+		// analogs for polyFit using a cubic instead
+	
 	void polyFit();
 		// Compute the coefficients for each triplet set of points col-2 total
 

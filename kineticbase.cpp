@@ -703,7 +703,110 @@ double KineticTrace::scaleData( double scale ) {
 	return newScale;
 }
 
+void KineticTrace::cubicFit() {
+	// This is the analog to polyFit, but uses a 3rd order instead of 5th,
+	// two points at time instead of three.
+	int r,c;
+	if( cols < 2 ) {
+		return;
+	}
+	
+	// ALLOCATE polyMats
+	polyMat.clear();
+	for( r=0; r<rows; r++ ) {
+		int _rows=2, _cols=cols-1;
+		if( properties.getI( ZTmpStr("row%d_derivative_only") )) {
+			_rows = _cols = 0;
+		}
+		polyMat.add( new ZMat(_rows, _cols, zmatF64) );
+	}
+
+	double y0,y1,d0,d1,a,b,x0,x1;
+	for( c=0; c<cols-1; c++ ) {
+		x0 = getTime(c+0);
+		x1 = getTime(c+1);
+		for( r=0; r<rows; r++ ) {
+			y0 = getColPtr(c+0)[r];
+			y1 = getColPtr(c+1)[r];
+			d0 = getDerivColPtr(c+0)[r];
+			d1 = getDerivColPtr(c+1)[r];
+			a =  d0 * (x1-x0) - (y1-y0);
+			b = -d1 * (x1-x0) + (y1-y0);
+			polyMat[r]->putD( 0, c, a );
+			polyMat[r]->putD( 1, c, b );
+		}
+	}
+}
+
+double KineticTrace::getElemCubic( double _time, int row ) {
+	if( rows == 0 || cols == 0 ) {
+		return 0.0;
+	}
+	if( polyMat.count != rows || polyMat[row]->cols != cols-1 || polyMat[row]->rows != 2 ) {
+		return getElemLERP( _time, row );
+	}
+	assert( polyMat.count > 0 );
+	
+	int col = findClosestTimeCol( _time );
+	assert( col >= 0 && col < cols );
+
+	if( col == cols - 1 ) {
+		return data[col*rows+row];
+	}
+
+	double t,t0,t1,oneMinusT;
+	t0 = getTime( col );
+	t1 = getTime( col + 1 );
+	t = ( _time - t0 ) / ( t1 - t0 );
+	oneMinusT = 1.0 - t;
+	
+	double y0,y1;
+	y0 = getColPtr(col+0)[row];
+	y1 = getColPtr(col+1)[row];
+	
+	double a,b;
+	a = polyMat[row]->getD( 0, col );
+	b = polyMat[row]->getD( 1, col );
+	
+	return (oneMinusT * y0) + (t * y1) + t * oneMinusT * (a * oneMinusT + b * t);
+}
+
+void KineticTrace::getColCubic( double _time, double *_vector ) {
+	if( polyMat.count == 0 ) {
+		getColLERP( _time, _vector );
+		return;
+	}
+	
+	int col = findClosestTimeCol( _time );
+	assert( col >= 0 && col < cols );
+	
+	if( col == cols - 1 ) {
+		memcpy( _vector, &data[col*rows], sizeof(double) * rows );
+		// or with one.
+		return;
+	}
+	
+	double t,t0,t1,oneMinusT;
+	t0 = getTime( col );
+	t1 = getTime( col + 1 );
+	t = ( _time - t0 ) / ( t1 - t0 );
+	oneMinusT = 1.0 - t;
+	
+	double *y0,*y1;
+	y0 = getColPtr(col+0);
+	y1 = getColPtr(col+1);
+	
+	for( int i=0; i<rows; i++ ) {
+		double a,b;
+		a = polyMat[i]->getD( 0, col );
+		b = polyMat[i]->getD( 1, col );
+		_vector[i] = (oneMinusT * y0[i]) + (t * y1[i]) + t * oneMinusT * (a * oneMinusT + b * t);
+		
+	}
+}
+
 void KineticTrace::polyFit() {
+	if( Kin_simSmoothing3 ) return cubicFit();
 	int r, c;
 
 	// @TODO: I think that this can be significantly optimized
@@ -826,6 +929,8 @@ void KineticTrace::polyFit() {
 }
 
 double KineticTrace::getElemSLERP( double _time, int row ) {
+	if( Kin_simSmoothing3 ) return getElemCubic( _time, row );
+	
 //	assert( polyMat.count > 0 );
 		// Everything should now slerp and this requires that the poly mat was setup
 		// Eventually this assert can go away to deal with the case that
@@ -888,6 +993,8 @@ double KineticTrace::getElemSLERP( double _time, int row ) {
 }
 
 void KineticTrace::getColSLERP( double _time, double *_vector ) {
+	if( Kin_simSmoothing3 ) return getColCubic(_time, _vector );
+	
 	if( polyMat.count == 0 ) {
 		// There was not enough points to polyfit so we revert to LERP
 		getColLERP( _time, _vector );
@@ -897,6 +1004,15 @@ void KineticTrace::getColSLERP( double _time, double *_vector ) {
 	assert( polyMat.count > 0 );
 
 	int col = findClosestTimeCol( _time );
+	if( col == cols - 2 ) {
+		return getColLERP( _time, _vector );
+			// can't slerp with only two points
+	}
+	else if( col == cols - 1 ) {
+		memcpy( _vector, &data[col*rows], sizeof(double) * rows );
+			// or with one.
+		return;
+	}
 
 	double t1, t2, t3, t4, t5;
 	t1 = _time;
@@ -905,36 +1021,31 @@ void KineticTrace::getColSLERP( double _time, double *_vector ) {
 	t4 = t3 * _time;
 	t5 = t4 * _time;
 
-	if( col >= 0 ) {
-		if( col == cols-1 ) {
-			memcpy( _vector, &data[col*rows], sizeof(double) * rows );
-		}
-		else {
-			// SLERP
-			assert( polyMat.count == rows && polyMat[0]->cols == cols-2 && polyMat[0]->rows == 6 );
+	if( col >= 0 && col < cols-2 ) {
+		// SLERP
+		assert( polyMat.count == rows && polyMat[0]->cols == cols-2 && polyMat[0]->rows == 6 );
 
-			double startTime = time[col+0];
-			double deltaTime = time[col+1] - startTime;
-			double timeMinusStartTime = _time - startTime;
+		double startTime = time[col+0];
+		double deltaTime = time[col+1] - startTime;
+		double timeMinusStartTime = _time - startTime;
 
-			// The last two points don't have their own coefficients
-			col = max( 0, min( col, cols-3 ) );
+		// The last two points don't have their own coefficients
+		col = max( 0, min( col, cols-3 ) );
 
-			for( int i=0; i<rows; i++ ) {
-				// @TODO: Thre are actually overlapping answers to this
-				// should I take the mean of the two approximations?
+		for( int i=0; i<rows; i++ ) {
+			// @TODO: Thre are actually overlapping answers to this
+			// should I take the mean of the two approximations?
 
-				ZMat &coefs = *polyMat[i];
-				double a0 = coefs.getD( 0, col );
-				double a1 = coefs.getD( 1, col );
-				double a2 = coefs.getD( 2, col );
-				double a3 = coefs.getD( 3, col );
-				double a4 = coefs.getD( 4, col );
-				double a5 = coefs.getD( 5, col );
+			ZMat &coefs = *polyMat[i];
+			double a0 = coefs.getD( 0, col );
+			double a1 = coefs.getD( 1, col );
+			double a2 = coefs.getD( 2, col );
+			double a3 = coefs.getD( 3, col );
+			double a4 = coefs.getD( 4, col );
+			double a5 = coefs.getD( 5, col );
 
-				// @TODO: Factor all these multiplies
-				_vector[i] = a0 + a1*t1 + a2*t2 + a3*t3 + a4*t4 + a5*t5;
-			}
+			// @TODO: Factor all these multiplies
+			_vector[i] = a0 + a1*t1 + a2*t2 + a3*t3 + a4*t4 + a5*t5;
 		}
 	}
 	else {
