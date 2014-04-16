@@ -1950,6 +1950,8 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 					if( dataTime == 0.0 ) {
 						traceOC.getMinNonzeroTime( dataTime, 1 );
 							// at how small a time should we start the data gen?
+						double minLogTime = pow( 10, viewInfo.getI( "minLogscaleExponentX", -3 ) );
+						dataTime = min( dataTime, minLogTime );
 					}
 					double logStart = log10( dataTime );
 					double logEnd = log10( dataTime + duration );
