@@ -15,6 +15,9 @@
 
 #include "gsl_vector_double.h"
 	// for gsl_vector support by FitData
+#include "gsl_matrix_double.h"
+	// for gsl_matrix in Levmar experiments with FitData
+
 
 struct KineticSystem;
 struct KineticExperiment;
@@ -283,6 +286,24 @@ struct FitData {
 		// we need to provide an error vector to the existing fitting function callbacks.
 		// This gets alloc'd and used only by this minimizer-based fitting. tfb jan2013
 
+	// Experimental for Levmar fitter:
+	//--------------------------------
+
+	double gslFuncSSE;
+	gsl_vector *gslParams;
+	gsl_vector *gslFunEval;
+	gsl_vector *gslErrTermsOut;
+	gsl_matrix *gslJacTermsOut;
+		// The Levmar fitter uses plain vectors of double to store function output
+		// and jacobian computations.  To allow the use of all the function and jacobian
+		// callbacks that were written for use with GSL, we're going to maintain gsl
+		// structures per fit for use by an adaptor function in kin_fit_levmar.cpp
+
+	int nFunEval;
+	int nJacEval;
+		// how many calls ?
+
+
 
 	// Member Functions
 	//-----------------
@@ -295,6 +316,7 @@ struct FitData {
 	void saveBinary( FILE *f );
 
 	void clear();
+	void clearLevmarData();
 	void clearParams();
 	void clearFitSystem();
 
@@ -345,9 +367,18 @@ struct FitData {
 	void updateParamsFromGslParamVector( const gsl_vector *v );
 		// update the current bestFitValue of our params from the values
 		// contained in the passed gsl_vector, keep tracking also of the last value.
+
+	int createParamVectorFromParams( double **pv, int useBestFitValue=0 );
+	//void updateParamsFromParamVector( const double *v );
+		// these two are exactly analagous to the two above, but operate on
+		// standard arrays of double rather than gsl_vector, for levmar experiments.
 		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
+
+	double *getDataToFit( double *vec=0 );
+		// utility written for levmar experiment to return an array of double
+		// that holds the total data to be fit. (nDataPointsToFit length)
 	
 	void print();
 		// debug printf

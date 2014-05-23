@@ -192,6 +192,12 @@ FitData::FitData() {
 	fitSystem = 0;
 	jacSystem = 0;
 	bOwnsFitSystem = false;
+
+	gslParams = 0;
+	gslFunEval = 0;
+	gslErrTermsOut = 0;
+	gslJacTermsOut = 0;
+
 	clear();
 }
 
@@ -201,6 +207,12 @@ FitData::FitData( FitData &_copy ) {
 	fitSystem = 0;
 	jacSystem = 0;
 	bOwnsFitSystem = false;
+
+	gslParams = 0;
+	gslFunEval = 0;
+	gslErrTermsOut = 0;
+	gslJacTermsOut = 0;
+
 	copy( _copy );
 }
 
@@ -344,6 +356,25 @@ void FitData::saveBinary( FILE *f ) {
 
 //----------------------------------------
 
+void FitData::clearLevmarData() {
+	if( gslParams ) {
+		gsl_vector_free( gslParams );
+		gslParams = 0;
+	}
+	if( gslFunEval ) {
+		gsl_vector_free( gslFunEval );
+		gslFunEval = 0;
+	}
+	if( gslErrTermsOut ) {
+		gsl_vector_free( gslErrTermsOut );
+		gslErrTermsOut = 0;
+	}
+	if( gslJacTermsOut ) {
+		gsl_matrix_free( gslJacTermsOut );
+		gslJacTermsOut = 0;
+	}
+}
+
 void FitData::clear() {
 	fitInProgress	= 0;
 	clearFitSystem();
@@ -359,6 +390,8 @@ void FitData::clear() {
 	sigma				= 0.f;
 	covar.clear();
 	properties.clear();
+
+	clearLevmarData();
 }
 
 //----------------------------------------
@@ -821,6 +854,87 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 
 //----------------------------------------
 
+int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0*/ ) {
+	// Identical to GSL version except we're allocating and populating
+	// a double* array instead of a gsl_vector.
+
+	int vecsize   = paramCount( PT_ANY, 1 );
+	if( !vecsize ) {
+		return 0;
+	}
+	double *v = (double*)malloc( vecsize * sizeof(double) );
+//	gsl_vector *v = gsl_vector_alloc( vecsize );
+
+	int count = 0;
+	ParamInfo *pi;
+	int totalParams = params.activeCount();
+	for( int i=0; i<totalParams; i++ ) {
+		pi = paramByOrder( i );
+		if( pi->usedByFit() ) {
+			pi->fitIndex = count;
+			fitIndexToParamInfo.bputP( &count, sizeof(count), pi );
+			double value = useBestFitValues ? pi->bestFitValue : pi->initialValue;
+			if( pi->constraint == CT_NONNEGATIVE ) {
+				value = sqrt( value );
+					// ye olde "fit the square root and square the output trick"
+			}
+			if( pi->constraint == CT_NONPOSITIVE ) {
+				value = sqrt( fabs(value) );
+					// ye olde "fit the square root and square the output trick"
+			}
+
+			v[ count++ ] = value;
+			//gsl_vector_set( v, count++, value );
+		}
+		else {
+			pi->fitIndex = -1;
+		}
+	}
+	assert( count == vecsize );
+	
+	*pv = v;
+	return count;
+}
+
+//----------------------------------------
+/*
+void FitData::updateParamsFromParamVector( const double *v ) {
+	// Identical to GSL version except we're pulling from a double array
+
+	int nParams = paramCount( PT_ANY );
+	for( int i=0; i<nParams; i++ ) {
+		ParamInfo *pi = paramByOrder( i );
+		assert( pi );
+		pi->bestFitValueLast = pi->bestFitValue;
+		if( pi->usedByFit() ) {
+			//pi->bestFitValue = gsl_vector_get( v, pi->fitIndex );
+			pi->bestFitValue = v[ pi->fitIndex ];
+			if( pi->constraint == CT_NONNEGATIVE ) {
+				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
+					// ye olde "fit the square root and square the output trick"
+			}
+			if( pi->constraint == CT_NONPOSITIVE ) {
+				pi->bestFitValue = -(pi->bestFitValue * pi->bestFitValue);
+					// ye olde "fit the square root and square the output trick"
+			}
+
+			else if( pi->bestFitValue < 0 ) {
+				//trace( "negative parameter %s: %g\n", pi->paramName, pi->bestFitValue );
+			}
+		}
+		else {
+			// not used by fit, so bestFit is just initial
+			pi->bestFitValue = pi->initialValue;
+		}
+	}
+	computeRatioParamValues();
+		// update ratio params to reflect new values
+}
+*/
+
+
+//----------------------------------------
+
 void FitData::computeRatioParamValues() {
 	for( ZHashWalk p( params ); p.next(); ) {
 		ParamInfo *pi = *((ParamInfo**)p.val);
@@ -831,6 +945,33 @@ void FitData::computeRatioParamValues() {
 			pi->covarStdError2x = pi->ratio * master->covarStdError2x; 
 		}
 	}
+}
+
+//----------------------------------------
+
+double* FitData::getDataToFit( double *vec /*=0*/ ) {
+	assert( fitSystem && nDataPointsToFit && "no fitSystem or data in getDataToFit" );
+	if( !vec ) {
+		vec = (double*)malloc( sizeof(double) * nDataPointsToFit );
+		assert( vec && "alloc failed in getDataToFit" );
+	}
+	int count=0;
+	for( int n=0; n<fitSystem->experiments.count; n++ ) {
+		KineticExperiment & trialExp = *(fitSystem->experiments[n]);
+		fitDataContext * fdc = &trialExp.fdc;
+		for( int j=0; j<fdc->observablesCount; j++ ) {
+			if( !fdc->fitObservable[j] ) continue;	
+
+			int row = fdc->dataRow[j];
+			int col = fdc->stepOffset[j];
+
+			for( int i=0; i<fdc->numSteps[j]; i++, col++ ) {
+				vec[count++] = fdc->dataToFit[j]->getData( col, row );
+			}
+		}
+	}
+	assert( count == nDataPointsToFit && "wrong count in getDataToFit" );
+	return vec;
 }
 
 //----------------------------------------
