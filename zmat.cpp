@@ -597,7 +597,7 @@ void ZMat::dump() {
 
 	for( int r=0; r<rows; r++ ) {
 		for( int c=0; c<cols; c++ ) {
-			sprintf( buf+strlen(buf), "%3.2le ", fetchD(r,c) );
+			sprintf( buf+strlen(buf), "%+3.2le ", fetchD(r,c) );
 		}
 		sprintf( buf+strlen(buf), "\n" );
 	}
