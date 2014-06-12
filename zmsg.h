@@ -89,7 +89,7 @@ extern ZHashTable *zMsgDispatchInstructions;
 
 // ZMsg Queue
 //--------------------------------------------------------------------
-#define ZMSG_QUEUE_SIZE (8192)
+#define ZMSG_QUEUE_SIZE (32768)
 extern ZMsg *zMsgs[ZMSG_QUEUE_SIZE];
 extern int zMsgCount;
 extern int zMsgAlloc;
