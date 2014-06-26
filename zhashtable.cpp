@@ -2185,7 +2185,8 @@ void ZHashTable::putEncoded( char *string ) {
 	int state = _START_KEY;
 	char *buf = NULL;
 	int bufCount;
-	const int BUFSIZE = 4096;
+	const int BUFSIZE = 8192;
+		// tfb doubled this on 27 june 2014
 	char key[BUFSIZE];
 	char val[BUFSIZE];
 
