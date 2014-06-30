@@ -117,18 +117,21 @@ void zplatformGetTextFromClipboard( char *buffer, int size ) {
 	err = PasteboardGetItemIdentifier( theClipboard, 1, &itemID );
 	err = PasteboardCopyItemFlavors( theClipboard, itemID, &flavorTypeArray );
 	flavorCount = CFArrayGetCount( flavorTypeArray );// 5
-	
+
+	#define OSX_FLAVORTEXT_SIZE 16384
+	static char flavorText[OSX_FLAVORTEXT_SIZE];
+		// not threadsafe
+
 	for( CFIndex flavorIndex = 0; flavorIndex < flavorCount; flavorIndex++ ) {
 		CFStringRef             flavorType;
 		CFDataRef               flavorData;
 		CFIndex                 flavorDataSize;
-		char                    flavorText[256];
 		
 		flavorType = (CFStringRef)CFArrayGetValueAtIndex( flavorTypeArray, flavorIndex );
 		if (UTTypeConformsTo(flavorType, CFSTR("public.utf8-plain-text"))) {
 			err = PasteboardCopyItemFlavorData( theClipboard, itemID, flavorType, &flavorData );
 			flavorDataSize = CFDataGetLength( flavorData );
-			flavorDataSize = (flavorDataSize<254) ? flavorDataSize : 254;
+			flavorDataSize = (flavorDataSize<OSX_FLAVORTEXT_SIZE-2) ? flavorDataSize : OSX_FLAVORTEXT_SIZE-2;
 			for( short dataIndex = 0; dataIndex <= flavorDataSize; dataIndex++ ) {
 				char byte = *(CFDataGetBytePtr( flavorData ) + dataIndex);
 				flavorText[dataIndex] = byte;

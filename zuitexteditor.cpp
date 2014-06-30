@@ -956,8 +956,8 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 			zMsgUsed();
 			if( !getI("disabled") ) {
 				// COPY from clipboard
-				char buffer[4096];
-				zplatformGetTextFromClipboard( buffer, 4096 );
+				char buffer[16384];
+				zplatformGetTextFromClipboard( buffer, 16384 );
 				dst = (char *)alloca( len + strlen(buffer) + 1 );
 				memcpy( dst, src, markBeg );
 				strcpy( &dst[markBeg], buffer );
