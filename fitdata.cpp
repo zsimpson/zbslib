@@ -834,13 +834,15 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
 					// ye olde "fit the square root and square the output trick"
 			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
+			else if( pi->constraint == CT_NONPOSITIVE ) {
 				pi->bestFitValue = -(pi->bestFitValue * pi->bestFitValue);
 					// ye olde "fit the square root and square the output trick"
 			}
-
-			else if( pi->bestFitValue < 0 ) {
-				//trace( "negative parameter %s: %g\n", pi->paramName, pi->bestFitValue );
+			else if( pi->constraint == CT_BOX && pi->type == PT_RATE ) {
+				extern int Kin_fitLevmarLn;
+				if( Kin_fitLevmarLn ) {
+					pi->bestFitValue = exp( pi->bestFitValue );
+				}
 			}
 		}
 		else {
@@ -880,8 +882,11 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 			fitIndexToParamInfo.bputP( &count, sizeof(count), pi );
 			double value = useBestFitValues ? pi->bestFitValue : pi->initialValue;
 
-			l[ count ] = DBL_MIN;
-			u[ count ] = DBL_MAX;
+			#define KIN_MAXPARAMVALUE 1e15
+				// duplicated from _kin.h
+
+			l[ count ] = -KIN_MAXPARAMVALUE;
+			u[ count ] = +KIN_MAXPARAMVALUE;
 
 			if( pi->constraint == CT_NONNEGATIVE ) {
 				value = sqrt( value );
@@ -895,6 +900,14 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 				// initially we are just using this to mean non-negative, but
 				// implemented via box-constraints instead of square root trick.
 				l[ count ] = 0;
+				extern int Kin_fitLevmarLn;
+				if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
+					assert( value != 0.0 && "log of 0 rate!");
+					value = log( value );
+					l[count] = log( 1e-15 );
+						// setting a negative lower bound like this slows the fit noticeably.
+					u[count] = log( u[count] );
+				}
 			}
 
 			v[ count++ ] = value;

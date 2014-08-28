@@ -46,6 +46,7 @@ enum paramType { PT_ANY=-1, PT_GENERIC=0, PT_RATE, PT_OUTPUTFACTOR, PT_VOLTCOEF,
 	// Factors are multipliers applied in experiment observable equations.
 	// We may add initial concentrations, etc.  Generic is used for analytic 
 	// fit params that are amplitudes, etc.
+#define NON_NEGATIVE_CHOICE (Kin_fitWhichFitter==1 && Kin_fitLevmarBox ? CT_BOX : CT_NONNEGATIVE)
 
 enum constraintType { CT_NONE=0, CT_NONNEGATIVE, CT_RATIO, CT_FIXED, CT_NONPOSITIVE, CT_BOX };	
 	// NOTE: If you add new types, add them to the END!  Numeric equivalents of these
