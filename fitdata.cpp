@@ -854,16 +854,21 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 
 //----------------------------------------
 
-int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0*/ ) {
+int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub ) {
 	// Identical to GSL version except we're allocating and populating
 	// a double* array instead of a gsl_vector.
+	//
+	// And now we've added optionally populating the upper and lower bounds vectors
+
+	int useBestFitValues = false;
 
 	int vecsize   = paramCount( PT_ANY, 1 );
 	if( !vecsize ) {
 		return 0;
 	}
 	double *v = (double*)malloc( vecsize * sizeof(double) );
-//	gsl_vector *v = gsl_vector_alloc( vecsize );
+	double *l = (double*)malloc( vecsize * sizeof(double) );
+	double *u = (double*)malloc( vecsize * sizeof(double) );
 
 	int count = 0;
 	ParamInfo *pi;
@@ -874,17 +879,25 @@ int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0
 			pi->fitIndex = count;
 			fitIndexToParamInfo.bputP( &count, sizeof(count), pi );
 			double value = useBestFitValues ? pi->bestFitValue : pi->initialValue;
+
+			l[ count ] = DBL_MIN;
+			u[ count ] = DBL_MAX;
+
 			if( pi->constraint == CT_NONNEGATIVE ) {
 				value = sqrt( value );
 					// ye olde "fit the square root and square the output trick"
 			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
+			else if( pi->constraint == CT_NONPOSITIVE ) {
 				value = sqrt( fabs(value) );
 					// ye olde "fit the square root and square the output trick"
 			}
+			else if( pi->constraint == CT_BOX ) {
+				// initially we are just using this to mean non-negative, but
+				// implemented via box-constraints instead of square root trick.
+				l[ count ] = 0;
+			}
 
 			v[ count++ ] = value;
-			//gsl_vector_set( v, count++, value );
 		}
 		else {
 			pi->fitIndex = -1;
@@ -893,6 +906,9 @@ int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0
 	assert( count == vecsize );
 	
 	*pv = v;
+	*lb = l;
+	*ub = u;
+
 	return count;
 }
 

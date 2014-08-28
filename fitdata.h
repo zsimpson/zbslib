@@ -47,7 +47,7 @@ enum paramType { PT_ANY=-1, PT_GENERIC=0, PT_RATE, PT_OUTPUTFACTOR, PT_VOLTCOEF,
 	// We may add initial concentrations, etc.  Generic is used for analytic 
 	// fit params that are amplitudes, etc.
 
-enum constraintType { CT_NONE=0, CT_NONNEGATIVE, CT_RATIO, CT_FIXED, CT_NONPOSITIVE };	
+enum constraintType { CT_NONE=0, CT_NONNEGATIVE, CT_RATIO, CT_FIXED, CT_NONPOSITIVE, CT_BOX };	
 	// NOTE: If you add new types, add them to the END!  Numeric equivalents of these
 	// types are saved to disk and when loaded you'll mess things up otherwise.
 
@@ -98,6 +98,13 @@ struct ParamInfo {
 	double ratio;
 		// in the case of CT_RATIO constrained params, the above tells us what param
 		// we are held in ratio to, and what the ratio is..
+
+	double lb;
+		// in the case of CT_BOX, this is the lower bound.
+		// NOT YET USED
+	double ub;
+		// in the case of CT_BOX, this is the upper bound.
+		// NOT YET USED
 
 	int fitIndex;
 		// the index of this parameter in the list of parameters that are 
@@ -368,10 +375,10 @@ struct FitData {
 		// update the current bestFitValue of our params from the values
 		// contained in the passed gsl_vector, keep tracking also of the last value.
 
-	int createParamVectorFromParams( double **pv, int useBestFitValue=0 );
-	//void updateParamsFromParamVector( const double *v );
-		// these two are exactly analagous to the two above, but operate on
-		// standard arrays of double rather than gsl_vector, for levmar experiments.
+	int createParamVectorFromParams( double **pv, double **lb, double **ub );
+		// analogous to GSL version above, but populates standard arrays of double
+		// rather than gsl_vector, for levmar experiments.  Also populates upper
+		// and lower bounds values based on param contraints.
 		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
