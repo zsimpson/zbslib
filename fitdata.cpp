@@ -925,6 +925,62 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 	return count;
 }
 
+int FitData::fitIndexByParamName( char *name ) {
+	// inefficient, but not a bottleneck.
+	ParamInfo *pi;
+	for( ZHashWalk p( params ); p.next(); ) {
+		pi = *((ParamInfo**)p.val);
+		if( !strcmp( name, pi->paramName) ) {
+			return pi->fitIndex;
+		}
+	}
+	return -2;
+		// -1 means param name found, but not being fit. -2 means param name not found.
+}
+
+int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
+	// At present this is built specifically to allow thermodynamic-cycle
+	// constraints to be enforced.  A prerequsite to this is that when we
+	// deal with rate constants during a fit, we are really dealing with ln(rate),
+	// which means our TC constraint can be expressed as a linear equation.
+	//
+	// e.g.  if A -> B -> C -> A is a cycle
+	//
+	// then  k+1/k-1 * k+2/k-2 * k+3/k-3 = 1
+	//
+	// taking ln of each side, and omitting it below, since we
+	// now assume we are always fitting ln(rate), we obtain:
+	//
+	// k+1 - k-1  +  k+2 - k-2  +  k+3 - k-3 = 0
+	//
+	// That is our linear equality constraint for this cycle.
+	//
+	//
+	// As a first step, we will build a matrix A and vector b that
+	// enforce precisely this cycle.
+
+	int nLEConstraints = 1;
+	int nFittedParams = paramCount( PT_ANY, 1 );
+
+	double *b = (double*)calloc( nLEConstraints, sizeof(double) );
+	double *A = (double*)calloc( nLEConstraints * nFittedParams, sizeof(double) );
+
+	memset( b, 0, nLEConstraints*sizeof(double) );
+	memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
+
+	A[ fitIndexByParamName("k+1") ] = +1;
+	A[ fitIndexByParamName("k-1") ] = -1;
+	A[ fitIndexByParamName("k+2") ] = +1;
+	A[ fitIndexByParamName("k-2") ] = -1;
+	A[ fitIndexByParamName("k+3") ] = +1;
+	A[ fitIndexByParamName("k-3") ] = -1;
+
+	*_A = A;
+	*_b = b;
+
+	return nLEConstraints;
+}
+
 //----------------------------------------
 /*
 void FitData::updateParamsFromParamVector( const double *v ) {

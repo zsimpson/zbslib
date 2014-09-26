@@ -380,6 +380,13 @@ struct FitData {
 		// analogous to GSL version above, but populates standard arrays of double
 		// rather than gsl_vector, for levmar experiments.  Also populates upper
 		// and lower bounds values based on param contraints.
+
+	int fitIndexByParamName( char *name );
+	int createLinearEqualityConstraintsMatrix( double **A, double **b );
+		// A is a coeficient matrix, b a vector of constants.  Together
+		// These define a set of linear equations on the parameters
+		// which a fit may be constrained by.  The rows of each indicate
+		// the number of equations.  A will have nFittedParams columns.
 		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
