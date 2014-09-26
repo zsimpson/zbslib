@@ -958,6 +958,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	//
 	// As a first step, we will build a matrix A and vector b that
 	// enforce precisely this cycle.
+	// TODO: work from arbitrary definition of cycle(s)
 
 	int nLEConstraints = 1;
 	int nFittedParams = paramCount( PT_ANY, 1 );
@@ -979,6 +980,23 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	*_b = b;
 
 	return nLEConstraints;
+}
+
+double FitData::computeThermodynamicCycleProduct() {
+	// as a diagnostic aid, compute the product of eq constants around a cycle.
+	// This is done for the test ABC cycle.
+	// TODO: use arbitrary cycle(s)
+	double product = 1.0;
+
+	product *= paramByName( "k+1" )->bestFitValue;
+	product *= paramByName( "k+2" )->bestFitValue;
+	product *= paramByName( "k+3" )->bestFitValue;
+
+	product /= paramByName( "k-1" )->bestFitValue;
+	product /= paramByName( "k-2" )->bestFitValue;
+	product /= paramByName( "k-3" )->bestFitValue;
+
+	return product;
 }
 
 //----------------------------------------
