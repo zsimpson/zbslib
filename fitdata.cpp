@@ -19,6 +19,8 @@
 #include "fitdata.h"
 #include "zendian.h"
 #include "kineticbase.h"
+#include "zstr.h"
+#include "ztmpstr.h"
 
 #include "string.h"
 #include "math.h"
@@ -938,6 +940,7 @@ int FitData::fitIndexByParamName( char *name ) {
 		// -1 means param name found, but not being fit. -2 means param name not found.
 }
 
+#if 0
 int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	// At present this is built specifically to allow thermodynamic-cycle
 	// constraints to be enforced.  A prerequsite to this is that when we
@@ -981,6 +984,91 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 
 	return nLEConstraints;
 }
+
+#else
+int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
+	// At present this is built specifically to allow thermodynamic-cycle
+	// constraints to be enforced.  A prerequsite to this is that when we
+	// deal with rate constants during a fit, we are really dealing with ln(rate),
+	// which means our TC constraint can be expressed as a linear equation.
+	//
+	// e.g.  if A -> B -> C -> A is a cycle
+	//
+	// then  k+1/k-1 * k+2/k-2 * k+3/k-3 = 1
+	//
+	// taking ln of each side, and omitting it below, since we
+	// now assume we are always fitting ln(rate), we obtain:
+	//
+	// k+1 - k-1  +  k+2 - k-2  +  k+3 - k-3 = 0
+	//
+	// That is our linear equality constraint for this cycle.
+	//
+	//
+
+	int nLEConstraints = 0;
+	int nFittedParams = paramCount( PT_ANY, 1 );
+
+	char *cycles = properties.getS( "fitLevmarCycleText" );
+	ZStr *zcycles = 0;
+	if( cycles && *cycles ) {
+		zcycles = zStrSplitByChar( ',', cycles );
+		nLEConstraints = zStrCount(zcycles);
+	}
+	
+	if( nLEConstraints > 0 ) {
+		double *b = (double*)calloc( nLEConstraints, sizeof(double) );
+		double *A = (double*)calloc( nLEConstraints * nFittedParams, sizeof(double) );
+
+		memset( b, 0, nLEConstraints*sizeof(double) );
+		memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
+
+		for( int i=0; i<nLEConstraints; i++ ) {
+			char *cycle = zcycles->getS( i );
+			printf( "Processing constraint cycle '%s'\n", cycle );
+
+			ZStr *reagents = zStrSplitByChar( '-', cycle );
+			int rcount = zStrCount( reagents );
+
+			for( int j=0; j<rcount; j++ ) {
+				char *r1 = reagents->getS(j);
+				char *r2 = j==rcount-1 ? reagents->getS(0) : reagents->getS(j+1);
+				int reaction = fitSystem->reactionGetFromReagents( r1, 0, r2, 0 );
+				if( reaction != -1 ) {
+					reaction /= 2;
+						// because each reaction is really two, forward and reverse.
+					int fi1 = fitIndexByParamName( ZTmpStr("k+%d",reaction+1 ) );
+					int fi2 = fitIndexByParamName( ZTmpStr("k-%d",reaction+1 ) );
+
+					printf( "Reagents '%s'-'%s' are reaction '%d', with fi %d,%d\n", r1, r2, reaction, fi1, fi2 );
+
+					A[ i*nFittedParams + fi1 ] = +1;
+					A[ i*nFittedParams + fi2 ] = -1;
+				}
+				else {
+					printf( "ERROR: no reaction was found for reagents '%s','%s' in cycle '%s'\n", r1, r2, cycle );
+					free( b );
+					free( A );
+					nLEConstraints = 0;	
+				}
+			}
+
+		}
+
+
+		zStrDelete( zcycles );
+
+		*_A = A;
+		*_b = b;
+	}
+
+	if( nLEConstraints == 0 ) {
+		*_A = 0;
+		*_b = 0;
+	}
+
+	return nLEConstraints;
+}
+#endif
 
 double FitData::computeThermodynamicCycleProduct() {
 	// as a diagnostic aid, compute the product of eq constants around a cycle.

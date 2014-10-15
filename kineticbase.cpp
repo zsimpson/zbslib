@@ -3818,6 +3818,24 @@ int KineticSystem::reactionGetReagents( int reaction, char **in0, char **in1, ch
 	return count;
 }
 
+int KineticSystem::reactionGetFromReagents( char *_in0, char *_in1, char *_out0, char *_out1 ) {
+	// return which reaction matches the ins/outs (any order) if found.
+	int in0 = reagentFindByName( _in0 );
+	int in1 = reagentFindByName( _in1 );
+	int out0 = reagentFindByName( _out0 );
+	int out1 = reagentFindByName( _out1 );
+	
+	for( int i=0; i<reactions.count; i++ ) {
+		Reaction &r = reactions[i];
+		if( (r.in0 == in0 && r.in1 == in1) || (r.in0 == in1 && r.in1 == in0) ) {
+			if( (r.out0 == out0 && r.out1 == out1) || (r.out0 == out1 && r.out1 == out0) ) {
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
 
 char * KineticSystem::reactionGetRateName( int reaction ) {
 	// This function assumes that forward and backward reactions occur in matched

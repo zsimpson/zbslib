@@ -989,6 +989,10 @@ struct KineticSystem {
 	int reactionGetReagents( int reaction, char **in0, char **in1, char **out0, char **out1 );
 		// point passed values to names of reagents, or null if reagent slot == -1.
 
+	int reactionGetFromReagents( char *in0, char *in1, char *out0, char *out1 );
+		// return reaction index if reaction is found matching reagents.
+
+
 	static char *reactionGetRateName( int reaction );
 		// return a string that names the rate which controls this reaction, e.g. "k+1"
 
