@@ -1026,32 +1026,89 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 			char *cycle = zcycles->getS( i );
 			printf( "Processing constraint cycle '%s'\n", cycle );
 
+			double b_constant = 0.0;
+
 			ZStr *reagents = zStrSplitByChar( '-', cycle );
 			int rcount = zStrCount( reagents );
-
+			
+			char r1[32],r2[32];
 			for( int j=0; j<rcount; j++ ) {
-				char *r1 = reagents->getS(j);
-				char *r2 = j==rcount-1 ? reagents->getS(0) : reagents->getS(j+1);
-				int reaction = fitSystem->reactionGetFromReagents( r1, 0, r2, 0 );
+				strcpy( r1, reagents->getS(j) );
+				char *r1b = 0;
+				if( (r1b=strchr(r1,'+')) ) {
+					*r1b=0;
+					r1b++;
+				}
+				char *_r2 = j==rcount-1 ? reagents->getS(0) : reagents->getS(j+1);
+				strcpy( r2, _r2 );
+				char *r2b = 0;
+				if( (r2b=strchr(r2,'+')) ) {
+					*r2b=0;
+					r2b++;
+				}
+				int reaction = fitSystem->reactionGetFromReagents( r1, r1b, r2, r2b );
 				if( reaction != -1 ) {
+					// If reaction is odd, it means the reaction we described with our reagents
+					// is actually the *reverse* reaction, which means we'll need to adjust the
+					// signs of terms in the constraint matrix.
+					int reverse = reaction & 1;
 					reaction /= 2;
-						// because each reaction is really two, forward and reverse.
-					int fi1 = fitIndexByParamName( ZTmpStr("k+%d",reaction+1 ) );
-					int fi2 = fitIndexByParamName( ZTmpStr("k-%d",reaction+1 ) );
+						// because forward and reverse reactions have different indices, but our rate
+						// parameters are named using a single index and signs.
+					ZTmpStr p1("k+%d",reaction+1 );
+					ZTmpStr p2("k-%d",reaction+1 );
+					int fi1 = fitIndexByParamName( p1 );
+					int fi2 = fitIndexByParamName( p2 );
 
-					printf( "Reagents '%s'-'%s' are reaction '%d', with fi %d,%d\n", r1, r2, reaction, fi1, fi2 );
+					printf( "Reagents ('%s','%s') -> ('%s','%s') are %sreaction '%d', with fi %d,%d\n", r1, r1b, r2, r2b, reverse ? "REVERSE " : "", reaction, fi1, fi2 );
 
-					A[ i*nFittedParams + fi1 ] = +1;
-					A[ i*nFittedParams + fi2 ] = -1;
+					if( fi1 >= 0 ) {
+						A[ i*nFittedParams + fi1 ] = reverse ? -1 : +1;
+					}
+					else {
+						// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
+						ParamInfo *p = paramByName( p1 );
+						assert( p->constraint == CT_FIXED );
+							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
+							// implement ratio constraints using a linear equality constraint with ln(rates).
+						double value = p->initialValue;
+						printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
+						value = log(value);						
+						if( reverse ) {
+							value = -value;
+						}
+						b_constant -= value;
+					}
+
+					if( fi2 > 0 ) {
+						A[ i*nFittedParams + fi2 ] = reverse ? +1 : -1;
+					}
+					else {
+						// If the rate is not being fit, then add it to both sides of the contraint equation:
+						ParamInfo *p = paramByName( p2 );
+						assert( p->constraint == CT_FIXED );
+							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
+							// implement ratio constraints using a linear equality constraint with ln(rates).
+						double value = p->initialValue;
+						printf( "adding %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
+						value = log(value);
+						if( reverse ) {
+							value = -value;
+						}
+						b_constant += value;
+					}
 				}
 				else {
-					printf( "ERROR: no reaction was found for reagents '%s','%s' in cycle '%s'\n", r1, r2, cycle );
+					printf( "ERROR: no reaction was found for reagents ('%s','%s') -> ('%s','%s') in cycle '%s'\n", r1, r1b, r2, r2b, cycle );
 					free( b );
 					free( A );
 					nLEConstraints = 0;	
+					break;
 				}
 			}
 
+			printf( "Setting b[i] to %g for LEConstraint #%d\n", b_constant, i );
+			b[i] = b_constant;
 		}
 
 
