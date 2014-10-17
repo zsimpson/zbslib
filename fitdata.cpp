@@ -1028,24 +1028,41 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 
 			double b_constant = 0.0;
 
-			ZStr *reagents = zStrSplitByChar( '-', cycle );
+			ZStr *reagents = zStrSplitByChar( '=', cycle );
 			int rcount = zStrCount( reagents );
 			
+
 			char r1[32],r2[32];
-			for( int j=0; j<rcount; j++ ) {
+			for( int j=0; j<rcount-1; j++ ) {
 				strcpy( r1, reagents->getS(j) );
 				char *r1b = 0;
 				if( (r1b=strchr(r1,'+')) ) {
 					*r1b=0;
 					r1b++;
 				}
-				char *_r2 = j==rcount-1 ? reagents->getS(0) : reagents->getS(j+1);
-				strcpy( r2, _r2 );
+				strcpy( r2, reagents->getS(j+1) );
 				char *r2b = 0;
 				if( (r2b=strchr(r2,'+')) ) {
 					*r2b=0;
 					r2b++;
 				}
+
+				// Remove any redundant reagents (e.g. E+S=>F+S is really E=>F)
+				// There can be at most 1 redundant pair.
+				if( !strcmp( r1, r2 ) ) { 
+					*r1 = *r2 = 0;
+				}
+				else if( r2b && !strcmp( r1, r2b ) ) {
+					*r1 = *r2b = 0;
+				}
+				else if( r1b && !strcmp( r1b, r2 ) ) {
+					*r1b = *r2 = 0;
+				}
+				else if( r1b && r2b && !strcmp( r1b, r2b ) ) {
+					*r1b = *r2b = 0;
+				}
+
+
 				int reaction = fitSystem->reactionGetFromReagents( r1, r1b, r2, r2b );
 				if( reaction != -1 ) {
 					// If reaction is odd, it means the reaction we described with our reagents
@@ -1127,19 +1144,31 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 }
 #endif
 
-double FitData::computeThermodynamicCycleProduct() {
+double FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b ) {
 	// as a diagnostic aid, compute the product of eq constants around a cycle.
-	// This is done for the test ABC cycle.
-	// TODO: use arbitrary cycle(s)
+	// This is done only for the first cycle defined.
 	double product = 1.0;
 
-	product *= paramByName( "k+1" )->bestFitValue;
-	product *= paramByName( "k+2" )->bestFitValue;
-	product *= paramByName( "k+3" )->bestFitValue;
+	int nFittedParams = paramCount( PT_ANY, 1 );
+	for( int i=0; i<nFittedParams; i++ ) {
+		if( A[i] == 1.0 ) {
+			product *= paramByFitIndex( i )->bestFitValue;			
+		}
+		else if( A[i] == -1.0 ) {
+			product /= paramByFitIndex( i )->bestFitValue;				
+		}
+		else if( A[i] == 0.0 ) {
+			// not used in linear constraint
+		}
+		else {
+			assert( false );
+				// sanity check; all coefs should be 1, -1, or 0
+		}
+	}
 
-	product /= paramByName( "k-1" )->bestFitValue;
-	product /= paramByName( "k-2" )->bestFitValue;
-	product /= paramByName( "k-3" )->bestFitValue;
+	// For params that were not fit, they will be accumulated int the constant b.
+	//
+	product /= exp(b[0]);
 
 	return product;
 }

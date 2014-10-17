@@ -387,7 +387,7 @@ struct FitData {
 		// These define a set of linear equations on the parameters
 		// which a fit may be constrained by.  The rows of each indicate
 		// the number of equations.  A will have nFittedParams columns.
-	double computeThermodynamicCycleProduct();
+	double computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b );
 		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
