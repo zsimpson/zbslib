@@ -21,6 +21,7 @@
 #include "kineticbase.h"
 #include "zstr.h"
 #include "ztmpstr.h"
+#include "zmathtools.h"
 
 #include "string.h"
 #include "math.h"
@@ -901,13 +902,13 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 			else if( pi->constraint == CT_BOX ) {
 				// initially we are just using this to mean non-negative, but
 				// implemented via box-constraints instead of square root trick.
-				l[ count ] = 0;
+				l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
+				u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );
 				extern int Kin_fitLevmarLn;
 				if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
 					assert( value != 0.0 && "log of 0 rate!");
 					value = log( value );
-					l[count] = log( 1e-15 );
-						// setting a negative lower bound like this slows the fit noticeably.
+					l[count] = log( max(1e-15, l[count]) );
 					u[count] = log( u[count] );
 				}
 			}
