@@ -847,6 +847,12 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 					pi->bestFitValue = exp( pi->bestFitValue );
 				}
 			}
+			else if( pi->constraint == CT_BOXSR ) {
+				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
+				extern int Kin_fitLevmarLn;
+				assert( !Kin_fitLevmarLn && "can't fit ln(rates) with boxsr contraints" );
+			}
+
 		}
 		else {
 			// not used by fit, so bestFit is just initial
@@ -911,6 +917,13 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 					l[count] = log( max(1e-15, l[count]) );
 					u[count] = log( u[count] );
 				}
+			}
+			else if( pi->constraint == CT_BOXSR ) {
+				value = sqrt( value );
+				l[ count ] = sqrt( properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 ) );
+				u[ count ] = sqrt( properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE ) );
+				extern int Kin_fitLevmarLn;
+				assert( !Kin_fitLevmarLn && "can't fit ln(rates) with boxsr constraint" );
 			}
 
 			v[ count++ ] = value;
