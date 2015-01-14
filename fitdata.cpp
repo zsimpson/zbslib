@@ -1111,7 +1111,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						b_constant -= value;
 					}
 
-					if( fi2 > 0 ) {
+					if( fi2 >= 0 ) {
 						A[ i*nFittedParams + fi2 ] = reverse ? +1 : -1;
 					}
 					else {
