@@ -311,6 +311,27 @@ class ZTLPVec {
 		return count-1;
 	}
 
+	/* (tfb) I added these but then didn't need them.
+	int addUniq( T *t ) {
+		for( int i=0; i<count; i++ ) {
+			if( vec[i] == t ) {
+				return i;
+			}
+		}
+		return add( t );		
+	}
+
+	int addUniqString( T *t ) {
+		// A handy 'specialization' in the case T=char and vec holds 0-terminated strings. (tfb)
+		for( int i=0; i<count; i++ ) {
+			if( !strcmp( t, vec[i] ) ) {
+				return i;
+			}
+		}
+		return add( t );
+	}
+	*/
+
 	void push( T *t ) {
 		add( t );
 	}
@@ -422,7 +443,7 @@ class ZTLPVec {
 		for( int i=0; i<count; i++ ) {
 			vec[i] = strdup( t.vec[i] );
 		}
-	}
+	}	
 
 	void stealOwnershipFrom( ZTLPVec<T> &src ) {
 		clear();
