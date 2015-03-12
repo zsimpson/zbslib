@@ -1410,6 +1410,85 @@ void zglTexRect( float x0, float y0, float x1, float y1, float u0, float v0, flo
 	glEnd();
 }
 
+void zglRoundedRect( float x0, float y0, float x1, float y1, float radius, int filled ) {
+	// draw filled founded rect using triangle fan, comments/design in terms
+	// of 1st quadrant coordinates, p0=bottom-left, p1=top-right.
+
+	#define ZRR_NUM_POINTS 8
+		// points to put on the rounded curved sections
+
+	if( x0 > x1) {
+		float t = x0;
+		x0 = x1;
+		x1 = t;
+	}
+	if( y0 > y1 ) {
+		float t = y0;
+		y0 = y1;
+		y1 = t;
+	}
+
+	float w = x1 - x0;
+	float h = y1 - y0;
+	float r2 = radius * 2.f;
+	float piStep = 3.1415924f / 2.f;
+	float thetaStep = piStep / (float)(ZRR_NUM_POINTS-1);
+
+	float c_x = (x0 + x1) / 2.f;
+	float c_y = (y0 + y1) / 2.f;
+
+	float x, y, v_x, v_y, theta;
+	glBegin( filled ? GL_TRIANGLE_FAN : GL_LINE_LOOP );
+		if( filled ) glVertex2f( c_x, c_y );
+
+		// top right
+		v_x = x1 - radius;
+		v_y = y1 - radius;
+		theta = piStep * 0;
+		for( int i=0; i<ZRR_NUM_POINTS; i++, theta += thetaStep ) {
+			x = radius * cosf(theta);
+			y = radius * sinf(theta); 
+			glVertex2f( v_x+x, v_y+y );
+		}
+
+		// top left
+		v_x = x0 + radius;
+		//v_y = y1 - radius;
+		theta = piStep * 1;
+		for( int i=0; i<ZRR_NUM_POINTS; i++, theta += thetaStep ) {
+			x = radius * cosf(theta);
+			y = radius * sinf(theta); 
+			glVertex2f( v_x+x, v_y+y );
+		}
+
+		// bottom left
+		//v_x = x0 + radius;
+		v_y = y0 + radius;
+		theta = piStep * 2;
+		for( int i=0; i<ZRR_NUM_POINTS; i++, theta += thetaStep ) {
+			x = radius * cosf(theta);
+			y = radius * sinf(theta); 
+			glVertex2f( v_x+x, v_y+y );
+		}
+
+		// bottom right
+		v_x = x1 - radius;
+		//v_y = y0 + radius;
+		theta = piStep * 3;
+		for( int i=0; i<ZRR_NUM_POINTS; i++, theta += thetaStep ) {
+			x = radius * cosf(theta);
+			y = radius * sinf(theta); 
+			glVertex2f( v_x+x, v_y+y );
+		}
+	
+		// back to top left
+		v_x = x1;
+		v_y = y1 - radius;
+		if( filled ) glVertex2f( v_x, v_y );
+	
+	glEnd();
+}
+
 void zglSetAlpha( float alpha ) {
 	float color[4];
 	glGetFloatv( GL_CURRENT_COLOR, color );

@@ -127,6 +127,9 @@ void zglQuadPatch( float l, float b, float w, float h, int divs );
 void zglTexRect( float x0, float y0, float x1, float y1, float u0=0.f, float v0=0.f, float u1=1.f, float v1=1.f );
 	// Draw a textured rectangle at z=0
 
+void zglRoundedRect( float x0, float y0, float x1, float y1, float r, int filled=1 );
+	// Draw a rounded rectangle at z=0
+
 float zglGetAspect();
 	// Returns w / h of the viewport
 
