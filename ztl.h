@@ -6,7 +6,6 @@
 #include "memory.h"
 #include "string.h"
 
-
 // ZTLVec is a growable vector used for objects for non-dynmically allocated objects
 //------------------------------------------------------------------------------------------------------------------
 
@@ -151,6 +150,14 @@ class ZTLVec {
 		count -= skip;
 	}
 
+	void rotateLeft( int index ) {
+		assert( index < count );
+		T* scratch = (T*)alloca( index * sizeof(T) );
+		memcpy( scratch, vec, index * sizeof(T) );
+		memcpy( vec, vec+index, (count-index)*sizeof(T) );
+		memcpy( vec+count-index, scratch, index * sizeof(T) );
+	}
+
 	void expandAllocBy( int howMuch ) {
 		int origAlloc = alloc;
 		alloc += howMuch;
@@ -212,17 +219,13 @@ class ZTLVec {
 		return -1;
 	}
 
-	// Find item; return -1 on fail
-	/*
-	int find( T &t ) {
+	void reverse() {
+		T* scratch = (T*)alloca(count * sizeof(T));
+		memcpy( scratch, vec, count * sizeof(T) );
 		for( int i=0; i<count; i++ ) {
-			if( vec[i] == t ) {
-				return i;
-			}
+			set( i, scratch[count-i-1] );
 		}
-		return -1;
 	}
-	*/
 };
 
 // ZTLPVec is a growable vector like ZTLVec but expects dynamically allocated objects
