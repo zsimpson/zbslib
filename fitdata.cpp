@@ -987,6 +987,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 }
 
 #else
+
 int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	// At present this is built specifically to allow thermodynamic-cycle
 	// constraints to be enforced.  A prerequsite to this is that when we
@@ -1009,10 +1010,10 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	int nLEConstraints = 0;
 	int nFittedParams = paramCount( PT_ANY, 1 );
 
-	char *cycles = properties.getS( "fitLevmarCycleText" );
+	char *cycles = properties.getS( "fitLevmarCycleDesc" );
 	ZStr *zcycles = 0;
 	if( cycles && *cycles ) {
-		zcycles = zStrSplitByChar( ',', cycles );
+		zcycles = zStrSplitByChar( ':', cycles );
 		nLEConstraints = zStrCount(zcycles);
 	}
 	
@@ -1029,42 +1030,11 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 
 			double b_constant = 0.0;
 
-			ZStr *reagents = zStrSplitByChar( '=', cycle );
-			int rcount = zStrCount( reagents );
+			ZStr *reactions = zStrSplitByChar( ',', cycle );
+			int rcount = zStrCount( reactions );
 			
-
-			char r1[32],r2[32];
-			for( int j=0; j<rcount-1; j++ ) {
-				strcpy( r1, reagents->getS(j) );
-				char *r1b = 0;
-				if( (r1b=strchr(r1,'+')) ) {
-					*r1b=0;
-					r1b++;
-				}
-				strcpy( r2, reagents->getS(j+1) );
-				char *r2b = 0;
-				if( (r2b=strchr(r2,'+')) ) {
-					*r2b=0;
-					r2b++;
-				}
-
-				// Remove any redundant reagents (e.g. E+S=>F+S is really E=>F)
-				// There can be at most 1 redundant pair.
-				if( !strcmp( r1, r2 ) ) { 
-					*r1 = *r2 = 0;
-				}
-				else if( r2b && !strcmp( r1, r2b ) ) {
-					*r1 = *r2b = 0;
-				}
-				else if( r1b && !strcmp( r1b, r2 ) ) {
-					*r1b = *r2 = 0;
-				}
-				else if( r1b && r2b && !strcmp( r1b, r2b ) ) {
-					*r1b = *r2b = 0;
-				}
-
-
-				int reaction = fitSystem->reactionGetFromReagents( r1, r1b, r2, r2b );
+			for( int j=0; j<rcount; j++ ) {
+				int reaction = reactions->getI( j );
 				if( reaction != -1 ) {
 					// If reaction is odd, it means the reaction we described with our reagents
 					// is actually the *reverse* reaction, which means we'll need to adjust the
@@ -1078,7 +1048,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					int fi1 = fitIndexByParamName( p1 );
 					int fi2 = fitIndexByParamName( p2 );
 
-					printf( "Reagents ('%s','%s') -> ('%s','%s') are %sreaction '%d', with fi %d,%d\n", r1, r1b, r2, r2b, reverse ? "REVERSE " : "", reaction, fi1, fi2 );
+					printf( "%sreaction '%d', with fi %d,%d\n", reverse ? "REVERSE " : "", reaction, fi1, fi2 );
 
 					if( fi1 >= 0 ) {
 						A[ i*nFittedParams + fi1 ] = reverse ? -1 : +1;
@@ -1086,6 +1056,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					else {
 						// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
 						ParamInfo *p = paramByName( p1 );
+						if( p->constraint == CT_RATIO ) return 0;
 						assert( p->constraint == CT_FIXED );
 							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
 							// implement ratio constraints using a linear equality constraint with ln(rates).
@@ -1104,6 +1075,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					else {
 						// If the rate is not being fit, then add it to both sides of the contraint equation:
 						ParamInfo *p = paramByName( p2 );
+						if( p->constraint == CT_RATIO ) return 0;
 						assert( p->constraint == CT_FIXED );
 							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
 							// implement ratio constraints using a linear equality constraint with ln(rates).
@@ -1117,7 +1089,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					}
 				}
 				else {
-					printf( "ERROR: no reaction was found for reagents ('%s','%s') -> ('%s','%s') in cycle '%s'\n", r1, r1b, r2, r2b, cycle );
+					printf( "ERROR: reaction value %d in cycle '%s'\n", reaction, cycle );
 					free( b );
 					free( A );
 					nLEConstraints = 0;	
@@ -1127,6 +1099,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 
 			printf( "Setting b[i] to %g for LEConstraint #%d\n", b_constant, i );
 			b[i] = b_constant;
+			zStrDelete( reactions );
 		}
 
 
