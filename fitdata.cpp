@@ -1034,7 +1034,8 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 			int rcount = zStrCount( reactions );
 			
 			for( int j=0; j<rcount; j++ ) {
-				int reaction = reactions->getI( j );
+				char *r = reactions->getS( j );
+ 				int reaction = atoi( reactions->getS( j ) );
 				if( reaction != -1 ) {
 					// If reaction is odd, it means the reaction we described with our reagents
 					// is actually the *reverse* reaction, which means we'll need to adjust the
@@ -1054,14 +1055,23 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						A[ i*nFittedParams + fi1 ] = reverse ? -1 : +1;
 					}
 					else {
-						// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
 						ParamInfo *p = paramByName( p1 );
-						if( p->constraint == CT_RATIO ) return 0;
-						assert( p->constraint == CT_FIXED );
-							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
-							// implement ratio constraints using a linear equality constraint with ln(rates).
-						double value = p->initialValue;
-						printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
+						assert( p->constraint == CT_FIXED || p->constraint == CT_RATIO );
+						double value;
+						if( p->constraint == CT_FIXED ) {
+							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
+							value = p->initialValue;
+							printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
+						}
+						else {
+							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
+							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
+							value = p->ratio;
+							printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );		
+							int f1_master = fitIndexByParamName( p->ratioMasterParamName );
+							assert( f1_master >= 0 );
+							A[ i*nFittedParams + f1_master ] += reverse ? -1 : +1;
+						}
 						value = log(value);						
 						if( reverse ) {
 							value = -value;
@@ -1073,14 +1083,23 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						A[ i*nFittedParams + fi2 ] = reverse ? +1 : -1;
 					}
 					else {
-						// If the rate is not being fit, then add it to both sides of the contraint equation:
+						// If the rate is not being fit, then add it to both sides of the constraint equation:
 						ParamInfo *p = paramByName( p2 );
-						if( p->constraint == CT_RATIO ) return 0;
-						assert( p->constraint == CT_FIXED );
-							// TODO: we ca't easily handle ratio contraints in this scenaria.  To do that, we should probably
-							// implement ratio constraints using a linear equality constraint with ln(rates).
-						double value = p->initialValue;
-						printf( "adding %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
+						double value;
+						if( p->constraint == CT_FIXED ) {
+							// If the rate is not being fit, then add it from boths sides of the constraint equation:
+							value = p->initialValue;
+							printf( "adding %slog(%g) to b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
+						}
+						else {
+							// If the rate is constrained to a multiple of another parameter, we similarly add the multiplier
+							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
+							value = p->ratio;
+							printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );		
+							int f2_master = fitIndexByParamName( p->ratioMasterParamName );
+							assert( f2_master >= 0 );
+							A[ i*nFittedParams + f2_master ] += reverse ? +1 : -1;
+						}
 						value = log(value);
 						if( reverse ) {
 							value = -value;
@@ -1125,18 +1144,14 @@ double FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A,
 
 	int nFittedParams = paramCount( PT_ANY, 1 );
 	for( int i=0; i<nFittedParams; i++ ) {
-		if( A[i] == 1.0 ) {
-			product *= paramByFitIndex( i )->bestFitValue;			
+		if( A[i] > 0.0 ) {
+			product *= pow( paramByFitIndex( i )->bestFitValue, A[i] );		
 		}
-		else if( A[i] == -1.0 ) {
-			product /= paramByFitIndex( i )->bestFitValue;				
+		else if( A[i] < 0.0 ) {
+			product /= pow( paramByFitIndex( i )->bestFitValue, -A[i] );				
 		}
 		else if( A[i] == 0.0 ) {
 			// not used in linear constraint
-		}
-		else {
-			assert( false );
-				// sanity check; all coefs should be 1, -1, or 0
 		}
 	}
 
