@@ -1016,6 +1016,9 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 		zcycles = zStrSplitByChar( ':', cycles );
 		nLEConstraints = zStrCount(zcycles);
 	}
+
+	int leIndex = 0;
+		// incremented each time a linear constraint added to the matrix.
 	
 	if( nLEConstraints > 0 ) {
 		double *b = (double*)calloc( nLEConstraints, sizeof(double) );
@@ -1049,10 +1052,10 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					int fi1 = fitIndexByParamName( p1 );
 					int fi2 = fitIndexByParamName( p2 );
 
-					printf( "%sreaction '%d', with fi %d,%d\n", reverse ? "REVERSE " : "", reaction, fi1, fi2 );
+					printf( "%s Edge with rates %s,%s\n", reverse ? "REVERSE " : "", p1.s, p2.s );
 
 					if( fi1 >= 0 ) {
-						A[ i*nFittedParams + fi1 ] = reverse ? -1 : +1;
+						A[ leIndex*nFittedParams + fi1 ] += reverse ? -1 : +1;
 					}
 					else {
 						ParamInfo *p = paramByName( p1 );
@@ -1061,16 +1064,16 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						if( p->constraint == CT_FIXED ) {
 							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
 							value = p->initialValue;
-							printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
+							//printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
 						}
 						else {
 							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
 							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
 							value = p->ratio;
-							printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );		
+							//printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );
 							int f1_master = fitIndexByParamName( p->ratioMasterParamName );
 							assert( f1_master >= 0 );
-							A[ i*nFittedParams + f1_master ] += reverse ? -1 : +1;
+							A[ leIndex*nFittedParams + f1_master ] += reverse ? -1 : +1;
 						}
 						value = log(value);						
 						if( reverse ) {
@@ -1080,7 +1083,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					}
 
 					if( fi2 >= 0 ) {
-						A[ i*nFittedParams + fi2 ] = reverse ? +1 : -1;
+						A[ leIndex*nFittedParams + fi2 ] += reverse ? +1 : -1;
 					}
 					else {
 						// If the rate is not being fit, then add it to both sides of the constraint equation:
@@ -1089,16 +1092,16 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						if( p->constraint == CT_FIXED ) {
 							// If the rate is not being fit, then add it from boths sides of the constraint equation:
 							value = p->initialValue;
-							printf( "adding %slog(%g) to b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
+							//printf( "adding %slog(%g) to b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
 						}
 						else {
 							// If the rate is constrained to a multiple of another parameter, we similarly add the multiplier
 							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
 							value = p->ratio;
-							printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );		
+							//printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );
 							int f2_master = fitIndexByParamName( p->ratioMasterParamName );
 							assert( f2_master >= 0 );
-							A[ i*nFittedParams + f2_master ] += reverse ? +1 : -1;
+							A[ leIndex*nFittedParams + f2_master ] += reverse ? +1 : -1;
 						}
 						value = log(value);
 						if( reverse ) {
@@ -1117,23 +1120,50 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 			}
 
 			printf( "Setting b[i] to %g for LEConstraint #%d\n", b_constant, i );
-			b[i] = b_constant;
+			b[leIndex] = b_constant;
 			zStrDelete( reactions );
+
+			// We have just populated a row of the constraints matrix.  But we need to ensure that
+			// this row is valid - it is possible that a linear contraint is degenerate because the
+			// parameters in question are fixed or cancel each other out due to ratio constraints -
+			// e.g. a forward and reverse rate held in ratio in the cycle will cancel.
+			int degenerate = 1;
+			printf( "LE Matrix Row for this edge: " );
+			for( int j=0; j<nFittedParams; j++ ) {
+				if( A[ leIndex*nFittedParams + j ] != 0 ) degenerate = 0;
+				printf( "%g ", A[ leIndex*nFittedParams + j ] );
+			}
+			printf( "\n" );
+			if( !degenerate ) {
+				leIndex++;
+					// the current constraint row is legit, write to the next row.
+			}
+			else {
+				memset(  A + leIndex * nFittedParams, 0, nFittedParams * sizeof(double)  );
+				b[leIndex] = 0.0;
+				printf( "The cycle %s is degenerate and will not be used.\n", cycle );
+			}
 		}
 
 
 		zStrDelete( zcycles );
-
-		*_A = A;
-		*_b = b;
+		
+		if( leIndex == 0 ) {
+			delete A;
+			delete b;
+			*_A = 0;
+			*_b = 0;
+		}
+		else {
+			*_A = A;
+			*_b = b;
+		}
 	}
-
-	if( nLEConstraints == 0 ) {
+	else {
 		*_A = 0;
 		*_b = 0;
 	}
-
-	return nLEConstraints;
+	return leIndex;
 }
 #endif
 
