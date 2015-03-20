@@ -1016,7 +1016,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 		zcycles = zStrSplitByChar( ':', cycles );
 		nLEConstraints = zStrCount(zcycles);
 	}
-
+	
 	int leIndex = 0;
 		// incremented each time a linear constraint added to the matrix.
 	
@@ -1026,11 +1026,11 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 
 		memset( b, 0, nLEConstraints*sizeof(double) );
 		memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
-
+		
 		for( int i=0; i<nLEConstraints; i++ ) {
 			char *cycle = zcycles->getS( i );
 			printf( "Processing constraint cycle '%s'\n", cycle );
-
+			
 			double b_constant = 0.0;
 
 			ZStr *reactions = zStrSplitByChar( ',', cycle );
@@ -1124,7 +1124,7 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 			zStrDelete( reactions );
 
 			// We have just populated a row of the constraints matrix.  But we need to ensure that
-			// this row is valid - it is possible that a linear contraint is degenerate because the
+			// this row is valid - it is possible that a linear constraint is degenerate because the
 			// parameters in question are fixed or cancel each other out due to ratio constraints -
 			// e.g. a forward and reverse rate held in ratio in the cycle will cancel.
 			int degenerate = 1;
@@ -1144,25 +1144,43 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 				printf( "The cycle %s is degenerate and will not be used.\n", cycle );
 			}
 		}
-
-
 		zStrDelete( zcycles );
-		
-		if( leIndex == 0 ) {
+
+		printf( "Linear Constraints:\n" );
+	 	for( int i=0; i<leIndex; i++ ) {
+			for( int j=0; j<nFittedParams; j++ ) {
+				printf( "%g\t", A[ nFittedParams * i + j ] );
+			}
+			printf( "= %g\n", b[i] );
+		}
+
+		if( leIndex == 0 || leIndex > nFittedParams ) {
 			delete A;
 			delete b;
 			*_A = 0;
 			*_b = 0;
+
+			if( leIndex != 0 ) {
+				printf( "Rejecting constraints, too many for fitted params.\n" );
+				leIndex = 0;
+					// set to 0 in the case we had more le constraints than params to fit,
+					// because we're likely specifying incompatible constraints e.g. in the
+					// example of fitspace.  How to handle this?  e.g. situation where you have
+					// a cycle and are only fitting 1 param -- if that param is in the cycle, 
+					// we can compute it based on thermo math - do we do this instead of 
+					// "fitting"?
+			}
 		}
 		else {
 			*_A = A;
 			*_b = b;
-		}
+		}		
 	}
 	else {
 		*_A = 0;
 		*_b = 0;
 	}
+	
 	return leIndex;
 }
 #endif
