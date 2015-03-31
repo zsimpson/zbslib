@@ -1061,6 +1061,13 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						ParamInfo *p = paramByName( p1 );
 						assert( p->constraint == CT_FIXED || p->constraint == CT_RATIO );
 						double value;
+						//
+						// If we are not being fit, it is either because we are CT_FIXED or CT_RATIO.  In the latter case,
+						// our parameter value is computed algebraically after the fit based on the value of a parameter
+						// that we are held in constant ration to.  However, in fitspace, it is possible that this
+						// "ratio master" is also being held fixed.  So in this latter case, we are also effectively fixed,
+						// and our value should be computed based on the ratio master fixed value.
+						//
 						if( p->constraint == CT_FIXED ) {
 							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
 							value = p->initialValue;
@@ -1069,11 +1076,19 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						else {
 							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
 							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
-							value = p->ratio;
 							//printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );
 							int f1_master = fitIndexByParamName( p->ratioMasterParamName );
-							assert( f1_master >= 0 );
-							A[ leIndex*nFittedParams + f1_master ] += reverse ? -1 : +1;
+							if( f1_master >= 0 ) {
+								// ratio master is being fit, so modify the coefficient for that param in the matrix
+								A[ leIndex*nFittedParams + f1_master ] += reverse ? -1 : +1;
+								value = p->ratio;
+							}
+							else {
+								// fitspace - the ratio master is being held fixed, so we are too, effectively, and must
+								// compute our value from the ratio master.
+								ParamInfo *master = paramByName( p->ratioMasterParamName );
+								value = p->ratio * master->initialValue;
+							}
 						}
 						value = log(value);						
 						if( reverse ) {
@@ -1097,11 +1112,16 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						else {
 							// If the rate is constrained to a multiple of another parameter, we similarly add the multiplier
 							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
-							value = p->ratio;
 							//printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );
 							int f2_master = fitIndexByParamName( p->ratioMasterParamName );
-							assert( f2_master >= 0 );
-							A[ leIndex*nFittedParams + f2_master ] += reverse ? +1 : -1;
+							if( f2_master >= 0 ) {
+								A[ leIndex*nFittedParams + f2_master ] += reverse ? +1 : -1;
+								value = p->ratio;
+							}
+							else {
+								ParamInfo *master = paramByName( p->ratioMasterParamName );
+								value = p->ratio * master->initialValue;
+							}
 						}
 						value = log(value);
 						if( reverse ) {
