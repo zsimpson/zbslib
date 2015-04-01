@@ -1029,7 +1029,6 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 		
 		for( int i=0; i<nLEConstraints; i++ ) {
 			char *cycle = zcycles->getS( i );
-			printf( "Processing constraint cycle '%s'\n", cycle );
 			
 			double b_constant = 0.0;
 
@@ -1052,8 +1051,6 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 					int fi1 = fitIndexByParamName( p1 );
 					int fi2 = fitIndexByParamName( p2 );
 
-					printf( "%s Edge with rates %s,%s\n", reverse ? "REVERSE " : "", p1.s, p2.s );
-
 					if( fi1 >= 0 ) {
 						A[ leIndex*nFittedParams + fi1 ] += reverse ? -1 : +1;
 					}
@@ -1071,7 +1068,6 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 						if( p->constraint == CT_FIXED ) {
 							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
 							value = p->initialValue;
-							//printf( "subtracting %slog(%g) from b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p1.s );
 						}
 						else {
 							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
@@ -1139,7 +1135,6 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 				}
 			}
 
-			printf( "Setting b[i] to %g for LEConstraint #%d\n", b_constant, i );
 			b[leIndex] = b_constant;
 			zStrDelete( reactions );
 
@@ -1148,12 +1143,12 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 			// parameters in question are fixed or cancel each other out due to ratio constraints -
 			// e.g. a forward and reverse rate held in ratio in the cycle will cancel.
 			int degenerate = 1;
-			printf( "LE Matrix Row for this edge: " );
+//			printf( "LE Matrix Row for this edge: " );
 			for( int j=0; j<nFittedParams; j++ ) {
 				if( A[ leIndex*nFittedParams + j ] != 0 ) degenerate = 0;
-				printf( "%g ", A[ leIndex*nFittedParams + j ] );
+//				printf( "%g ", A[ leIndex*nFittedParams + j ] );
 			}
-			printf( "\n" );
+//			printf( "\n" );
 			if( !degenerate ) {
 				leIndex++;
 					// the current constraint row is legit, write to the next row.
@@ -1166,13 +1161,13 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 		}
 		zStrDelete( zcycles );
 
-		printf( "Linear Constraints:\n" );
-	 	for( int i=0; i<leIndex; i++ ) {
-			for( int j=0; j<nFittedParams; j++ ) {
-				printf( "%g\t", A[ nFittedParams * i + j ] );
-			}
-			printf( "= %g\n", b[i] );
-		}
+		// printf( "Linear Constraints:\n" );
+	 // 	for( int i=0; i<leIndex; i++ ) {
+		// 	for( int j=0; j<nFittedParams; j++ ) {
+		// 		printf( "%g\t", A[ nFittedParams * i + j ] );
+		// 	}
+		// 	printf( "= %g\n", b[i] );
+		// }
 
 		if( leIndex == 0 || leIndex > nFittedParams ) {
 			delete A;
@@ -1523,6 +1518,7 @@ void FitSet::sort( FitData **data, int count ) {
 	// recursive quicksort; coded in favor of qsort to provide thread-safe
 	// access to (non-static) member data.
 
+	
 	int i, j;
 	FitData *t;
 
