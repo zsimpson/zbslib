@@ -960,52 +960,6 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	// That is our linear equality constraint for this cycle.
 	//
 	//
-	// As a first step, we will build a matrix A and vector b that
-	// enforce precisely this cycle.
-	// TODO: work from arbitrary definition of cycle(s)
-
-	int nLEConstraints = 1;
-	int nFittedParams = paramCount( PT_ANY, 1 );
-
-	double *b = (double*)calloc( nLEConstraints, sizeof(double) );
-	double *A = (double*)calloc( nLEConstraints * nFittedParams, sizeof(double) );
-
-	memset( b, 0, nLEConstraints*sizeof(double) );
-	memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
-
-	A[ fitIndexByParamName("k+1") ] = +1;
-	A[ fitIndexByParamName("k-1") ] = -1;
-	A[ fitIndexByParamName("k+2") ] = +1;
-	A[ fitIndexByParamName("k-2") ] = -1;
-	A[ fitIndexByParamName("k+3") ] = +1;
-	A[ fitIndexByParamName("k-3") ] = -1;
-
-	*_A = A;
-	*_b = b;
-
-	return nLEConstraints;
-}
-
-#else
-
-int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
-	// At present this is built specifically to allow thermodynamic-cycle
-	// constraints to be enforced.  A prerequsite to this is that when we
-	// deal with rate constants during a fit, we are really dealing with ln(rate),
-	// which means our TC constraint can be expressed as a linear equation.
-	//
-	// e.g.  if A -> B -> C -> A is a cycle
-	//
-	// then  k+1/k-1 * k+2/k-2 * k+3/k-3 = 1
-	//
-	// taking ln of each side, and omitting it below, since we
-	// now assume we are always fitting ln(rate), we obtain:
-	//
-	// k+1 - k-1  +  k+2 - k-2  +  k+3 - k-3 = 0
-	//
-	// That is our linear equality constraint for this cycle.
-	//
-	//
 
 	int nLEConstraints = 0;
 	int nFittedParams = paramCount( PT_ANY, 1 );
@@ -1198,32 +1152,33 @@ int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
 	
 	return leIndex;
 }
-#endif
 
-double FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b ) {
+void FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b, double *results ) {
 	// as a diagnostic aid, compute the product of eq constants around a cycle.
-	// This is done only for the first cycle defined.
-	double product = 1.0;
+    // This method just checks that the constraint was upheld.  See ThermodynamicCycles
+    // in kin_thermocycle.h for a similar computation based on all of the rates
+    // in the cycle.
 
 	int nFittedParams = paramCount( PT_ANY, 1 );
-	for( int i=0; i<nFittedParams; i++ ) {
-		if( A[i] > 0.0 ) {
-			product *= pow( paramByFitIndex( i )->bestFitValue, A[i] );		
+	for( int n=0; n<nLEConstraints; n++ ) {
+		double product = 1.0;
+		for( int i=0; i<nFittedParams; i++ ) {
+			double p = A[ n * nFittedParams + i ];
+			if( p > 0.0 ) {
+				product *= pow( paramByFitIndex( i )->bestFitValue, p );		
+			}
+			else if( p < 0.0 ) {
+				product /= pow( paramByFitIndex( i )->bestFitValue, -p );				
+			}
+			else if( p == 0.0 ) {
+				// not used in linear constraint
+			}
 		}
-		else if( A[i] < 0.0 ) {
-			product /= pow( paramByFitIndex( i )->bestFitValue, -A[i] );				
-		}
-		else if( A[i] == 0.0 ) {
-			// not used in linear constraint
-		}
+		results[ n ] = product / exp( b[n] );
+			// For params that were not fit, they will be accumulated in the constant b.
 	}
-
-	// For params that were not fit, they will be accumulated int the constant b.
-	//
-	product /= exp(b[0]);
-
-	return product;
 }
+#endif
 
 //----------------------------------------
 /*

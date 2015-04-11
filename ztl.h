@@ -479,7 +479,6 @@ class ZTLPVec {
 	}
 
 	// Find item; return -1 on fail
-	/*
 	int find( T *t ) {
 		for( int i=0; i<count; i++ ) {
 			if( vec[i] == t ) {
@@ -488,7 +487,17 @@ class ZTLPVec {
 		}
 		return -1;
 	}
-	*/
+
+	// Find item; return -1 on fail
+	int getIndex( T *el ) {
+		for( int i=0; i<count; i++) {
+			if( vec[i] == el ) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 };
 
 // ZTLStack is just like ZTLVec except stack LIFO

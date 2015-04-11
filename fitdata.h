@@ -382,12 +382,15 @@ struct FitData {
 		// and lower bounds values based on param contraints.
 
 	int fitIndexByParamName( char *name );
+
+	/* These are now handled in the ThermodynamicCycles struct in kin_thermocycle.h
 	int createLinearEqualityConstraintsMatrix( double **A, double **b );
 		// A is a coeficient matrix, b a vector of constants.  Together
 		// These define a set of linear equations on the parameters
 		// which a fit may be constrained by.  The rows of each indicate
 		// the number of equations.  A will have nFittedParams columns.
-	double computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b );
+	void computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b, double *results );
+	*/
 		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
