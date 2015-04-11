@@ -5,6 +5,9 @@
 #include "stdlib.h"
 #include "memory.h"
 #include "string.h"
+#ifdef WIN32
+	#include "malloc.h"
+#endif
 
 // ZTLVec is a growable vector used for objects for non-dynmically allocated objects
 //------------------------------------------------------------------------------------------------------------------
