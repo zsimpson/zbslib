@@ -131,7 +131,7 @@ void ZUIPlot::render() {
 	if (!getI ("skipGrid"))
 	{
 		int legendColor = 0xFFFFFFFF;
-		if( has( "gridLegenColor" ) ) {
+		if( has( "gridLegendColor" ) ) {
 			legendColor = getColorI( "gridLegendColor" );
 			plotGridLegendColor3ub( legendColor>>24, legendColor>>16&0xff, legendColor>>8&0xff );
 		}
