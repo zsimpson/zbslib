@@ -906,7 +906,10 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 				u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );
 				extern int Kin_fitLevmarLn;
 				if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
-					assert( value != 0.0 && "log of 0 rate!");
+					//				assert( value != 0.0 && "log of 0 rate!");
+					if( value == 0.0 ) {
+						value = 1e-15;
+					}
 					value = log( value );
 					l[count] = log( max(1e-15, l[count]) );
 					u[count] = log( u[count] );
