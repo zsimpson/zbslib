@@ -1722,7 +1722,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	// if the [DERIV] command is present in the observable expression.
 	for( i=0; i<traceOC.rows; i++ ) {
 		char *obs = observableInstructions[ i ];
-		if( !strncmp( obs, "[DERIV]", 7 ) ) {
+		if( obs && !strncmp( obs, "[DERIV]", 7 ) ) {
 			traceOC.copyDerivsToData( i );
 		}
 		else {
