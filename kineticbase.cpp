@@ -1720,8 +1720,11 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	
 	// Potentially copy derivative info into data section on a per-row basis
 	// if the [DERIV] command is present in the observable expression.
-	for( i=0; i<traceOC.rows; i++ ) {
+	for( i=0; i<observableInstructions.count; i++ ) {
 		char *obs = observableInstructions[ i ];
+		if( !obs ) {
+			trace( "ERROR: observable instruction %d is NULL!\n", i );
+		}
 		if( obs && !strncmp( obs, "[DERIV]", 7 ) ) {
 			traceOC.copyDerivsToData( i );
 		}
