@@ -557,6 +557,16 @@ class ZTLStack {
 		return base[i];
 	}
 
+	int getIndex( T el ) {
+		// Return an index, or -1 if not found
+		for( int i=0; i<top; i++) {
+			if( base[i] == el ) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	T &getTop( int i=0 ) {
 		assert( i >= 0 && i < top );
 		return base[top-i-1];
