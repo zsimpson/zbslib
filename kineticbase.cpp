@@ -4993,7 +4993,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 				info.fitFlag = 0;
 			}
 			else {
-				info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.1 : 1.0;
+				info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.001 : 1.0;
 				info.fitFlag = saved ? saved->fitFlag : 1;
 			}
 			info.group   = saved ? saved->group   : 0;

@@ -100,13 +100,6 @@ struct ParamInfo {
 		// in the case of CT_RATIO constrained params, the above tells us what param
 		// we are held in ratio to, and what the ratio is..
 
-	double lb;
-		// in the case of CT_BOX, this is the lower bound.
-		// NOT YET USED
-	double ub;
-		// in the case of CT_BOX, this is the upper bound.
-		// NOT YET USED
-
 	int fitIndex;
 		// the index of this parameter in the list of parameters that are 
 		// actually being fit.  For example, the index into the array of 

@@ -22,6 +22,7 @@
 #include "zstr.h"
 #include "ztmpstr.h"
 #include "zmathtools.h"
+#include "zregexp.h"
 
 #include "string.h"
 #include "math.h"
@@ -31,8 +32,6 @@
 #endif
 
 //extern int Kin_fitspaceCalcLBoundDetail;
-//extern int Kin_fitPositiveRates;
-//extern int Kin_fitPositiveFactors;
 extern void trace( char *fmt, ... );
 
 
@@ -858,6 +857,8 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 }
 
 //----------------------------------------
+static ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
+static ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
 
 int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub ) {
 	// Identical to GSL version except we're allocating and populating
@@ -900,19 +901,29 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 					// ye olde "fit the square root and square the output trick"
 			}
 			else if( pi->constraint == CT_BOX ) {
-				// initially we are just using this to mean non-negative, but
-				// implemented via box-constraints instead of square root trick.
-				l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
-				u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );
-				extern int Kin_fitLevmarLn;
-				if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
-					//				assert( value != 0.0 && "log of 0 rate!");
-					if( value == 0.0 ) {
-						value = 1e-15;
+				// with levamr we can do box constraints.
+				if( scaleFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "scaleConstantL", 0.001 );
+					u[ count ] = properties.getD( "scaleConstantU", 1000.0 );
+				}
+				else if( offsetFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "offsetConstantL", -1000.0 );
+					u[ count ] = properties.getD( "offsetConstantU", +1000.0 );
+					printf( "Bounds for offset factor %s[%g]: %g, %g\n", pi->paramName, value, l[count], u[count] );
+				}
+				else {
+					l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
+					u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );					
+					extern int Kin_fitLevmarLn;
+					if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
+						//				assert( value != 0.0 && "log of 0 rate!");
+						if( value == 0.0 ) {
+							value = 1e-15;
+						}
+						value = log( value );
+						l[count] = log( max(1e-15, l[count]) );
+						u[count] = log( u[count] );
 					}
-					value = log( value );
-					l[count] = log( max(1e-15, l[count]) );
-					u[count] = log( u[count] );
 				}
 			}
 
@@ -1848,10 +1859,10 @@ bool GridSet::hasEmptyNeighbor( FitData *seed, FitData **ppNeighbor ) {
 
 				// Force the sampled value to be non-negative if appropriate; this could be problematic
 				// if it ends up forcing two sampled values into the same spatial hash bin.
-				if( p1->initialValue < 0 && ( (p1->type == PT_RATE && 1/*Kin_fitPositiveRates*/ ) || (p1->type == PT_OUTPUTFACTOR && 1/*Kin_fitPositiveFactors*/ ) ) ) {
+				if( p1->initialValue < 0 && ( p1->type == PT_RATE || p1->type == PT_OUTPUTFACTOR ) ) {
 					p1->initialValue = 0;
 				}
-				if( p2->initialValue < 0 && ( (p2->type == PT_RATE && 1/*Kin_fitPositiveRates*/ ) || (p2->type == PT_OUTPUTFACTOR && 1/*Kin_fitPositiveFactors*/ ) ) ) {
+				if( p2->initialValue < 0 && ( p2->type == PT_RATE || p2->type == PT_OUTPUTFACTOR ) ) {
 					p2->initialValue = 0;
 				}
 
