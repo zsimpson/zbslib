@@ -903,13 +903,12 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 			else if( pi->constraint == CT_BOX ) {
 				// with levamr we can do box constraints.
 				if( scaleFactor.test( pi->paramName ) ) {
-					l[ count ] = properties.getD( "scaleConstantL", 0.001 );
-					u[ count ] = properties.getD( "scaleConstantU", 1000.0 );
+					l[ count ] = properties.getD( "scaleConstantL", 0.9 );
+					u[ count ] = properties.getD( "scaleConstantU", 1.1 );
 				}
 				else if( offsetFactor.test( pi->paramName ) ) {
-					l[ count ] = properties.getD( "offsetConstantL", -1000.0 );
-					u[ count ] = properties.getD( "offsetConstantU", +1000.0 );
-					printf( "Bounds for offset factor %s[%g]: %g, %g\n", pi->paramName, value, l[count], u[count] );
+					l[ count ] = properties.getD( "offsetConstantL", -0.1 );
+					u[ count ] = properties.getD( "offsetConstantU", +0.1 );
 				}
 				else {
 					l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
@@ -925,6 +924,12 @@ int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub 
 						u[count] = log( u[count] );
 					}
 				}
+				pi->lb = l[count];
+				pi->ub = u[count];
+					// NOTE: the pi-> members are used as a conenvience for debugging info.  The current
+					// fitting routine (levmar) uses these arrays of double to read boundaries.
+				printf( "Bounds for parameter %s[%g]: %g, %g\n", pi->paramName, value, l[count], u[count] );
+
 			}
 
 			v[ count++ ] = value;
@@ -1292,12 +1297,16 @@ void FitData::print() {
 		trace( " %c %-15s %-12s %-12s", pi->constraint==CT_FIXED ? 'X' : 
 										pi->constraint==CT_NONNEGATIVE ? '+' :
 										pi->constraint==CT_NONPOSITIVE ? '-' :
-										pi->constraint==CT_RATIO ? 'R' : ' ',
+										pi->constraint==CT_RATIO ? 'R' :
+										pi->constraint==CT_BOX ? 'B' : ' ',
 										pi->paramName, initial, bestfit );
 		if( pi->constraint == CT_RATIO ) {
-			trace( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
+			printf( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
 		}
-		trace( "\n" );
+		if( pi->constraint == CT_BOX ) {
+			printf( " [ %g, %g ]", pi->lb, pi->ub );	
+		}
+		printf( "\n" );
 	}
 }
 
