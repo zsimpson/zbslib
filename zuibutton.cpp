@@ -185,7 +185,12 @@ void ZUIButton::renderButtonBase( float w, float h, int square ) {
 			verts[numVerts  ][0] = radius*cosf(theta) + w - radius - 1;
 			verts[numVerts++][1] = radius*sinf(theta) + radius;
 		}
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	}
+    
+    glEnable( GL_BLEND );
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
 	float half = (float)numPts / 2.f;
 	glBegin( GL_QUAD_STRIP );
@@ -205,8 +210,8 @@ void ZUIButton::renderButtonBase( float w, float h, int square ) {
 	glEnd();
 
 	glLineWidth( 1.f );
-	glEnable( GL_BLEND );
-	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	
+    
 	glColor4ub( 0, 0, 0, 0xa0 );
 	glBegin( GL_LINE_STRIP );
 	for( i=0; i<numPts; i++ ) {
@@ -233,6 +238,9 @@ void ZUIButton::renderButtonBase( float w, float h, int square ) {
 		glVertex2f( verts[0][0], verts[0][1]+0 );
 		glVertex2f( verts[numVerts-1][0], verts[numVerts-1][1]+0 );
 	glEnd();
+    
+   glDisable(GL_LINE_SMOOTH);
+
 }
 
 void ZUIButton::render() {
