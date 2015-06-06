@@ -19,6 +19,10 @@
 #include "fitdata.h"
 #include "zendian.h"
 #include "kineticbase.h"
+#include "zstr.h"
+#include "ztmpstr.h"
+#include "zmathtools.h"
+#include "zregexp.h"
 
 #include "string.h"
 #include "math.h"
@@ -28,8 +32,6 @@
 #endif
 
 //extern int Kin_fitspaceCalcLBoundDetail;
-//extern int Kin_fitPositiveRates;
-//extern int Kin_fitPositiveFactors;
 extern void trace( char *fmt, ... );
 
 
@@ -834,13 +836,15 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
 					// ye olde "fit the square root and square the output trick"
 			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
+			else if( pi->constraint == CT_NONPOSITIVE ) {
 				pi->bestFitValue = -(pi->bestFitValue * pi->bestFitValue);
 					// ye olde "fit the square root and square the output trick"
 			}
-
-			else if( pi->bestFitValue < 0 ) {
-				//trace( "negative parameter %s: %g\n", pi->paramName, pi->bestFitValue );
+			else if( pi->constraint == CT_BOX && pi->type == PT_RATE ) {
+				extern int Kin_fitLevmarLn;
+				if( Kin_fitLevmarLn ) {
+					pi->bestFitValue = exp( pi->bestFitValue );
+				}
 			}
 		}
 		else {
@@ -853,17 +857,24 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 }
 
 //----------------------------------------
+static ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
+static ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
 
-int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0*/ ) {
+int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub ) {
 	// Identical to GSL version except we're allocating and populating
 	// a double* array instead of a gsl_vector.
+	//
+	// And now we've added optionally populating the upper and lower bounds vectors
+
+	int useBestFitValues = false;
 
 	int vecsize   = paramCount( PT_ANY, 1 );
 	if( !vecsize ) {
 		return 0;
 	}
 	double *v = (double*)malloc( vecsize * sizeof(double) );
-//	gsl_vector *v = gsl_vector_alloc( vecsize );
+	double *l = (double*)malloc( vecsize * sizeof(double) );
+	double *u = (double*)malloc( vecsize * sizeof(double) );
 
 	int count = 0;
 	ParamInfo *pi;
@@ -874,17 +885,54 @@ int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0
 			pi->fitIndex = count;
 			fitIndexToParamInfo.bputP( &count, sizeof(count), pi );
 			double value = useBestFitValues ? pi->bestFitValue : pi->initialValue;
+
+			#define KIN_MAXPARAMVALUE 1e15
+				// duplicated from _kin.h
+
+			l[ count ] = -KIN_MAXPARAMVALUE;
+			u[ count ] = +KIN_MAXPARAMVALUE;
+
 			if( pi->constraint == CT_NONNEGATIVE ) {
 				value = sqrt( value );
 					// ye olde "fit the square root and square the output trick"
 			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
+			else if( pi->constraint == CT_NONPOSITIVE ) {
 				value = sqrt( fabs(value) );
 					// ye olde "fit the square root and square the output trick"
 			}
+			else if( pi->constraint == CT_BOX ) {
+				// with levamr we can do box constraints.
+				if( scaleFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "scaleConstantL", 0.9 );
+					u[ count ] = properties.getD( "scaleConstantU", 1.1 );
+				}
+				else if( offsetFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "offsetConstantL", -0.1 );
+					u[ count ] = properties.getD( "offsetConstantU", +0.1 );
+				}
+				else {
+					l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
+					u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );					
+					extern int Kin_fitLevmarLn;
+					if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
+						//				assert( value != 0.0 && "log of 0 rate!");
+						if( value == 0.0 ) {
+							value = 1e-15;
+						}
+						value = log( value );
+						l[count] = log( max(1e-15, l[count]) );
+						u[count] = log( u[count] );
+					}
+				}
+				pi->lb = l[count];
+				pi->ub = u[count];
+					// NOTE: the pi-> members are used as a conenvience for debugging info.  The current
+					// fitting routine (levmar) uses these arrays of double to read boundaries.
+				printf( "Bounds for parameter %s[%g]: %g, %g\n", pi->paramName, value, l[count], u[count] );
+
+			}
 
 			v[ count++ ] = value;
-			//gsl_vector_set( v, count++, value );
 		}
 		else {
 			pi->fitIndex = -1;
@@ -893,8 +941,263 @@ int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0
 	assert( count == vecsize );
 	
 	*pv = v;
+	*lb = l;
+	*ub = u;
+
 	return count;
 }
+
+int FitData::fitIndexByParamName( char *name ) {
+	// inefficient, but not a bottleneck.
+	ParamInfo *pi;
+	for( ZHashWalk p( params ); p.next(); ) {
+		pi = *((ParamInfo**)p.val);
+		if( !strcmp( name, pi->paramName) ) {
+			return pi->fitIndex;
+		}
+	}
+	return -2;
+		// -1 means param name found, but not being fit. -2 means param name not found.
+}
+
+#if 0
+int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
+	// At present this is built specifically to allow thermodynamic-cycle
+	// constraints to be enforced.  A prerequsite to this is that when we
+	// deal with rate constants during a fit, we are really dealing with ln(rate),
+	// which means our TC constraint can be expressed as a linear equation.
+	//
+	// e.g.  if A -> B -> C -> A is a cycle
+	//
+	// then  k+1/k-1 * k+2/k-2 * k+3/k-3 = 1
+	//
+	// taking ln of each side, and omitting it below, since we
+	// now assume we are always fitting ln(rate), we obtain:
+	//
+	// k+1 - k-1  +  k+2 - k-2  +  k+3 - k-3 = 0
+	//
+	// That is our linear equality constraint for this cycle.
+	//
+	//
+
+	int nLEConstraints = 0;
+	int nFittedParams = paramCount( PT_ANY, 1 );
+
+	char *cycles = properties.getS( "fitLevmarCycleDesc" );
+	ZStr *zcycles = 0;
+	if( cycles && *cycles ) {
+		zcycles = zStrSplitByChar( ':', cycles );
+		nLEConstraints = zStrCount(zcycles);
+	}
+	
+	int leIndex = 0;
+		// incremented each time a linear constraint added to the matrix.
+	
+	if( nLEConstraints > 0 ) {
+		double *b = (double*)calloc( nLEConstraints, sizeof(double) );
+		double *A = (double*)calloc( nLEConstraints * nFittedParams, sizeof(double) );
+
+		memset( b, 0, nLEConstraints*sizeof(double) );
+		memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
+		
+		for( int i=0; i<nLEConstraints; i++ ) {
+			char *cycle = zcycles->getS( i );
+			
+			double b_constant = 0.0;
+
+			ZStr *reactions = zStrSplitByChar( ',', cycle );
+			int rcount = zStrCount( reactions );
+			
+			for( int j=0; j<rcount; j++ ) {
+				char *r = reactions->getS( j );
+ 				int reaction = atoi( reactions->getS( j ) );
+				if( reaction != -1 ) {
+					// If reaction is odd, it means the reaction we described with our reagents
+					// is actually the *reverse* reaction, which means we'll need to adjust the
+					// signs of terms in the constraint matrix.
+					int reverse = reaction & 1;
+					reaction /= 2;
+						// because forward and reverse reactions have different indices, but our rate
+						// parameters are named using a single index and signs.
+					ZTmpStr p1("k+%d",reaction+1 );
+					ZTmpStr p2("k-%d",reaction+1 );
+					int fi1 = fitIndexByParamName( p1 );
+					int fi2 = fitIndexByParamName( p2 );
+
+					if( fi1 >= 0 ) {
+						A[ leIndex*nFittedParams + fi1 ] += reverse ? -1 : +1;
+					}
+					else {
+						ParamInfo *p = paramByName( p1 );
+						assert( p->constraint == CT_FIXED || p->constraint == CT_RATIO );
+						double value;
+						//
+						// If we are not being fit, it is either because we are CT_FIXED or CT_RATIO.  In the latter case,
+						// our parameter value is computed algebraically after the fit based on the value of a parameter
+						// that we are held in constant ration to.  However, in fitspace, it is possible that this
+						// "ratio master" is also being held fixed.  So in this latter case, we are also effectively fixed,
+						// and our value should be computed based on the ratio master fixed value.
+						//
+						if( p->constraint == CT_FIXED ) {
+							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
+							value = p->initialValue;
+						}
+						else {
+							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
+							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
+							//printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );
+							int f1_master = fitIndexByParamName( p->ratioMasterParamName );
+							if( f1_master >= 0 ) {
+								// ratio master is being fit, so modify the coefficient for that param in the matrix
+								A[ leIndex*nFittedParams + f1_master ] += reverse ? -1 : +1;
+								value = p->ratio;
+							}
+							else {
+								// fitspace - the ratio master is being held fixed, so we are too, effectively, and must
+								// compute our value from the ratio master.
+								ParamInfo *master = paramByName( p->ratioMasterParamName );
+								value = p->ratio * master->initialValue;
+							}
+						}
+						value = log(value);						
+						if( reverse ) {
+							value = -value;
+						}
+						b_constant -= value;
+					}
+
+					if( fi2 >= 0 ) {
+						A[ leIndex*nFittedParams + fi2 ] += reverse ? +1 : -1;
+					}
+					else {
+						// If the rate is not being fit, then add it to both sides of the constraint equation:
+						ParamInfo *p = paramByName( p2 );
+						double value;
+						if( p->constraint == CT_FIXED ) {
+							// If the rate is not being fit, then add it from boths sides of the constraint equation:
+							value = p->initialValue;
+							//printf( "adding %slog(%g) to b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
+						}
+						else {
+							// If the rate is constrained to a multiple of another parameter, we similarly add the multiplier
+							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
+							//printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );
+							int f2_master = fitIndexByParamName( p->ratioMasterParamName );
+							if( f2_master >= 0 ) {
+								A[ leIndex*nFittedParams + f2_master ] += reverse ? +1 : -1;
+								value = p->ratio;
+							}
+							else {
+								ParamInfo *master = paramByName( p->ratioMasterParamName );
+								value = p->ratio * master->initialValue;
+							}
+						}
+						value = log(value);
+						if( reverse ) {
+							value = -value;
+						}
+						b_constant += value;
+					}
+				}
+				else {
+					printf( "ERROR: reaction value %d in cycle '%s'\n", reaction, cycle );
+					free( b );
+					free( A );
+					nLEConstraints = 0;	
+					break;
+				}
+			}
+
+			b[leIndex] = b_constant;
+			zStrDelete( reactions );
+
+			// We have just populated a row of the constraints matrix.  But we need to ensure that
+			// this row is valid - it is possible that a linear constraint is degenerate because the
+			// parameters in question are fixed or cancel each other out due to ratio constraints -
+			// e.g. a forward and reverse rate held in ratio in the cycle will cancel.
+			int degenerate = 1;
+//			printf( "LE Matrix Row for this edge: " );
+			for( int j=0; j<nFittedParams; j++ ) {
+				if( A[ leIndex*nFittedParams + j ] != 0 ) degenerate = 0;
+//				printf( "%g ", A[ leIndex*nFittedParams + j ] );
+			}
+//			printf( "\n" );
+			if( !degenerate ) {
+				leIndex++;
+					// the current constraint row is legit, write to the next row.
+			}
+			else {
+				memset(  A + leIndex * nFittedParams, 0, nFittedParams * sizeof(double)  );
+				b[leIndex] = 0.0;
+				printf( "The cycle %s is degenerate and will not be used.\n", cycle );
+			}
+		}
+		zStrDelete( zcycles );
+
+		// printf( "Linear Constraints:\n" );
+	 // 	for( int i=0; i<leIndex; i++ ) {
+		// 	for( int j=0; j<nFittedParams; j++ ) {
+		// 		printf( "%g\t", A[ nFittedParams * i + j ] );
+		// 	}
+		// 	printf( "= %g\n", b[i] );
+		// }
+
+		if( leIndex == 0 || leIndex > nFittedParams ) {
+			delete A;
+			delete b;
+			*_A = 0;
+			*_b = 0;
+
+			if( leIndex != 0 ) {
+				printf( "Rejecting constraints, too many for fitted params.\n" );
+				leIndex = 0;
+					// set to 0 in the case we had more le constraints than params to fit,
+					// because we're likely specifying incompatible constraints e.g. in the
+					// example of fitspace.  How to handle this?  e.g. situation where you have
+					// a cycle and are only fitting 1 param -- if that param is in the cycle, 
+					// we can compute it based on thermo math - do we do this instead of 
+					// "fitting"?
+			}
+		}
+		else {
+			*_A = A;
+			*_b = b;
+		}		
+	}
+	else {
+		*_A = 0;
+		*_b = 0;
+	}
+	
+	return leIndex;
+}
+
+void FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b, double *results ) {
+	// as a diagnostic aid, compute the product of eq constants around a cycle.
+    // This method just checks that the constraint was upheld.  See ThermodynamicCycles
+    // in kin_thermocycle.h for a similar computation based on all of the rates
+    // in the cycle.
+
+	int nFittedParams = paramCount( PT_ANY, 1 );
+	for( int n=0; n<nLEConstraints; n++ ) {
+		double product = 1.0;
+		for( int i=0; i<nFittedParams; i++ ) {
+			double p = A[ n * nFittedParams + i ];
+			if( p > 0.0 ) {
+				product *= pow( paramByFitIndex( i )->bestFitValue, p );		
+			}
+			else if( p < 0.0 ) {
+				product /= pow( paramByFitIndex( i )->bestFitValue, -p );				
+			}
+			else if( p == 0.0 ) {
+				// not used in linear constraint
+			}
+		}
+		results[ n ] = product / exp( b[n] );
+			// For params that were not fit, they will be accumulated in the constant b.
+	}
+}
+#endif
 
 //----------------------------------------
 /*
@@ -994,12 +1297,16 @@ void FitData::print() {
 		trace( " %c %-15s %-12s %-12s", pi->constraint==CT_FIXED ? 'X' : 
 										pi->constraint==CT_NONNEGATIVE ? '+' :
 										pi->constraint==CT_NONPOSITIVE ? '-' :
-										pi->constraint==CT_RATIO ? 'R' : ' ',
+										pi->constraint==CT_RATIO ? 'R' :
+										pi->constraint==CT_BOX ? 'B' : ' ',
 										pi->paramName, initial, bestfit );
 		if( pi->constraint == CT_RATIO ) {
-			trace( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
+			printf( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
 		}
-		trace( "\n" );
+		if( pi->constraint == CT_BOX ) {
+			printf( " [ %g, %g ]", pi->lb, pi->ub );	
+		}
+		printf( "\n" );
 	}
 }
 
@@ -1189,6 +1496,7 @@ void FitSet::sort( FitData **data, int count ) {
 	// recursive quicksort; coded in favor of qsort to provide thread-safe
 	// access to (non-static) member data.
 
+	
 	int i, j;
 	FitData *t;
 
@@ -1560,10 +1868,10 @@ bool GridSet::hasEmptyNeighbor( FitData *seed, FitData **ppNeighbor ) {
 
 				// Force the sampled value to be non-negative if appropriate; this could be problematic
 				// if it ends up forcing two sampled values into the same spatial hash bin.
-				if( p1->initialValue < 0 && ( (p1->type == PT_RATE && 1/*Kin_fitPositiveRates*/ ) || (p1->type == PT_OUTPUTFACTOR && 1/*Kin_fitPositiveFactors*/ ) ) ) {
+				if( p1->initialValue < 0 && ( p1->type == PT_RATE || p1->type == PT_OUTPUTFACTOR ) ) {
 					p1->initialValue = 0;
 				}
-				if( p2->initialValue < 0 && ( (p2->type == PT_RATE && 1/*Kin_fitPositiveRates*/ ) || (p2->type == PT_OUTPUTFACTOR && 1/*Kin_fitPositiveFactors*/ ) ) ) {
+				if( p2->initialValue < 0 && ( p2->type == PT_RATE || p2->type == PT_OUTPUTFACTOR ) ) {
 					p2->initialValue = 0;
 				}
 

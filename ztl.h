@@ -5,7 +5,9 @@
 #include "stdlib.h"
 #include "memory.h"
 #include "string.h"
-
+#ifdef WIN32
+	#include "malloc.h"
+#endif
 
 // ZTLVec is a growable vector used for objects for non-dynmically allocated objects
 //------------------------------------------------------------------------------------------------------------------
@@ -151,6 +153,14 @@ class ZTLVec {
 		count -= skip;
 	}
 
+	void rotateLeft( int index ) {
+		assert( index < count );
+		T* scratch = (T*)alloca( index * sizeof(T) );
+		memcpy( scratch, vec, index * sizeof(T) );
+		memcpy( vec, vec+index, (count-index)*sizeof(T) );
+		memcpy( vec+count-index, scratch, index * sizeof(T) );
+	}
+
 	void expandAllocBy( int howMuch ) {
 		int origAlloc = alloc;
 		alloc += howMuch;
@@ -212,17 +222,13 @@ class ZTLVec {
 		return -1;
 	}
 
-	// Find item; return -1 on fail
-	/*
-	int find( T &t ) {
+	void reverse() {
+		T* scratch = (T*)alloca(count * sizeof(T));
+		memcpy( scratch, vec, count * sizeof(T) );
 		for( int i=0; i<count; i++ ) {
-			if( vec[i] == t ) {
-				return i;
-			}
+			set( i, scratch[count-i-1] );
 		}
-		return -1;
 	}
-	*/
 };
 
 // ZTLPVec is a growable vector like ZTLVec but expects dynamically allocated objects
@@ -310,6 +316,27 @@ class ZTLPVec {
 		count++;
 		return count-1;
 	}
+
+	/* (tfb) I added these but then didn't need them.
+	int addUniq( T *t ) {
+		for( int i=0; i<count; i++ ) {
+			if( vec[i] == t ) {
+				return i;
+			}
+		}
+		return add( t );		
+	}
+
+	int addUniqString( T *t ) {
+		// A handy 'specialization' in the case T=char and vec holds 0-terminated strings. (tfb)
+		for( int i=0; i<count; i++ ) {
+			if( !strcmp( t, vec[i] ) ) {
+				return i;
+			}
+		}
+		return add( t );
+	}
+	*/
 
 	void push( T *t ) {
 		add( t );
@@ -422,7 +449,7 @@ class ZTLPVec {
 		for( int i=0; i<count; i++ ) {
 			vec[i] = strdup( t.vec[i] );
 		}
-	}
+	}	
 
 	void stealOwnershipFrom( ZTLPVec<T> &src ) {
 		clear();
@@ -455,7 +482,6 @@ class ZTLPVec {
 	}
 
 	// Find item; return -1 on fail
-	/*
 	int find( T *t ) {
 		for( int i=0; i<count; i++ ) {
 			if( vec[i] == t ) {
@@ -464,7 +490,17 @@ class ZTLPVec {
 		}
 		return -1;
 	}
-	*/
+
+	// Find item; return -1 on fail
+	int getIndex( T *el ) {
+		for( int i=0; i<count; i++) {
+			if( vec[i] == el ) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 };
 
 // ZTLStack is just like ZTLVec except stack LIFO
@@ -519,6 +555,16 @@ class ZTLStack {
 	T &get( int i ) {
 		assert( i >= 0 && i < top );
 		return base[i];
+	}
+
+	int getIndex( T el ) {
+		// Return an index, or -1 if not found
+		for( int i=0; i<top; i++) {
+			if( base[i] == el ) {
+				return i;
+			}
+		}
+		return -1;
 	}
 
 	T &getTop( int i=0 ) {

@@ -651,12 +651,16 @@ int ZUI::getColorI( char *key ) {
 		char *colorName = getS( key );
 		if( colorName && (colorName[0] >= '0' && colorName[0] <= '9') || colorName[0]=='-' ) {
 			int color = getU( key );
-			color = byteOrderReverse( color );
+			//color = byteOrderReverse( color );
+				// removed by tfb April 2015.  Seems wrong.  Note that setColorI/S etc
+				// never do bytereversal.
 			return color;
 		}
 		else {
 			int color = colorPaletteHash.getU( colorName );
-			color = byteOrderReverse( color );
+			//color = byteOrderReverse( color );
+				// removed by tfb April 2015.  Seems wrong.  Note that setColorI/S etc
+				// never do bytereversal.
 			return color;
 		}
 	}

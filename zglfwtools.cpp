@@ -415,8 +415,8 @@ void zglfwInitRemoteControlIntercept() {
 	// INSTALL wndproc intercept to grab the remote messages
 	if( !zglfwOldWindowProc ) {
 		HWND hwnd = (HWND)glfwZBSExt_GetHWND();
-		zglfwOldWindowProc = (void *)GetWindowLong( hwnd, GWL_WNDPROC );
-		SetWindowLong( hwnd, GWL_WNDPROC, (long)zglfwRemoteControlInterceptWndProc );
+		zglfwOldWindowProc = (void *)GetWindowLongPtr( hwnd, GWLP_WNDPROC );
+		SetWindowLongPtr( hwnd, GWLP_WNDPROC, (long)zglfwRemoteControlInterceptWndProc );
 	}
 	#endif
 }

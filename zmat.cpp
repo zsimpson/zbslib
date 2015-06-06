@@ -487,8 +487,10 @@ int ZMat::loadBin( FILE *f ) {
 	else {
 		return 0;
 	}
-	alloc( rows, cols, type );
-	freadEndian( mat, elemSize, rows * cols, f, shouldByteSwap );
+	if( rows * cols ) {
+		alloc( rows, cols, type );
+		freadEndian( mat, elemSize, rows * cols, f, shouldByteSwap );
+	}
 	return 1;
 }
 

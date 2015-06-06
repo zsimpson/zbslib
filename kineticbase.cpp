@@ -1720,9 +1720,12 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	
 	// Potentially copy derivative info into data section on a per-row basis
 	// if the [DERIV] command is present in the observable expression.
-	for( i=0; i<traceOC.rows; i++ ) {
+	for( i=0; i<observableInstructions.count; i++ ) {
 		char *obs = observableInstructions[ i ];
-		if( !strncmp( obs, "[DERIV]", 7 ) ) {
+		if( !obs ) {
+			trace( "ERROR: observable instruction %d is NULL!\n", i );
+		}
+		if( obs && !strncmp( obs, "[DERIV]", 7 ) ) {
 			traceOC.copyDerivsToData( i );
 		}
 		else {
@@ -3818,6 +3821,24 @@ int KineticSystem::reactionGetReagents( int reaction, char **in0, char **in1, ch
 	return count;
 }
 
+int KineticSystem::reactionGetFromReagents( char *_in0, char *_in1, char *_out0, char *_out1 ) {
+	// return which reaction matches the ins/outs (any order) if found.
+	int in0 = reagentFindByName( _in0 );
+	int in1 = reagentFindByName( _in1 );
+	int out0 = reagentFindByName( _out0 );
+	int out1 = reagentFindByName( _out1 );
+	
+	for( int i=0; i<reactions.count; i++ ) {
+		Reaction &r = reactions[i];
+		if( (r.in0 == in0 && r.in1 == in1) || (r.in0 == in1 && r.in1 == in0) ) {
+			if( (r.out0 == out0 && r.out1 == out1) || (r.out0 == out1 && r.out1 == out0) ) {
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
 
 char * KineticSystem::reactionGetRateName( int reaction ) {
 	// This function assumes that forward and backward reactions occur in matched
@@ -4972,7 +4993,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 				info.fitFlag = 0;
 			}
 			else {
-				info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.1 : 1.0;
+				info.value   = saved ? saved->value   : !strncmp( info.name, "offset_", 7 ) ? 0.001 : 1.0;
 				info.fitFlag = saved ? saved->fitFlag : 1;
 			}
 			info.group   = saved ? saved->group   : 0;

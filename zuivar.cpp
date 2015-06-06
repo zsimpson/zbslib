@@ -364,7 +364,7 @@ void ZUIVar::render() {
 	}
 	zglFontPrint( text, _x+offset, _y, 0, 1, fontPtr );
 
-	if( getI( "dragging" ) ) {
+	if( getI( "dragging" ) && !getI( "disableDrag" ) ) {
 		float startX = getF( "startX" );
 		float startY = getF( "startY" );
 		float mouseX = getF( "mouseX" );
@@ -508,6 +508,11 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		zMsgUsed();
 	}
 	else if( zmsgIs(type,ZUIExclusiveMouseDrag) ) {
+		if( getI( "disableDrag") ) {
+			return;
+				// I want all the various bounding logic etc, but I want to force the user
+				// to make individual edits to the value.
+		}
 		dirty();
 		double startVal = getD( "startVal" );
 		double epsilon = getD( "epsilon" );

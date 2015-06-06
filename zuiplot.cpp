@@ -130,8 +130,31 @@ void ZUIPlot::render() {
 //float gridLegendColor[3] = { 0.5f, 0.5f, 0.5f };
 	if (!getI ("skipGrid"))
 	{
-		int legendColor = getI( "gridLegendColor", 0xFFFFFFFF );
-		plotGridLegendColor3ub( legendColor>>24, legendColor>>16&0xff, legendColor>>8&0xff );
+		int legendColor = 0xFFFFFFFF;
+		if( has( "gridLegendColor" ) ) {
+			legendColor = getColorI( "gridLegendColor" );
+			plotGridLegendColor3ub( legendColor>>24, legendColor>>16&0xff, legendColor>>8&0xff );
+		}
+
+		int axisColor = 0x000000FF;
+		if( has( "gridAxisColor" ) ) {
+			axisColor = getColorI( "gridAxisColor");
+			plotGridAxisColor3ub( axisColor>>24, axisColor>>16&0xff, axisColor>>8&0xff );
+		}
+        
+
+		int majorColor = 0x333333FF;
+		if( has( "gridMajorColor" ) ) {
+			majorColor = getColorI( "gridMajorColor" );
+			plotGridMajorColor3ub( majorColor>>24, majorColor>>16&0xff, majorColor>>8&0xff );
+		}
+
+		int minorColor = 0xBFBFBFFF; 
+		if( has( "gridMinorColor" ) ) {
+			minorColor = getColorI( "gridMinorColor" );
+			plotGridMinorColor3ub( minorColor>>24, minorColor>>16&0xff, minorColor>>8&0xff );
+		}
+
 		plotGridlinesLinLog( x0, y0, x1, y1, xd, yd, plotLogX, plotLogY, getI( "skipGridMinor" ), getI( "skipXLabels" ), getI( "skipYLabels" )  );
 		// plotGridlines( x0, y0, x1, y1, xd, yd );
 	}
