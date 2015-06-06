@@ -164,9 +164,9 @@ char *zVidcapPluginNameFromCameraName( char *name ) {
 	for( int i=0; i<zVidcapDevicesMax; i++ ) {
 
 // @TEMP HACK for cases where someone sends me a config and I want to load it on my camera
-if( !strncmp(name,"Unibrain",8) && zVidcapDevices[i] && !strncmp(zVidcapDevices[i],"Unibrain",8) ) {
-return zvidcapPlugins[zVidcapDevicePlugins[i]].name;
-}
+//if( !strncmp(name,"Unibrain",8) && zVidcapDevices[i] && !strncmp(zVidcapDevices[i],"Unibrain",8) ) {
+//return zvidcapPlugins[zVidcapDevicePlugins[i]].name;
+//}
 
 		if( zVidcapDevices[i] && !stricmp(zVidcapDevices[i],name) ) {
 			return zvidcapPlugins[zVidcapDevicePlugins[i]].name;

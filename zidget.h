@@ -8,6 +8,7 @@
 // OPERATING SYSTEM specific includes:
 // SDK includes:
 // STDLIB includes:
+#include "string.h"
 // MODULE includes:
 #include "zvec.h"
 #include "zmsg.h"
