@@ -1188,10 +1188,6 @@ struct KineticSystem {
 	void updateTemperatureDependentRatesAtRefTemp( double Told, double Tnew );
 		// march2013 new: for the new methods that don't use A-term
     
-    #ifdef USE_KINFIT_V2
-    void updateTemperatureAmplitudesFromReferenceFit( FitData *fd=0 );
-    #endif
-
 	// TODO: 
 	// void updatePressureDependentRates( int eIndex, int mixstep, double *rates=0 );
 	// void updateConcentrationDependentRates( int eIndex, int mixstep, double *rates=0 );

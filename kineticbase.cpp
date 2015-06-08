@@ -4344,40 +4344,6 @@ int KineticSystem::rateGroupIsDependent( int group, int coefType, int *whichRate
 	return 0;
 }
 
-
-/*
-int KineticSystem::isVoltageDependent( int rate, int includeLinkedRates ) {
-	int beginRate = rate == -1 ? 0 : rate;
-	int endRate   = rate == -1 ? reactions.count * 2 : rate + 1;
-
-	int isVoltage=0;
-	for( int i=beginRate; i<endRate && !isVoltage; i++ ) {
-		ZTmpStr key( "rate%d-volt-depend", i );
-		isVoltage = isVoltage || viewInfo.getI( key );
-		if( includeLinkedRates && rate != -1 && !isVoltage ) {
-			KineticParameterInfo *pi = paramGet( PI_REACTION_RATE );
-			if( pi[ rate ].group > 1 ) { // a "linkage group"
-				isVoltage = isVoltage || rateGroupIsVoltageDependent( pi[ rate ].group );
-					// yes, this means "rate" will be checked twice since rateGroupIsVoltageDependent
-					// will call us back...
-			}
-		}
-	}
-	return isVoltage;
-}
-
-void KineticSystem::setVoltageDependent( int rate, int val ) {
-	ZTmpStr key( "rate%d-volt-depend", rate );
-	val ? viewInfo.putI( key, val ) : viewInfo.del( key );
-	if( val ) {
-		setTemperatureDependent( rate, 0 );
-			// can't be both, though a voltage-dependent rate also has a temp param
-	}
-	
-	// NOTE: client should now call allocParameterInfo!
-}
-*/
-
 KineticParameterInfo* KineticSystem::paramGetRateCoefs( int rate, int coefType ) {
 	// for the exponential expressions that may control rate: there are
 	// always two such params per rate if the rate has them.
@@ -4391,80 +4357,6 @@ KineticParameterInfo* KineticSystem::paramGetRateCoefs( int rate, int coefType )
 	}
 	return 0;
 }
-
-/*
-int KineticSystem::rateGroupIsVoltageDependent( int group, int *whichRate ) {
-	int count;
-	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
-	for( int i=0; i<count; i++ ) {
-		if( pi[i].group == group ) {
-			if( isVoltageDependent( i ) ) {
-				if( whichRate ) {
-					*whichRate = i;
-				}
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
-int KineticSystem::isTemperatureDependent( int rate, int includeLinkedRates ) {
-	int beginRate = rate == -1 ? 0 : rate;
-	int endRate   = rate == -1 ? reactions.count * 2 : rate + 1;
-
-	int isTemperature=0;
-	for( int i=beginRate; i<endRate && !isTemperature; i++ ) {
-		ZTmpStr key( "rate%d-temp-depend", i );
-		isTemperature = isTemperature || viewInfo.getI( key );
-		if( includeLinkedRates && rate != -1 && !isTemperature ) {
-			KineticParameterInfo *pi = paramGet( PI_REACTION_RATE );
-			if( pi[ rate ].group > 1 ) { // a "linkage group"
-				isTemperature = isTemperature || rateGroupIsTemperatureDependent( pi[ rate ].group );
-					// yes, this means "rate" will be checked twice since rateGroupIsTemperatureDependent
-					// will call us back...
-			}
-		}
-	}
-	return isTemperature;
-}
-
-void KineticSystem::setTemperatureDependent( int rate, int val ) {
-	ZTmpStr key( "rate%d-temp-depend", rate );
-	val ? viewInfo.putI( key, val ) : viewInfo.del( key );
-	if( val ) {
-		setVoltageDependent( rate, 0 );
-			// can't be both
-	}
-	// NOTE: client should now call allocParameterInfo!
-}
-
-int KineticSystem::rateGroupIsTemperatureDependent( int group, int *whichRate ) {
-	int count;
-	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
-	for( int i=0; i<count; i++ ) {
-		if( pi[i].group == group ) {
-			if( isTemperatureDependent( i ) ) {
-				if( whichRate ) {
-					*whichRate = i;
-				}
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
-int KineticSystem::isVoltageOrTemperatureDependent( int rate, int includeLinkedRates ) {
-	return isVoltageDependent( rate, includeLinkedRates ) ||
-		   isTemperatureDependent( rate, includeLinkedRates );
-}
-
-int KineticSystem::rateGroupIsVoltageOrTemperatureDependent( int group, int *whichRate ) {
-	return rateGroupIsVoltageDependent( group, whichRate ) ||
-		   rateGroupIsTemperatureDependent( group, whichRate );
-}
-*/
 
 void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double *rates ) {
 
@@ -4508,37 +4400,6 @@ void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double
 }
 
 void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, double *rates ) {
-
-#ifdef TEMPDEP_OLD_WAY
-	//
-	// Get the temperature particular to this experiment/mixstep, or use a reference temperature
-	//
-	double temperature;
-	KineticParameterInfo *pi;
-	if( eIndex >= 0 ) {
-		pi = paramGet( PI_TEMPERATURE, 0, eIndex, mixstep );
-		assert( pi );
-		temperature = pi->value;
-	}
-	else {
-		temperature = viewInfo.getD( "referenceTemperature", 298.0 );
-	}
-
-	//
-	// Update the value of any rate that is dependent on temperature.
-	//
-	int count;
-	pi = paramGet( PI_REACTION_RATE, &count );
-	for( int i=0; i<count; i++ ) {
-		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_TEMPERATURE_COEF );
-		if( vpi && vpi[1].value != 0.0) {
-			double amp  = vpi[0].value;
-			double freq = vpi[1].value;
-			double rateVal = amp * exp( -freq / ( GAS_CONST_KJOULES * temperature ) );
-			rates ? rates[ i ] = rateVal : pi[ i ].value = rateVal;
-		}
-	}
-#else
 	//
 	// Get the temperature for this experiment/mixstep, and the reference temperature
 	//
@@ -4564,8 +4425,6 @@ void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, do
 			rates[ i ] = rateVal;
 		}
 	}
-	
-#endif
 }
 
 void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp, double newRefTemp ) {
@@ -4587,46 +4446,6 @@ void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp,
 		}
 	}
 }
-
-
-#ifdef USE_KINFIT_V2
-void KineticSystem::updateTemperatureAmplitudesFromReferenceFit( FitData *fd ) {
-    // It may be that we want to constrain the relationships of Ea and Amplitude terms in the
-    // Arrhenius equation such that rates at a reference temperature are preserved.
-    //
-    // This fn solves for the amplitude terms using the Arrhenius equation with known quantities
-    // for rate, Ea, and temperature.  Temp and Ea we have access to, but where do we get the
-    // rates at the reference temperature?  We have stuffed a pointer to the FitData into the 
-    // properties hash of the system in the case we are fitting.
-    
-    if( !fd ) {
-        viewInfo.lock();
-        fd = (FitData*)viewInfo.getpLocked( "fitData" );
-        viewInfo.unlock();
-    }
-    if( fd ) {
-        //
-        // Update the value of each amplitude term based on the rates at the reference temperature.
-        //
-        double temperature = viewInfo.getD( "referenceTemperature", 298.0 );
-        int count = reactionCount();
-        for( int i=0; i<count; i++ ) {
-            KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_TEMPERATURE_COEF );
-            if( vpi && vpi[1].value != 0.0 ) {
-                double amp  = vpi[0].value;
-                double Ea   = vpi[1].value;
-                ParamInfo *pi = fd->paramByName( reactionGetRateName( i ) );
-                if( pi ) {
-                    amp = pi->initialValue / exp( -Ea / ( GAS_CONST_KJOULES * temperature ) );
-                }
-                vpi[0].value = amp;
-            }
-        }
-            
-    }
-}
-#endif
-
 
 #define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || \
 			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
