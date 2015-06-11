@@ -1712,6 +1712,12 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 					pv[ rp - rp0 ] = pi->value;
 				}
 
+				pi = system->paramGet( PI_SOLVENTCONC, 0, experimentIndex, i );
+				if( pi ) {
+					int rp = vmd->regIndexSConc();
+					pv[ rp - rp0 ] = pi->value;
+				}
+
 				// Initial Conc (constant value)
 				pi = system->paramGet( PI_INIT_COND, 0, experimentIndex, i );
 				int rc = vmd->regIndexConc();
@@ -3579,7 +3585,7 @@ static void parseReactionOperator() {
 }
 
 int isReservedWord( char *symbol ) {
-	static char *reserved[] = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC" };
+	static char *reserved[] = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC", "SCONC", "DERIV" };
 	int count = sizeof( reserved ) / sizeof( reserved[0] );
 	for( int i=0; i<count; i++ ) {
 		if( !strcmp( symbol, reserved[i] ) ) {
@@ -4039,8 +4045,8 @@ void KineticSystem::getQ( ZMat &qVec ) {
 	KineticParameterInfo *paramInfo = 0;
 
 	paramInfo = paramGet( PI_OBS_CONST, &paramCount );
-	int voltTempPress = eCount() * 3;	
-		// a term for voltage, temperature, and pressure are included for each experiment.
+	int voltTempPress = eCount() * 4;
+		// a term for voltage, temperature, pressure, and solvent concentration are included for each experiment.
 	int qCount = reactionCount() + paramCount + reagentCount() * eCount() + voltTempPress;
 	qVec.alloc( qCount, 1, zmatF64 );
 
@@ -4063,7 +4069,7 @@ void KineticSystem::getQ( ZMat &qVec ) {
 	// VOLTAGE/TEMP/PRESSURE FOR EACH EXPERIMENT
 	// This is specifically to allow observable expressions to include keywords
 	// like "VOLT" which should be substituted with the voltage for the given 
-	// experiment. Likewise for TEMP, PRESS, CONC.  Since KineticSystem machinery
+	// experiment. Likewise for TEMP, PRESS, CONC, (and now SCONC).  Since KineticSystem machinery
 	// is setup to expect the P length to be the same for each experiment, then
 	// we must insert default values for each experiment if *ANY* experiment
 	// has one of these.  Therefore, it actually seems simplest to always include
@@ -4095,6 +4101,14 @@ void KineticSystem::getQ( ZMat &qVec ) {
 
 		value = 1.0;
 		paramInfo = paramGet( PI_PRESSURE, &paramCount, e );
+		if( paramInfo ) {
+			value = paramInfo->value;
+		}
+		qVec.setD( qi, 0, value );
+		qi++;
+
+		value = 1.0;
+		paramInfo = paramGet( PI_SOLVENTCONC, &paramCount, e );
 		if( paramInfo ) {
 			value = paramInfo->value;
 		}
@@ -4155,6 +4169,11 @@ void KineticSystem::getP( ZMat q, int forExperiment, ZMat &pVec, int forMixstep 
 	
 	value=1.0;
 	paramInfo = paramGet( PI_PRESSURE, &paramCount, forExperiment, forMixstep );
+	pVec.setD( pi, 0, paramInfo ? paramInfo->value : value );
+	pi++;
+
+	value=1.0;
+	paramInfo = paramGet( PI_SOLVENTCONC, &paramCount, forExperiment, forMixstep );
 	pVec.setD( pi, 0, paramInfo ? paramInfo->value : value );
 	pi++;
 
@@ -4229,8 +4248,8 @@ int KineticSystem::getPLength() {
 	int obsCount = 0;
 	paramGet( PI_OBS_CONST, &obsCount );
 
-	int voltTempPressConc = 4;	
-		// a term for voltage, temperature, pressure, initConc are included
+	int voltTempPressConc = 5;	
+		// a term for voltage, temperature, pressure, solventConc, initConc are included
 		// for each experiment.
 	
 	return reactionCount() + obsCount + voltTempPressConc + reagentCount(); 
@@ -4555,8 +4574,8 @@ void KineticSystem::updateConcentrationDependentRatesAtRefConc( double oldRefCon
 	
 
 int isReservedWord( char *symbolBegin, int len ) {
-	char *fns[]  = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC", "DERIV" };
-	int fnLens[] = {3, 2, 3, 3, 4, 4, 4, 4, 5};
+	char *fns[]  = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC", "SCONC", "DERIV" };
+	int fnLens[] = {3, 2, 3, 3, 4, 4, 4, 4, 5, 5};
 	int count = sizeof( fns ) / sizeof( fns[0] );
 	for( int i=0; i<count; i++ ) {
 		if( len == fnLens[i] && !strncmp( fns[i], symbolBegin, len ) ) {
@@ -6634,7 +6653,6 @@ int KineticVMCodeOC::recurseCompile( char *str ) {
 									// P vector, and we can reference them as below.
 									if( !strcmp( "VOLT", str ) ) {
 										emit( PUSH );
-										int rv=regIndexVolt();
 										emit( regIndexVolt() );
 									}
 									else if( !strcmp( "TEMP", str ) ) {
@@ -6644,6 +6662,10 @@ int KineticVMCodeOC::recurseCompile( char *str ) {
 									else if( !strcmp( "PRES", str ) ) {
 										emit( PUSH );
 										emit( regIndexPres() );
+									}
+									else if( !strcmp( "SCONC", str ) ) {
+										emit( PUSH );
+										emit( regIndexSConc() );
 									}
 									else if( !strcmp( "CONC", str ) ) {
 										emit( PUSH );
@@ -7120,6 +7142,10 @@ int KineticVMCodeOD::recurseCompile( char *str ) {
 										emit( regIndexConstZero() );
 									}
 									else if( !strcmp( "PRES", str ) ) {
+										emit( PUSH );
+										emit( regIndexConstZero() );
+									}
+									else if( !strcmp( "SCONC", str ) ) {
 										emit( PUSH );
 										emit( regIndexConstZero() );
 									}

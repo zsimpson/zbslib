@@ -1304,9 +1304,10 @@ struct KineticVM {
 	int regIndexConstLn10()                { return 5; }
 	
 	int regIndexP( int p )                 { return 6+p; }
-	int regIndexVolt()					   { return 6+PC-4; }
-	int regIndexTemp()					   { return 6+PC-3; }
-	int regIndexPres()					   { return 6+PC-2; }
+	int regIndexVolt()					   { return 6+PC-5; }
+	int regIndexTemp()					   { return 6+PC-4; }
+	int regIndexPres()					   { return 6+PC-3; }
+	int regIndexSConc()					   { return 6+PC-2; }
 	int regIndexConc()					   { return 6+PC-1; }
 	
 	int regIndexC( int i )                 { return 6+PC+i; }
