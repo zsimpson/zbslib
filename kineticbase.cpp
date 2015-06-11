@@ -1566,6 +1566,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	int singleMolecule  = viewInfo.getI( "singleMolecule" );
 	int voltageDepends		= system->isDependent( KineticSystem::DT_Volt );
 	int	temperatureDepends	= system->isDependent( KineticSystem::DT_Temp );
+	int	concentrationDepends = system->isDependent( KineticSystem::DT_Conc );
 
 	int i,j,hasFixed=0;
 	ZMat fixedConc( reagentCount(), mixstepCount, zmatS32 );
@@ -1607,6 +1608,9 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 		else if( temperatureDepends ) {
 			system->updateTemperatureDependentRates( experimentIndex, i , rr );
 				// see comment above
+		}
+		else if( concentrationDepends ) {
+			system->updateConcentrationDependentRates( experimentIndex, i, rr );
 		}
 
 		if( singleMolecule ) {
@@ -2097,7 +2101,7 @@ KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
 
 	int seriesType = viewInfo.getI( "seriesType" );
 	switch( seriesType ) {
-		case SERIES_TYPE_CONCENTRATION: {
+		case SERIES_TYPE_REAGENTCONC: {
 			if( reagentIndexForSeries == -1 ) {
 				return 0;
 			}
@@ -2116,12 +2120,17 @@ KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
 			assert( pi );
 			break;
 		}
+		case SERIES_TYPE_SOLVENTCONC: {
+			pi = system->paramGet( PI_SOLVENTCONC, 0, getExperimentIndex(), mixstepIndexForSeries );
+			assert( pi );
+			break;
+		}
 	}
 	return pi;
 }
 
 double KineticExperiment::getSeriesConcentration() {
-	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_CONCENTRATION ) {
+	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_REAGENTCONC ) {
 		KineticParameterInfo *pi = getSeriesParameterInfo();
 		if( pi ) {
 			return pi->value;
@@ -2142,6 +2151,16 @@ double KineticExperiment::getSeriesVoltage() {
 
 double KineticExperiment::getSeriesTemperature() {
 	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_TEMPERATURE ) {
+		KineticParameterInfo *pi = getSeriesParameterInfo();
+		if( pi ) {
+			return pi->value;
+		}
+	}
+	return -1.0;
+}
+
+double KineticExperiment::getSeriesSolventConcentration() {
+	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_SOLVENTCONC ) {
 		KineticParameterInfo *pi = getSeriesParameterInfo();
 		if( pi ) {
 			return pi->value;
@@ -3190,8 +3209,8 @@ void KineticExperiment::copyRenderVariables() {
 // KineticSystem
 //------------------------------------------------------------------------------------------------------------------------------------
 
-int KineticSystem::rateDependCoefTypes[4] = { PI_VOLTAGE_COEF, PI_TEMPERATURE_COEF, PI_PRESSURE_COEF, PI_CONCENTRATION_COEF };
-int KineticSystem::rateDependInitCondTypes[4] = { PI_VOLTAGE, PI_TEMPERATURE, PI_PRESSURE, PI_INIT_COND };
+int KineticSystem::rateDependCoefTypes[4] = { PI_VOLTAGE_COEF, PI_TEMPERATURE_COEF, PI_PRESSURE_COEF, PI_SOLVENTCONC_COEF };
+int KineticSystem::rateDependInitCondTypes[4] = { PI_VOLTAGE, PI_TEMPERATURE, PI_PRESSURE, PI_SOLVENTCONC };
 
 KineticSystem::KineticSystem() {
 	vmd = 0;
@@ -3902,14 +3921,17 @@ void KineticSystem::copyInitialConditions( KineticExperiment *from, KineticExper
 
 	// There are a number of kinds of "initial conditions" now, not just concentrations.
 	// We also may have voltage, temperature, or pressure conditions.
-	#define NUM_PARAMTYPES 6
+	#define NUM_PARAMTYPES 9
 	int paramTypes[ NUM_PARAMTYPES ] = { 
 		PI_INIT_COND,
 		PI_VOLTAGE,
 		PI_VOLTAGE_COEF,
 		PI_TEMPERATURE,
 		PI_TEMPERATURE_COEF,
-		PI_PRESSURE
+		PI_PRESSURE,
+		PI_PRESSURE_COEF,
+		PI_SOLVENTCONC,
+		PI_SOLVENTCONC_COEF
 	};
 
 	for( int pt=0; pt<NUM_PARAMTYPES; pt++ ) {
@@ -4392,6 +4414,7 @@ void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double
 			if( i & 1 ) {
 				freq = -freq;
 					// reverse rates get negated charge in exponential term
+					// TODO: convince myself this wouldn't negate the derivative in the Jacobian during fitting?
 			}
 			double rateVal = amp * exp( voltage * freq * FARADAY_CONST / ( GAS_CONST_JOULES * temperature ) );
 			rates ? rates[ i ] = rateVal : pi[ i ].value = rateVal;
@@ -4400,6 +4423,9 @@ void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double
 }
 
 void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, double *rates ) {
+	// This is called when Ea changes (or the experiment temp changes) and new rates should be computed
+	// based on the rate at the reference temperature.  This is done during fitting of Ea, for example.
+
 	//
 	// Get the temperature for this experiment/mixstep, and the reference temperature
 	//
@@ -4429,9 +4455,9 @@ void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, do
 
 void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp, double newRefTemp ) {
 	//
-	// Update the value of any rate that is dependent on temperature.  The current
-	// rate is that
-	//
+	// This is called to update the rates of this system which are based on a reference temperature.
+	// When the reference temperature changes, we need to recompute all of the rates.
+	// 
 	int count;
 	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
 	for( int i=0; i<count; i++ ) {
@@ -4446,6 +4472,81 @@ void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp,
 		}
 	}
 }
+
+void KineticSystem::updateConcentrationDependentRates( int eIndex, int mixstep, double *rates ) {
+	//
+	// The current rates are those at the reference temperature and concentration.  Update
+	// the rates taking into account the value of m, and any change in T and C.
+	//
+	double expConc, expTemp, refConc, refTemp;
+	
+	KineticParameterInfo *pi = paramGet( PI_SOLVENTCONC, 0, eIndex, mixstep );
+	assert( pi );
+	expConc = pi->value;
+
+	pi = paramGet( PI_TEMPERATURE, 0, eIndex, mixstep );
+	assert( pi );
+	expTemp = pi->value;
+	
+	refConc = viewInfo.getD( "referenceConcentration", 0.0 );
+	refTemp = viewInfo.getD( "referenceTemperature", 298.0 );
+
+	//
+	// Update the value of any rate that is dependent on concentration.  Note that
+	// the rates at the reference conc are given by the PI_REACTION_RATE params.
+	//
+	int count;
+	pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_SOLVENTCONC_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double m = vpi[1].value;
+			// if( i & 1 ) {
+			// 	m = -m;
+			// 		// Not 
+			// }
+			double rateVal = pi[i].value * exp( m*(expConc/expTemp - refConc/refTemp)/GAS_CONST_KJOULES );
+			rates[ i ] = rateVal;
+		}
+	}
+}
+
+void KineticSystem::updateConcentrationDependentRatesAtRefTemp( double oldRefTemp, double newRefTemp ) {
+	//
+	// Update system rates based on changing reference temperature
+	//
+	double refConc = viewInfo.getD( "referenceConcentration" );
+	int count;
+	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_SOLVENTCONC_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double m = vpi[1].value;
+			double oldRate = pi[i].value;
+			double newRate = oldRate * exp( (m * refConc / GAS_CONST_KJOULES)*(1.0/newRefTemp - 1.0/oldRefTemp) );
+			pi[ i ].value = newRate;
+		}
+	}
+}
+
+void KineticSystem::updateConcentrationDependentRatesAtRefConc( double oldRefConc, double newRefConc ) {
+	//
+	// Update system rates based on changing reference concentration
+	//
+	double refTemp = viewInfo.getD( "referenceTemperature", 298.0 );
+	int count;
+	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_SOLVENTCONC_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double m = vpi[1].value;
+			double oldRate = pi[i].value;
+			double newRate = oldRate * exp( (m * (newRefConc - oldRefConc) / (GAS_CONST_KJOULES * refTemp)) );
+			pi[ i ].value = newRate;
+		}
+	}
+}
+
 
 #define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || \
 			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
@@ -4572,8 +4673,8 @@ void KineticSystem::saveParameterInfo( ZHashTable &savedParameters ) {
 
 	// Save voltage, temperature, pressure, concentration coefs if present
 	//
-	char prefix[3][16] = { "voltage", "temperature", "pressure" };
-    char suffix[6][3]  = { "Vo", "z", "To", "Ea", "P1", "P2" };
+	char prefix[4][16] = { "voltage", "temperature", "pressure", "concentration" };
+    char suffix[8][3]  = { "Vo", "z", "To", "Ea", "P1", "P2", "k0", "m" };
 		// this order should match rateDependCoefTypes; the suffixes are 2 per coef type
 	for( int j=0; j<4; j++ ) {
 		if( viewInfo.getI( "rateDependType", -1 ) == j ) {
@@ -4590,12 +4691,10 @@ void KineticSystem::saveParameterInfo( ZHashTable &savedParameters ) {
 				}
 			}
 			// But we may have initial conditions for more than one, since voltage for example
-			// also makes use of a temperature initial condition.  So we run through all initial
-			// conditions here, except concentration, which we have already stored with the
-			// PI_INIT_COND params.
+			// also makes use of a temperature initial condition.  (Really these are not "initial"
+			// conditions, they are constant conditions, but may vary by experiment.)
 			//
-			for( int k=0; k<3; k++ ) {
-					// 3, because we already have the initial conditions for concentrations stored.
+			for( int k=0; k<4; k++ ) {
 				for( i=0; i<experiments.count; i++ ) {
 					for( int ms=0; ms<experiments[i]->mixstepCount; ms++ ) {
 						paramCount=0;
@@ -4659,8 +4758,8 @@ void KineticSystem::loadParameterValues( ZHashTable &loadValues ) {
 
 	// Load voltage, temperature, pressure, concentration coefs
 	//
-	char prefix[3][16] = { "voltage", "temperature", "pressure" };
-    char suffix[6][3]  = { "Vo", "z", "To", "Ea", "P1", "P2" };
+	char prefix[4][16] = { "voltage", "temperature", "pressure", "concentration" };
+    char suffix[8][3]  = { "Vo", "z", "To", "Ea", "P1", "P2", "k0", "m" };
 		// this order should match rateDependCoefTypes
 	for( int j=0; j<4; j++ ) {
 		if( viewInfo.getI( "rateDependType", -1 ) == j ) {
@@ -4684,12 +4783,10 @@ void KineticSystem::loadParameterValues( ZHashTable &loadValues ) {
 				}
 			}
 			// But we may have initial conditions for more than one, since voltage for example
-			// also makes use of a temperature initial condition.  So we run through all initial
-			// conditions here, except concentration, which we have already stored with the
-			// PI_INIT_COND params.
+			// also makes use of a temperature initial condition.  Really these are constant
+			// conditions, though they may vary per experiment.
 			//
-			for( int k=0; k<3; k++ ) {
-					// 3, because we already have the initial conditions for concentrations stored.
+			for( int k=0; k<4; k++ ) {
 				for( i=0; i<experiments.count; i++ ) {
 					for( int ms=0; ms<experiments[i]->mixstepCount; ms++ ) {
 						paramCount=0;
@@ -4891,10 +4988,19 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	//					above define a give rate via an exponential expression k = A * exp( V * q )
 	//					There is an 'A' and a 'q' term for each rate that is voltage-dependent.
 	//					None, some, or all rates may be voltage dependent.
+	//
+	//					NOTE: we are moving toward NOT using the amplitude parameters for most 
+	//					of these special rate dependencies.  E.g. temp, concentration create them,
+	//					but they are not used by the program, because we compute new rates relative
+	//					to old rates given a new reference temp or concentration, and the amplitude
+	//					terms "fall out" and are not required for the computation.  They are still
+	//					created here in case we want to utilize them, and to keep things symmetric
+	//					since all of these dependencies share the same exponential form.
 	// 
 	//
 	double refVoltage = viewInfo.getD( "referenceVoltage", -100 );
 	double refTemperature = viewInfo.getD( "referenceTemperature", 298.0 );
+	double refConcentration = viewInfo.getD( "referenceConcentration", 0.0 );
 	if( isDependent( DT_Volt ) ) {
 		// PI_VOLTAGE:
 		//
@@ -4977,8 +5083,74 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 			ampParam->value = rate / exp( refVoltage * charge * FARADAY_CONST / ( GAS_CONST_JOULES * refTemperature ) );
 		}
 	}
-	if( isDependent( DT_Volt ) || isDependent( DT_Temp ) ) {
-		// PI_TEMPERATURE: note that if this system is voltage dependent, then it will also have
+	if( isDependent( DT_Conc ) ) {
+		for( e=0; e<eCount(); e++ ) {
+			KineticExperiment *ee = experiments[e];
+			if( ee->slaveToExperimentId == -1 ) {
+				ZTLVec< KineticExperiment* > series;
+				int seriesCount = ee->getSeries( series, 1 );
+				for( int s=0; s<seriesCount; s++ ) {
+					KineticExperiment *ke = series[s];
+					for( int ms=0; ms<experiments[e]->mixstepCount; ms++ ) {
+						// CREATE Concentration param for this mix step
+						//
+						KineticParameterInfo info;
+						info.type = PI_SOLVENTCONC;
+						info.experiment = ke->getExperimentIndex();
+						info.mixstep = ms;
+						ZTmpStr unique( "concentration_e%d_m%d", ke->id, ke->mixsteps[ms].id );
+						strcpy( info.name, unique );
+						saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
+
+						if( !saved && ke->slaveToExperimentId != -1 ) {
+							// Look to our master for the concentration if we don't have it ourselves
+							unique.set( "concentration_e%d_m%d", ke->slaveToExperimentId, ke->mixsteps[ms].id );
+							saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
+						}
+
+						info.value   = saved ? saved->value   : 0;
+						info.fitFlag = saved ? saved->fitFlag : 1;
+						parameterInfo.add( info );
+					}
+				}
+			}
+		}
+		// PI_SOLVENTCONC_COEF:
+		//
+		for( int r=0; r<reactionCount(); r++ ) {
+			KineticParameterInfo info;
+			info.type = PI_SOLVENTCONC_COEF;
+			info.reaction = r;
+			strcpy( info.name, ZTmpStr( "%s_k0", reactionGetRateName( r ) ) );
+            char *reactionString = reactionGetUniqueString( r );
+            ZTmpStr unique( "%s_k0", reactionString );
+            saved        = (SavedKineticParameterInfo*)paramValues->getS( unique, 0 );
+			info.value   = saved ? saved->value   : 1.0;
+			info.fitFlag = saved ? saved->fitFlag : 1;
+			info.group   = saved ? saved->group : !info.fitFlag;
+
+			int index = parameterInfo.add( info );
+
+			info.type = PI_SOLVENTCONC_COEF;
+			info.reaction = r;
+			strcpy( info.name, ZTmpStr( "m%s", reactionGetRateName( r )+1 ) );
+            unique.set( "%s_m", reactionString );
+            saved        = (SavedKineticParameterInfo*)paramValues->getS( unique, 0 );
+			info.value   = saved ? saved->value   : 0.0;
+			info.fitFlag = saved ? saved->fitFlag : 1;
+			info.group   = saved ? saved->group : !info.fitFlag;
+
+			parameterInfo.add( info );
+
+			// Now set the amplitude param based on the solvent accessibility constant, temperature, and rate.
+			KineticParameterInfo *ampParam = &parameterInfo[ index ];
+			double m    = info.value;
+			double rate = paramGetReactionRate( r );
+			ampParam->value = rate / exp( m / ( GAS_CONST_KJOULES * refTemperature ) );
+		}
+	}
+	if( isDependent( DT_Volt ) || isDependent( DT_Conc) || isDependent( DT_Temp ) ) {
+		// PI_TEMPERATURE: note that if this system is voltage or conc dependent, then it will also have
 		// the PI_TEMPERATURE parameters for each experiment because voltage dependency implies
 		// a temperature dependency in addition...
 		//

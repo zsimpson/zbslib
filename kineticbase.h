@@ -324,10 +324,8 @@ struct KineticParameterInfo {
 		#define PI_TEMPERATURE_COEF (64)
 		#define PI_PRESSURE (128)
 		#define PI_PRESSURE_COEF (256)
-//		#define PI_CONCENTRATION (512)
-			// we can probably use PI_INIT_COND here, which is the initial concentration
-		#define PI_CONCENTRATION_COEF (1024)
-
+		#define PI_SOLVENTCONC (512)
+		#define PI_SOLVENTCONC_COEF (1024)
 
 
 	int experiment;
@@ -466,11 +464,14 @@ struct KineticExperiment {
 	// temperature.  THe last two added dec2011.
 	//------------------------------------------------------------
 
-	#define SERIES_TYPE_CONCENTRATION (0)
+	#define SERIES_TYPE_REAGENTCONC (0)
 	#define SERIES_TYPE_VOLTAGE (1)
 	#define SERIES_TYPE_TEMPERATURE (2)
+	#define SERIES_TYPE_SOLVENTCONC (3)
 		// the seriesType is stored in the viewInfo hashtable of properties.
-		// default is CONCENTRATION
+		// default is REAGENTCONC which refers to concentrations of a reagent.
+		// SOLVENTCONC refers to concentration of a solvent, e.g. urea which
+		// acts as a denaturant for proteins and affects folding rates.
 
 	int slaveToExperimentId;
 		// When this is set to non-negative, we are part of a series exeperiment
@@ -502,6 +503,9 @@ struct KineticExperiment {
 
 	double getSeriesTemperature();
 		// return the temperature for this exp in a series or -1 if not a temp series.
+
+	double getSeriesSolventConcentration();
+		// return the solvent conc for this exp in a series or -1 if not a solventconc series.
 
 	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax );
 		// useful stats for a collection of experiments in a concentration series
@@ -1188,9 +1192,16 @@ struct KineticSystem {
 	void updateTemperatureDependentRatesAtRefTemp( double Told, double Tnew );
 		// march2013 new: for the new methods that don't use A-term
     
+    void updateConcentrationDependentRates( int eIndex, int mixstep, double *rates );
+	void updateConcentrationDependentRatesAtRefTemp( double Told, double Tnew );
+    void updateConcentrationDependentRatesAtRefConc( double Cold, double Cnew );
+    	// modeled on the way we do Temp, in which system rates are based on
+    	// a reference concentration and reference temperature, and we can update
+    	// those rates based on a change to either of these.
+
+
 	// TODO: 
 	// void updatePressureDependentRates( int eIndex, int mixstep, double *rates=0 );
-	// void updateConcentrationDependentRates( int eIndex, int mixstep, double *rates=0 );
 
 
 	// Optional Threading
