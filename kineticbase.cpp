@@ -1677,7 +1677,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	zprofEnd();
 
 	zprofBeg( computeOC );
-	if( mixstepCount==1 || (!voltageDepends && !temperatureDepends) ) {
+	if( mixstepCount==1 || (!voltageDepends && !temperatureDepends && !concentrationDepends) ) {
 		computeOC( pVec );
 	}
 	else {
@@ -6666,6 +6666,10 @@ int KineticVMCodeOC::recurseCompile( char *str ) {
 									else if( !strcmp( "SCONC", str ) ) {
 										emit( PUSH );
 										emit( regIndexSConc() );
+//										int r = regIndexSConc();
+//										double *v = regP( r );
+//										printf( "SCONC pushing %g\n", *v );
+										
 									}
 									else if( !strcmp( "CONC", str ) ) {
 										emit( PUSH );
