@@ -2361,7 +2361,7 @@ int addSeriesOffsetToExpression( ZTmpStr &expr, char *suffix ) {
 }
 
 int removeSeriesOffsetFromExpression( ZTmpStr &expr ) {
-	ZRegExp removeOffset( "^(.*\\S)\\s*\\+\\s*offset_\\d+.\\s*$" );
+	ZRegExp removeOffset( "^(.*\\S)\\s*\\+\\s*offset_\\d+[a-z]+\\s*$" );
 	if( removeOffset.test( expr.s ) ) {
 		expr.set( removeOffset.get( 1 ) );
 		return 1;
@@ -2383,7 +2383,7 @@ int addSeriesScaleToExpression( ZTmpStr &expr, char *suffix ) {
 }
 
 int removeSeriesScaleFromExpression( ZTmpStr &expr ) {
-	ZRegExp removeScale( "^\\s*scale_\\d+.\\s*\\*\\s*\\(\\s*(.+)\\s*\\)\\s*(\\+\\s*offset_\\d+.)*\\s*$" );
+	ZRegExp removeScale( "^\\s*scale_\\d+[a-z]+\\s*\\*\\s*\\(\\s*(.+)\\s*\\)\\s*(\\+\\s*offset_\\d+[a-z]+)*\\s*$" );
 	if( removeScale.test( expr ) ) {
 		char *mainExpr = removeScale.get( 1 );
 		char *offset   = removeScale.get( 2 );
