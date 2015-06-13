@@ -1714,8 +1714,8 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 
 				pi = system->paramGet( PI_SOLVENTCONC, 0, experimentIndex, i );
 				if( pi ) {
-					int rp = vmd->regIndexSConc();
-					pv[ rp - rp0 ] = pi->value;
+					int rs = vmd->regIndexSConc();
+					pv[ rs - rp0 ] = pi->value;
 				}
 
 				// Initial Conc (constant value)
@@ -6666,10 +6666,6 @@ int KineticVMCodeOC::recurseCompile( char *str ) {
 									else if( !strcmp( "SCONC", str ) ) {
 										emit( PUSH );
 										emit( regIndexSConc() );
-//										int r = regIndexSConc();
-//										double *v = regP( r );
-//										printf( "SCONC pushing %g\n", *v );
-										
 									}
 									else if( !strcmp( "CONC", str ) ) {
 										emit( PUSH );
