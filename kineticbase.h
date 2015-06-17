@@ -1143,7 +1143,7 @@ struct KineticSystem {
 	#define GAS_CONST_JOULES 8.3144621						// in  J/K/mol
 	#define GAS_CONST_KJOULES (GAS_CONST_JOULES / 1000.0)	// in kJ/K/mol
 
-	#define FARADAY_CONST (96485.0 / 1000.0)
+	#define FARADAY_CONST (96485.3365 / 1000.0)
 		// this is divided by 1000 because we work in milliVolts 
 
 	enum DependType { DT_Volt, DT_Temp, DT_Pres, DT_Conc };
@@ -1179,29 +1179,26 @@ struct KineticSystem {
 		// ensure that only one rate in a group is dependent in this way.
 		// Return voltage-dependet rate in whichRate if appropriate.
 
-	void updateVoltageDependentRates( int eIndex, int mixstep, double *rates=0 );
-		// using the voltage as given in the index,mixstep, update the
-		// rates dependent on voltage.  If some of these rates are in ratio
-		// groups, update those group rates as well.  If the rates pointer
-		// is nonNull, place the updated rates there, otherwise update
-		// the rate values in the paramInfo vector of this system.
-
-	void updateTemperatureDependentRates( int eIndex, int mixstep, double *rates );
-		// same as above, for temp-dependency
-		
+	void updateTemperatureDependentRates( int eIndex, int mixstep, double *rates );		
 	void updateTemperatureDependentRatesAtRefTemp( double Told, double Tnew );
-		// march2013 new: for the new methods that don't use A-term
+		// system rates are the rates at a reference temperature.  Rates for experiments
+		// at other temperatures are computed from the rate at ref temp as well as 
+		// the Ea coefficient for temp-dependent rates.
+
+	void updateVoltageDependentRates( int eIndex, int mixstep, double *rates );
+	void updateVoltageDependentRatesAtRefTemp( double Told, double Tnew );
+    void updateVoltageDependentRatesAtRefVolt( double Vold, double Vnew );
+    	// Just like temp, but Charge is in the exponential.  Note that voltage-dependence
+    	// implies also a dependence on a temperature, but this is not the same as 
+    	// temp-dependence above, which includes an activation energy (Ea) term.
     
     void updateConcentrationDependentRates( int eIndex, int mixstep, double *rates );
 	void updateConcentrationDependentRatesAtRefTemp( double Told, double Tnew );
     void updateConcentrationDependentRatesAtRefConc( double Cold, double Cnew );
-    	// modeled on the way we do Temp, in which system rates are based on
-    	// a reference concentration and reference temperature, and we can update
-    	// those rates based on a change to either of these.
-
+    	// Just like voltage, but for solvent concentration
 
 	// TODO: 
-	// void updatePressureDependentRates( int eIndex, int mixstep, double *rates=0 );
+	// void updatePressureDependentRates( int eIndex, int mixstep, double *rates );
 
 
 	// Optional Threading

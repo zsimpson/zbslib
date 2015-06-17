@@ -4399,48 +4399,6 @@ KineticParameterInfo* KineticSystem::paramGetRateCoefs( int rate, int coefType )
 	return 0;
 }
 
-void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double *rates ) {
-
-	//
-	// Get the voltage particular to this experiment/mixstep, or use a reference voltage
-	//
-	double voltage, temperature;
-	KineticParameterInfo *pi;
-	if( eIndex >= 0 ) {
-		pi = paramGet( PI_VOLTAGE, 0, eIndex, mixstep );
-		assert( pi );
-		voltage = pi->value;
-		pi = paramGet( PI_TEMPERATURE, 0, eIndex, mixstep );
-		assert( pi );
-		temperature = pi->value;
-	}
-	else {
-		voltage = viewInfo.getD( "referenceVoltage", -100 );
-		temperature = viewInfo.getD( "referenceTemperature", 298.0 );
-	}
-
-	//
-	// Update the value of any rate that is dependent on voltage
-	//
-	int count;
-	pi = paramGet( PI_REACTION_RATE, &count );
-	for( int i=0; i<count; i++ ) {
-		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_VOLTAGE_COEF );
-		if( vpi && vpi[1].value != 0.0 ) {
-				// != 0.0 because those that have 0.0 for charge are mathematically not dependent on the voltage
-			double amp  = vpi[0].value;
-			double freq = vpi[1].value;
-			if( i & 1 ) {
-				freq = -freq;
-					// reverse rates get negated charge in exponential term
-					// TODO: convince myself this wouldn't negate the derivative in the Jacobian during fitting?
-			}
-			double rateVal = amp * exp( voltage * freq * FARADAY_CONST / ( GAS_CONST_JOULES * temperature ) );
-			rates ? rates[ i ] = rateVal : pi[ i ].value = rateVal;
-		}
-	}
-}
-
 void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, double *rates ) {
 	// This is called when Ea changes (or the experiment temp changes) and new rates should be computed
 	// based on the rate at the reference temperature.  This is done during fitting of Ea, for example.
@@ -4491,6 +4449,92 @@ void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp,
 		}
 	}
 }
+
+void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double *rates ) {
+	//
+	// The current rates are those at the reference temperature and voltage.  Update
+	// the rates taking into account the value of charge, and any change in T and C.
+	//
+	double expVolt, expTemp, refVolt, refTemp;
+	
+	KineticParameterInfo *pi = paramGet( PI_VOLTAGE, 0, eIndex, mixstep );
+	assert( pi );
+	expVolt = pi->value;
+
+	pi = paramGet( PI_TEMPERATURE, 0, eIndex, mixstep );
+	assert( pi );
+	expTemp = pi->value;
+	
+	refVolt = viewInfo.getD( "referenceVoltage", -100.0 );
+	refTemp = viewInfo.getD( "referenceTemperature", 298.0 );
+
+	//
+	// Update the value of any rate that is dependent on voltage.  Note that
+	// the rates at the reference voltage are given by the PI_REACTION_RATE params.
+	//
+	int count;
+	pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_VOLTAGE_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double charge = vpi[1].value;
+			if( i & 1 ) {
+				charge = -charge;
+					// reverse rates get negated charge in exponential term because Ken wants to always
+					// display positive charge values in the UI
+					// TODO: convince myself this wouldn't negate the derivative in the Jacobian during fitting?
+			}
+			double rateVal = pi[i].value * exp( FARADAY_CONST * charge * (expVolt/expTemp - refVolt/refTemp) / GAS_CONST_JOULES );
+			rates[ i ] = rateVal;
+		}
+	}
+}
+
+void KineticSystem::updateVoltageDependentRatesAtRefTemp( double oldRefTemp, double newRefTemp ) {
+	//
+	// Update system rates based on changing reference temperature
+	//
+	double refVolt = viewInfo.getD( "referenceVoltage", -100.0 );
+	int count;
+	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_VOLTAGE_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double charge = vpi[1].value;
+			if( i & 1 ) {
+				charge = -charge;
+					// see note in function above
+			}
+			double oldRate = pi[i].value;
+			double newRate = oldRate * exp( FARADAY_CONST * charge * refVolt * (1.0/newRefTemp - 1.0/oldRefTemp) / GAS_CONST_JOULES );
+			pi[ i ].value = newRate;
+		}
+	}
+}
+
+
+void KineticSystem::updateVoltageDependentRatesAtRefVolt( double oldRefVolt, double newRefVolt ) {
+	//
+	// Update system rates based on changing reference voltage
+	//
+	double refTemp = viewInfo.getD( "referenceTemperature", 298.0 );
+	int count;
+	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
+	for( int i=0; i<count; i++ ) {
+		KineticParameterInfo *vpi = paramGetRateCoefs( i, PI_VOLTAGE_COEF );
+		if( vpi && vpi[1].value != 0.0) {
+			double charge = vpi[1].value;
+			if( i & 1 ) {
+				charge = -charge;
+					// see note in function above
+			}
+			double oldRate = pi[i].value;
+			double newRate = oldRate * exp( FARADAY_CONST * charge * (newRefVolt - oldRefVolt) / ( GAS_CONST_JOULES * refTemp ) );
+			pi[ i ].value = newRate;
+		}
+	}
+}
+
 
 void KineticSystem::updateConcentrationDependentRates( int eIndex, int mixstep, double *rates ) {
 	//
