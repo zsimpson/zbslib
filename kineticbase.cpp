@@ -4484,7 +4484,7 @@ void KineticSystem::updateVoltageDependentRates( int eIndex, int mixstep, double
 					// display positive charge values in the UI
 					// TODO: convince myself this wouldn't negate the derivative in the Jacobian during fitting?
 			}
-			double rateVal = pi[i].value * exp( FARADAY_CONST * charge * (expVolt/expTemp - refVolt/refTemp) / GAS_CONST_JOULES );
+			double rateVal = pi[i].value * exp( FARADAY_CONST * charge * (expVolt/expTemp - refVolt/refTemp) / GAS_CONST_KJOULES );
 			rates[ i ] = rateVal;
 		}
 	}
@@ -4506,7 +4506,7 @@ void KineticSystem::updateVoltageDependentRatesAtRefTemp( double oldRefTemp, dou
 					// see note in function above
 			}
 			double oldRate = pi[i].value;
-			double newRate = oldRate * exp( FARADAY_CONST * charge * refVolt * (1.0/newRefTemp - 1.0/oldRefTemp) / GAS_CONST_JOULES );
+			double newRate = oldRate * exp( FARADAY_CONST * charge * refVolt * (1.0/newRefTemp - 1.0/oldRefTemp) / GAS_CONST_KJOULES );
 			pi[ i ].value = newRate;
 		}
 	}
@@ -4529,7 +4529,7 @@ void KineticSystem::updateVoltageDependentRatesAtRefVolt( double oldRefVolt, dou
 					// see note in function above
 			}
 			double oldRate = pi[i].value;
-			double newRate = oldRate * exp( FARADAY_CONST * charge * (newRefVolt - oldRefVolt) / ( GAS_CONST_JOULES * refTemp ) );
+			double newRate = oldRate * exp( FARADAY_CONST * charge * (newRefVolt - oldRefVolt) / ( GAS_CONST_KJOULES * refTemp ) );
 			pi[ i ].value = newRate;
 		}
 	}
