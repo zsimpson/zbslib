@@ -696,79 +696,57 @@ void FitData::clearConstraintType( constraintType ct ) {
 
 //----------------------------------------
 
-void setupRatioConstraints( ParamInfo **linkedRateParams, int linkCount, ParamInfo *basisRate=0 ) {
+void setupRatioConstraints( ParamInfo **linkedParams, int linkCount, ParamInfo *basisParam=0 ) {
 	if( linkCount ) {
-		// The "basisRate" is the rate on which other rates will be based.  
-		if( !basisRate ) {
-			basisRate = linkedRateParams[ 0 ];
+		// The "basisParam" is the param on which other params will be based.  
+		if( !basisParam ) {
+			basisParam = linkedParams[ 0 ];
 		}
 		for( int f=0; f<linkCount; f++ ) {
-			ParamInfo *pi = linkedRateParams[ f ];
-			if( pi != basisRate ) {
-				pi->setRatioMaster( basisRate );
+			ParamInfo *pi = linkedParams[ f ];
+			if( pi != basisParam ) {
+				pi->setRatioMaster( basisParam );
 					// set the constraint type, ratio info, etc.
 			}
 		}
 	}
 }
 
-void FitData::setupRateRatioConstraintsFromSystem( KineticSystem &kSystem ) {
-	// Setup the ratio contraints for our rate params based on the settings in
+void FitData::setupParamRatioConstraintsFromSystem( KineticSystem &kSystem ) {
+	// Setup the ratio contraints for our params based on the settings in
 	// the passed model.  This requires that our params hash has been setup
 	// with parameters to be used for the current fit, including initial values.
 	// Typically accomplished by calling with initFitParams or setupExpFitDataContexts.
 
 	clearConstraintType( CT_RATIO );
-	int numRates, rateCount, ampCount, coefCount, numGroups = 11;
-	KineticParameterInfo *kpi = kSystem.paramGet( PI_REACTION_RATE, &numRates );
-	ParamInfo **linkedRateParams = (ParamInfo**)alloca( numRates * sizeof(ParamInfo*) );
-	ParamInfo **linkedAmpParams  = (ParamInfo**)alloca( numRates * sizeof(ParamInfo*) );
-	ParamInfo **linkedCoefParams = (ParamInfo**)alloca( numRates * sizeof(ParamInfo*) );
+
+	int pCount = paramCount();
+	int numGroups = 11;
+		// group numbering: 0->no group; 1->"fixed", >=2 -> a ratio group
+	
+	ParamInfo **linkedParams = (ParamInfo**)alloca( pCount * sizeof(ParamInfo*) );
 
 	for( int g=2; g<numGroups; g++ ) {
-		// group numbering: 0->no group; 1->"fixed", >=2 -> a ratio group
-		// FIND all rates that are part of this group (linked)
-		rateCount=ampCount=coefCount=0;
-		memset( linkedRateParams, 0, numRates * sizeof(ParamInfo*) );
-		memset( linkedAmpParams, 0, numRates * sizeof(ParamInfo*) );
-		memset( linkedCoefParams, 0, numRates * sizeof(ParamInfo*) );
+		int linkCount = 0;
+		memset( linkedParams, 0, pCount * sizeof(ParamInfo*) );
 
-		int dependencyType = kSystem.rateGroupIsDependent( g, -1 );
+		// Add all params that are members of group g to the list, then setup 
+		// the ratio constraints for that list.
+		//
+		for( ZHashWalk w(params); w.next(); ) {
+			char *name = (char*)w.key;
+			ParamInfo *pi = *((ParamInfo**)w.val);
+			
+			KineticParameterInfo *kpi = kSystem.paramGetByName( name );
 
-		// Build lists of rates and voltage/other coeficients that may be setup in ratio.
-		// We'll either setup the rates directly, or the amps/coefs, but at this step
-		// we'll just gather them all:
-		for( int i=0; i<numRates; i++ ) {
-			if( kpi[i].group == g ) {
-				ParamInfo *pi = paramByName( kpi[i].name ); 
-				linkedRateParams[ rateCount++ ] = pi;
-
-				if( dependencyType ) {
-					KineticParameterInfo *kpi2 = kSystem.paramGetRateCoefs( i, dependencyType );
-					assert( kpi2 );
-
-					if( kpi2[0].group == g ) {
-						pi = paramByName( kpi2[0].name ); 
-						linkedAmpParams[ ampCount++ ] = pi;
-					}
-
-					if( kpi2[1].group == g ) {
-						pi = paramByName( kpi2[1].name ); 
-						linkedCoefParams[ coefCount++ ] = pi;
-					}
-				}
+			if( kpi->group == g ) {
+				linkedParams[ linkCount++ ] = pi;
 			}
 		}
 
 		// Now, setup the constraints.
 		//
-		if( dependencyType ) {
-			setupRatioConstraints( linkedAmpParams, ampCount );
-			setupRatioConstraints( linkedCoefParams, coefCount );
-		}
-		else {
-			setupRatioConstraints( linkedRateParams, rateCount );
-		}
+		setupRatioConstraints( linkedParams, linkCount );
 	}
 }
 
@@ -959,282 +937,6 @@ int FitData::fitIndexByParamName( char *name ) {
 	return -2;
 		// -1 means param name found, but not being fit. -2 means param name not found.
 }
-
-#if 0
-int FitData::createLinearEqualityConstraintsMatrix( double **_A, double **_b ) {
-	// At present this is built specifically to allow thermodynamic-cycle
-	// constraints to be enforced.  A prerequsite to this is that when we
-	// deal with rate constants during a fit, we are really dealing with ln(rate),
-	// which means our TC constraint can be expressed as a linear equation.
-	//
-	// e.g.  if A -> B -> C -> A is a cycle
-	//
-	// then  k+1/k-1 * k+2/k-2 * k+3/k-3 = 1
-	//
-	// taking ln of each side, and omitting it below, since we
-	// now assume we are always fitting ln(rate), we obtain:
-	//
-	// k+1 - k-1  +  k+2 - k-2  +  k+3 - k-3 = 0
-	//
-	// That is our linear equality constraint for this cycle.
-	//
-	//
-
-	int nLEConstraints = 0;
-	int nFittedParams = paramCount( PT_ANY, 1 );
-
-	char *cycles = properties.getS( "fitLevmarCycleDesc" );
-	ZStr *zcycles = 0;
-	if( cycles && *cycles ) {
-		zcycles = zStrSplitByChar( ':', cycles );
-		nLEConstraints = zStrCount(zcycles);
-	}
-	
-	int leIndex = 0;
-		// incremented each time a linear constraint added to the matrix.
-	
-	if( nLEConstraints > 0 ) {
-		double *b = (double*)calloc( nLEConstraints, sizeof(double) );
-		double *A = (double*)calloc( nLEConstraints * nFittedParams, sizeof(double) );
-
-		memset( b, 0, nLEConstraints*sizeof(double) );
-		memset( A, 0, nLEConstraints * nFittedParams * sizeof(double) );
-		
-		for( int i=0; i<nLEConstraints; i++ ) {
-			char *cycle = zcycles->getS( i );
-			
-			double b_constant = 0.0;
-
-			ZStr *reactions = zStrSplitByChar( ',', cycle );
-			int rcount = zStrCount( reactions );
-			
-			for( int j=0; j<rcount; j++ ) {
-				char *r = reactions->getS( j );
- 				int reaction = atoi( reactions->getS( j ) );
-				if( reaction != -1 ) {
-					// If reaction is odd, it means the reaction we described with our reagents
-					// is actually the *reverse* reaction, which means we'll need to adjust the
-					// signs of terms in the constraint matrix.
-					int reverse = reaction & 1;
-					reaction /= 2;
-						// because forward and reverse reactions have different indices, but our rate
-						// parameters are named using a single index and signs.
-					ZTmpStr p1("k+%d",reaction+1 );
-					ZTmpStr p2("k-%d",reaction+1 );
-					int fi1 = fitIndexByParamName( p1 );
-					int fi2 = fitIndexByParamName( p2 );
-
-					if( fi1 >= 0 ) {
-						A[ leIndex*nFittedParams + fi1 ] += reverse ? -1 : +1;
-					}
-					else {
-						ParamInfo *p = paramByName( p1 );
-						assert( p->constraint == CT_FIXED || p->constraint == CT_RATIO );
-						double value;
-						//
-						// If we are not being fit, it is either because we are CT_FIXED or CT_RATIO.  In the latter case,
-						// our parameter value is computed algebraically after the fit based on the value of a parameter
-						// that we are held in constant ration to.  However, in fitspace, it is possible that this
-						// "ratio master" is also being held fixed.  So in this latter case, we are also effectively fixed,
-						// and our value should be computed based on the ratio master fixed value.
-						//
-						if( p->constraint == CT_FIXED ) {
-							// If the rate is not being fit, then subtract it from boths sides of the contraint equation:
-							value = p->initialValue;
-						}
-						else {
-							// If the rate is constrained to a multiple of another parameter, we similarly subtract the multiplier
-							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
-							//printf( "subtracting %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p1.s );
-							int f1_master = fitIndexByParamName( p->ratioMasterParamName );
-							if( f1_master >= 0 ) {
-								// ratio master is being fit, so modify the coefficient for that param in the matrix
-								A[ leIndex*nFittedParams + f1_master ] += reverse ? -1 : +1;
-								value = p->ratio;
-							}
-							else {
-								// fitspace - the ratio master is being held fixed, so we are too, effectively, and must
-								// compute our value from the ratio master.
-								ParamInfo *master = paramByName( p->ratioMasterParamName );
-								value = p->ratio * master->initialValue;
-							}
-						}
-						value = log(value);						
-						if( reverse ) {
-							value = -value;
-						}
-						b_constant -= value;
-					}
-
-					if( fi2 >= 0 ) {
-						A[ leIndex*nFittedParams + fi2 ] += reverse ? +1 : -1;
-					}
-					else {
-						// If the rate is not being fit, then add it to both sides of the constraint equation:
-						ParamInfo *p = paramByName( p2 );
-						double value;
-						if( p->constraint == CT_FIXED ) {
-							// If the rate is not being fit, then add it from boths sides of the constraint equation:
-							value = p->initialValue;
-							//printf( "adding %slog(%g) to b_constant because %s is a fixed parameter.\n", reverse ? "-" : "", value, p2.s );
-						}
-						else {
-							// If the rate is constrained to a multiple of another parameter, we similarly add the multiplier
-							// but also must augment the matrix entry for the master parameter, which now shows up again in the constraint.
-							//printf( "adding %slog(%g) from b_constant because %s is a ratio parameter.\n", reverse ? "-" : "", value, p2.s );
-							int f2_master = fitIndexByParamName( p->ratioMasterParamName );
-							if( f2_master >= 0 ) {
-								A[ leIndex*nFittedParams + f2_master ] += reverse ? +1 : -1;
-								value = p->ratio;
-							}
-							else {
-								ParamInfo *master = paramByName( p->ratioMasterParamName );
-								value = p->ratio * master->initialValue;
-							}
-						}
-						value = log(value);
-						if( reverse ) {
-							value = -value;
-						}
-						b_constant += value;
-					}
-				}
-				else {
-					printf( "ERROR: reaction value %d in cycle '%s'\n", reaction, cycle );
-					free( b );
-					free( A );
-					nLEConstraints = 0;	
-					break;
-				}
-			}
-
-			b[leIndex] = b_constant;
-			zStrDelete( reactions );
-
-			// We have just populated a row of the constraints matrix.  But we need to ensure that
-			// this row is valid - it is possible that a linear constraint is degenerate because the
-			// parameters in question are fixed or cancel each other out due to ratio constraints -
-			// e.g. a forward and reverse rate held in ratio in the cycle will cancel.
-			int degenerate = 1;
-//			printf( "LE Matrix Row for this edge: " );
-			for( int j=0; j<nFittedParams; j++ ) {
-				if( A[ leIndex*nFittedParams + j ] != 0 ) degenerate = 0;
-//				printf( "%g ", A[ leIndex*nFittedParams + j ] );
-			}
-//			printf( "\n" );
-			if( !degenerate ) {
-				leIndex++;
-					// the current constraint row is legit, write to the next row.
-			}
-			else {
-				memset(  A + leIndex * nFittedParams, 0, nFittedParams * sizeof(double)  );
-				b[leIndex] = 0.0;
-				printf( "The cycle %s is degenerate and will not be used.\n", cycle );
-			}
-		}
-		zStrDelete( zcycles );
-
-		// printf( "Linear Constraints:\n" );
-	 // 	for( int i=0; i<leIndex; i++ ) {
-		// 	for( int j=0; j<nFittedParams; j++ ) {
-		// 		printf( "%g\t", A[ nFittedParams * i + j ] );
-		// 	}
-		// 	printf( "= %g\n", b[i] );
-		// }
-
-		if( leIndex == 0 || leIndex > nFittedParams ) {
-			delete A;
-			delete b;
-			*_A = 0;
-			*_b = 0;
-
-			if( leIndex != 0 ) {
-				printf( "Rejecting constraints, too many for fitted params.\n" );
-				leIndex = 0;
-					// set to 0 in the case we had more le constraints than params to fit,
-					// because we're likely specifying incompatible constraints e.g. in the
-					// example of fitspace.  How to handle this?  e.g. situation where you have
-					// a cycle and are only fitting 1 param -- if that param is in the cycle, 
-					// we can compute it based on thermo math - do we do this instead of 
-					// "fitting"?
-			}
-		}
-		else {
-			*_A = A;
-			*_b = b;
-		}		
-	}
-	else {
-		*_A = 0;
-		*_b = 0;
-	}
-	
-	return leIndex;
-}
-
-void FitData::computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b, double *results ) {
-	// as a diagnostic aid, compute the product of eq constants around a cycle.
-    // This method just checks that the constraint was upheld.  See ThermodynamicCycles
-    // in kin_thermocycle.h for a similar computation based on all of the rates
-    // in the cycle.
-
-	int nFittedParams = paramCount( PT_ANY, 1 );
-	for( int n=0; n<nLEConstraints; n++ ) {
-		double product = 1.0;
-		for( int i=0; i<nFittedParams; i++ ) {
-			double p = A[ n * nFittedParams + i ];
-			if( p > 0.0 ) {
-				product *= pow( paramByFitIndex( i )->bestFitValue, p );		
-			}
-			else if( p < 0.0 ) {
-				product /= pow( paramByFitIndex( i )->bestFitValue, -p );				
-			}
-			else if( p == 0.0 ) {
-				// not used in linear constraint
-			}
-		}
-		results[ n ] = product / exp( b[n] );
-			// For params that were not fit, they will be accumulated in the constant b.
-	}
-}
-#endif
-
-//----------------------------------------
-/*
-void FitData::updateParamsFromParamVector( const double *v ) {
-	// Identical to GSL version except we're pulling from a double array
-
-	int nParams = paramCount( PT_ANY );
-	for( int i=0; i<nParams; i++ ) {
-		ParamInfo *pi = paramByOrder( i );
-		assert( pi );
-		pi->bestFitValueLast = pi->bestFitValue;
-		if( pi->usedByFit() ) {
-			//pi->bestFitValue = gsl_vector_get( v, pi->fitIndex );
-			pi->bestFitValue = v[ pi->fitIndex ];
-			if( pi->constraint == CT_NONNEGATIVE ) {
-				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
-					// ye olde "fit the square root and square the output trick"
-			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
-				pi->bestFitValue = -(pi->bestFitValue * pi->bestFitValue);
-					// ye olde "fit the square root and square the output trick"
-			}
-
-			else if( pi->bestFitValue < 0 ) {
-				//trace( "negative parameter %s: %g\n", pi->paramName, pi->bestFitValue );
-			}
-		}
-		else {
-			// not used by fit, so bestFit is just initial
-			pi->bestFitValue = pi->initialValue;
-		}
-	}
-	computeRatioParamValues();
-		// update ratio params to reflect new values
-}
-*/
-
 
 //----------------------------------------
 

@@ -359,7 +359,7 @@ struct FitData {
 	void clearConstraintType( constraintType ct );
 		// clear any constraints of the given type; they become CT_NONE
 
-	void setupRateRatioConstraintsFromSystem( KineticSystem &model );
+	void setupParamRatioConstraintsFromSystem( KineticSystem &model );
 		// setup rate ratio constraint information in our params based on the settings
 		// of the passed model.
 
@@ -381,15 +381,6 @@ struct FitData {
 
 	int fitIndexByParamName( char *name );
 
-	/* These are now handled in the ThermodynamicCycles struct in kin_thermocycle.h
-	int createLinearEqualityConstraintsMatrix( double **A, double **b );
-		// A is a coeficient matrix, b a vector of constants.  Together
-		// These define a set of linear equations on the parameters
-		// which a fit may be constrained by.  The rows of each indicate
-		// the number of equations.  A will have nFittedParams columns.
-	void computeThermodynamicCycleProduct( int nLEConstraints, double *A, double *b, double *results );
-	*/
-		
 	void computeRatioParamValues();
 		// update any params that are held in fixed ratio to a master param
 
