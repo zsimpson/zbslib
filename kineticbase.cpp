@@ -2105,7 +2105,7 @@ int KineticExperiment::getSeries( ZTLVec<KineticExperiment*> &vec, int includeEq
 KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
 	KineticParameterInfo *pi = 0;
 
-	int seriesType = viewInfo.getI( "seriesType" );
+	int seriesType = viewInfo.getI( "seriesType", -1 );
 	switch( seriesType ) {
 		case SERIES_TYPE_REAGENTCONC: {
 			if( reagentIndexForSeries == -1 ) {
@@ -2133,6 +2133,24 @@ KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
 		}
 	}
 	return pi;
+}
+
+char * KineticExperiment::getNameForSeriesType( int abbreviated ) {
+	// #define SERIES_TYPE_REAGENTCONC (0)
+	// #define SERIES_TYPE_VOLTAGE (1)
+	// #define SERIES_TYPE_TEMPERATURE (2)
+	// #define SERIES_TYPE_SOLVENTCONC (3)
+	static char seriesTypeNames[4][32] = { "Concentration", "Voltage", "Temperature", "Solvent Concentration" };
+	static char seriesTypeNamesAbbreviated[4][32] = { "Conc", "Volt", "Temp", "SConc" };
+	int stype = viewInfo.getI( "seriesType", -1 );
+	if( stype >= 0 ) {
+		assert( stype >= 0 && stype <= 3 );
+		if( abbreviated ) {
+			return seriesTypeNamesAbbreviated[ stype ];
+		}
+		return seriesTypeNames[ stype ];
+	}
+	return NULL;
 }
 
 double KineticExperiment::getSeriesConcentration() {

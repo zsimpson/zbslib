@@ -495,6 +495,9 @@ struct KineticExperiment {
 	KineticParameterInfo * getSeriesParameterInfo();
 		// return the paramterInfo for the parameter that is unique for this experiment in the series
 
+	char *getNameForSeriesType( int abbreviated );
+		// return a string naming the type of series, or NULL of not a series.
+
 	double getSeriesConcentration();
 		// return the reagent concentration for this exp in a series or -1 if not a conc series.
 
