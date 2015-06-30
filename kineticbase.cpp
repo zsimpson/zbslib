@@ -2105,7 +2105,7 @@ int KineticExperiment::getSeries( ZTLVec<KineticExperiment*> &vec, int includeEq
 KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
 	KineticParameterInfo *pi = 0;
 
-	int seriesType = viewInfo.getI( "seriesType", -1 );
+	int seriesType = viewInfo.getI( "seriesType" );
 	switch( seriesType ) {
 		case SERIES_TYPE_REAGENTCONC: {
 			if( reagentIndexForSeries == -1 ) {
