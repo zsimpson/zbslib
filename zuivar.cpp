@@ -454,9 +454,13 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		}
 		zMsgUsed();
 	}
-	else if( zmsgIs(type,ZUIMouseReleaseDrag) ) {
+	else if( zmsgIs(type,ZUIMouseReleaseDrag) || zmsgIs(type,ZUITakeFocus) ) {
 		dirty();
 		if( ! getI( "wasDragged" ) ) {
+			putD( "startVal", getDouble() );
+				// this is only needed if the message is ZUITakeFocus, since in this case
+				// we did not get a ZUIMouseClickOn so startVal has not been set, and hitting ESC
+				// would set the value to 0.
 			putI( "inEditMode", 1 );
 			assert( headChild );
 			headChild->layoutIgnore = 1;
@@ -589,18 +593,18 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		// CANCEL any editing & restore startVal
 		if( getI( "dragging" ) ) {
 			putI( "dragging", 0 );
-		requestExclusiveMouse( 1, 0 );
-		double oldVal = getDouble();
-		setDouble( getD( "startVal" ) );
-		focus( 0 );
-		// mkness - do NOT send message on escape. This used to send one.
-		// tfb - not so fast, the app needs to know about this, because the value is in fact changing! reinstating...
-		// mkness - tweaked this to not send this message if the ZUI had a 'noMsgOnEscape' entry.
-		// This makes it less tedious to use the way I want. If you don't like my convention, just do not define any 'noMsgOnEscape'.
-		if( has( "sendMsgOnEditComplete" ) && !has( "noMsgOnEscape" ) )
-			zMsgQueue( "%s key=%s val=%e oldval=%e fromEscape=1", getS("sendMsgOnEditComplete"), name, getDouble(), oldVal );
-				// even though a 'cancel', need to inform any client of change of value
-		zMsgUsed();
+			requestExclusiveMouse( 1, 0 );
+			double oldVal = getDouble();
+			setDouble( getD( "startVal" ) );
+			focus( 0 );
+			// mkness - do NOT send message on escape. This used to send one.
+			// tfb - not so fast, the app needs to know about this, because the value is in fact changing! reinstating...
+			// mkness - tweaked this to not send this message if the ZUI had a 'noMsgOnEscape' entry.
+			// This makes it less tedious to use the way I want. If you don't like my convention, just do not define any 'noMsgOnEscape'.
+			if( has( "sendMsgOnEditComplete" ) && !has( "noMsgOnEscape" ) )
+				zMsgQueue( "%s key=%s val=%e oldval=%e fromEscape=1", getS("sendMsgOnEditComplete"), name, getDouble(), oldVal );
+					// even though a 'cancel', need to inform any client of change of value
+			zMsgUsed();
 		}
 	}
 
