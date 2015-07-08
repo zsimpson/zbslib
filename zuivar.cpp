@@ -573,7 +573,8 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		// mkness - now always sending message when value changed. This used to be skipped if they were the same.
 		newVal = setDouble( newVal );
 		if( has( "sendMsgOnEditComplete" ) ) {
-			zMsgQueue( "%s key=%s val=%e oldval=%e", getS("sendMsgOnEditComplete"), name, newVal, oldVal );
+			int changed = fabs( newVal - oldVal ) < 1e-10  ? 0 : 1 ;
+			zMsgQueue( "%s changed=%d key=%s val=%e oldval=%e", getS("sendMsgOnEditComplete"), changed, name, newVal, oldVal );
 		}
 		putI( "inEditMode", 0 );
 		headChild->hidden = 1;
@@ -602,7 +603,7 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 			// mkness - tweaked this to not send this message if the ZUI had a 'noMsgOnEscape' entry.
 			// This makes it less tedious to use the way I want. If you don't like my convention, just do not define any 'noMsgOnEscape'.
 			if( has( "sendMsgOnEditComplete" ) && !has( "noMsgOnEscape" ) )
-				zMsgQueue( "%s key=%s val=%e oldval=%e fromEscape=1", getS("sendMsgOnEditComplete"), name, getDouble(), oldVal );
+				zMsgQueue( "%s changed=0 key=%s val=%e oldval=%e fromEscape=1", getS("sendMsgOnEditComplete"), name, getDouble(), oldVal );
 					// even though a 'cancel', need to inform any client of change of value
 			zMsgUsed();
 		}

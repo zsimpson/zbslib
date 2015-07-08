@@ -1023,14 +1023,21 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 			return;
 		}
 
-		else if( which == '\t' && has( "tabToZUI" ) ) {
-			zMsgUsed();
-			cancelFocus();
-			sendMsg( "fromEnter=1", 0 );
-			char *tabTo = zmsgI(shift) ? getS( "tabToZUIBack" ) : getS( "tabToZUI" );
-			zMsgQueue( "type=ZUITakeFocus toZUI=%s", tabTo );
-				// NOTE: at present only ZUITextEditor responds to ZUITakeFocus, and this 
-				// is utilized here to tab between texteditors;
+		else if( which == '\t' ) {
+			const char *tabToKey = zmsgI(shift) ? "tabToZUIBack" : "tabToZUI";
+			char *tabTo = getS( (char*)tabToKey, 0 );
+			if( !tabTo && parent ) {
+				// if our parent is a ZUIVar, it may have been setup with a "tabTo..."
+				tabTo = parent->getS( (char*)tabToKey, 0 );
+			}
+			if( tabTo ) {
+				zMsgUsed();
+				cancelFocus();
+				sendMsg( "fromEnter=1", 0 );
+				zMsgQueue( "type=ZUITakeFocus toZUI=%s", tabTo );
+					// NOTE: at present only ZUITextEditor responds to ZUITakeFocus, and this 
+					// is utilized here to tab between texteditors;
+			}
 			return;
 		}
 
