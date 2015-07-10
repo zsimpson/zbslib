@@ -1677,7 +1677,9 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	zprofEnd();
 
 	zprofBeg( computeOC );
-	if( mixstepCount==1 || (!voltageDepends && !temperatureDepends && !concentrationDepends) ) {
+	if( mixstepCount==1 /*|| (!voltageDepends && !temperatureDepends && !concentrationDepends)*/ ) {
+		// tfb commented above 10july2015 because for a series we want those PI_INIT_COND values
+		// or CONC function doesn't work right.
 		computeOC( pVec );
 	}
 	else {
