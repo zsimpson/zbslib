@@ -1145,6 +1145,7 @@ struct KineticSystem {
 	// maintained here (allocParamInfo etc)
 	#define GAS_CONST_JOULES 8.3144621						// in  J/K/mol
 	#define GAS_CONST_KJOULES (GAS_CONST_JOULES / 1000.0)	// in kJ/K/mol
+	#define GAS_CONST_KCAL 0.00198720413					// in kcal/K/mol
 
 	#define FARADAY_CONST (96485.3365 / 1000.0)
 		// this is divided by 1000 because we work in milliVolts 

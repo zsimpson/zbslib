@@ -4436,6 +4436,7 @@ void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, do
 	// Update the value of any rate that is dependent on temperature.  Note that
 	// the rates at the reference temp are given by the PI_REACTION_RATE params.
 	//
+	double gasConstant = viewInfo.getI( "ea_kcal", 0 ) ? GAS_CONST_KCAL : GAS_CONST_KJOULES;
 	int count;
 	pi = paramGet( PI_REACTION_RATE, &count );
 	for( int i=0; i<count; i++ ) {
@@ -4444,7 +4445,7 @@ void KineticSystem::updateTemperatureDependentRates( int eIndex, int mixstep, do
 //			double amp  = vpi[0].value;
 				// no longer used and eventually will go away
 			double Ea = vpi[1].value;
-			double rateVal = pi[i].value * exp( (-Ea/GAS_CONST_KJOULES)*(1.0/expTemp - 1.0/refTemp) );
+			double rateVal = pi[i].value * exp( (-Ea/gasConstant)*(1.0/expTemp - 1.0/refTemp) );
 			rates[ i ] = rateVal;
 		}
 	}
@@ -4455,6 +4456,7 @@ void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp,
 	// This is called to update the rates of this system which are based on a reference temperature.
 	// When the reference temperature changes, we need to recompute all of the rates.
 	// 
+	double gasConstant = viewInfo.getI( "ea_kcal", 0 ) ? GAS_CONST_KCAL : GAS_CONST_KJOULES;
 	int count;
 	KineticParameterInfo *pi = paramGet( PI_REACTION_RATE, &count );
 	for( int i=0; i<count; i++ ) {
@@ -4464,7 +4466,7 @@ void KineticSystem::updateTemperatureDependentRatesAtRefTemp( double oldRefTemp,
 				// this is now unused and will eventually go away
 			double Ea = vpi[1].value;
 			double oldRate = pi[i].value;
-			double newRate = oldRate * exp( (-Ea/GAS_CONST_KJOULES)*(1.0/newRefTemp - 1.0/oldRefTemp) );
+			double newRate = oldRate * exp( (-Ea/gasConstant)*(1.0/newRefTemp - 1.0/oldRefTemp) );
 			pi[ i ].value = newRate;
 		}
 	}
@@ -5163,7 +5165,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 					// we always store and display positive charges, but in our exponential expression charges for
 					// reverse rates are negated
 			}
-			ampParam->value = rate / exp( refVoltage * charge * FARADAY_CONST / ( GAS_CONST_JOULES * refTemperature ) );
+			ampParam->value = rate / exp( refVoltage * charge * FARADAY_CONST / ( GAS_CONST_KJOULES * refTemperature ) );
 		}
 	}
 	if( isDependent( DT_Conc ) ) {
@@ -5271,6 +5273,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 		// PI_TEMPERATURE_COEF:
 		//
 		if( isDependent( DT_Temp ) ) {
+			double gasConstant = viewInfo.getI( "ea_kcal", 0 ) ? GAS_CONST_KCAL : GAS_CONST_KJOULES;
 			for( int r=0; r<reactionCount(); r++ ) {
 				KineticParameterInfo info;
 				info.type = PI_TEMPERATURE_COEF;
@@ -5297,10 +5300,15 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 				parameterInfo.add( info );
 
 				// Now set the amplitude param based on the activation energy, temperature, and rate.
+				// TODO: remove  this - the amplitude param is not used anymore because we always compute
+				// new rates in relation to rates at a reference temp/ea/charge/etc so the amplitude term falls out.
+				// I think.  (and this statement would apply to all of the amplitude terms in similar code above)
+				// But I'm not ready to rip this out because I don't believe all of these rate dependency features
+				// have seen enough real-world use to validate our approach.  aug 2015 tfb
 				KineticParameterInfo *ampParam = &parameterInfo[ index ];
 				double Ea   = info.value;
 				double rate = paramGetReactionRate( r );
-				ampParam->value = rate / exp( -Ea / ( GAS_CONST_KJOULES * refTemperature ) );
+				ampParam->value = rate / exp( -Ea / ( gasConstant * refTemperature ) );
 			}
 		}
 	}
