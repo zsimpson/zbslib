@@ -2144,7 +2144,9 @@ char * KineticExperiment::getNameForSeriesType( int abbreviated ) {
 	// #define SERIES_TYPE_SOLVENTCONC (3)
 	static char seriesTypeNames[4][32] = { "Concentration", "Voltage", "Temperature", "Solvent Concentration" };
 	static char seriesTypeNamesAbbreviated[4][32] = { "Conc", "Volt", "Temp", "SConc" };
-	int stype = viewInfo.getI( "seriesType", -1 );
+	int stype = viewInfo.getI( "seriesType" /*, -1*/ );
+		// I removed the -1 default because there are older files in which the seriesType was not explicitly set
+		// when there was only one type.  So default to concentration series here. (stype==0).  tfb aug 2015
 	if( stype >= 0 ) {
 		assert( stype >= 0 && stype <= 3 );
 		if( abbreviated ) {
