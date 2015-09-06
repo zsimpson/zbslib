@@ -678,7 +678,7 @@ void FMat3::transpose() {
 
 void FMat3::orthoNormalize() {
 	FVec3 x( m[0][0], m[0][1], m[0][2] );
-	FVec3 y( m[1][0], m[1][1], m[2][1] );
+	FVec3 y( m[1][0], m[1][1], m[1][2] );
 	FVec3 z;
 	x.normalize();
 
