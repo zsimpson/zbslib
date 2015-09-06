@@ -16,7 +16,9 @@ void GetOpenFileFromUser( char *title, char *path, char *file, char *ext, char *
 	[openDlg setResolvesAliases: true];
 	[openDlg setAllowsMultipleSelection: false];
 	[openDlg setCanChooseDirectories:YES];
-	[openDlg setAllowedFileTypes:[NSArray arrayWithObjects:nsExt, nil]];
+	if( ext[0] != '*' ) {
+		[openDlg setAllowedFileTypes:[NSArray arrayWithObjects:nsExt, nil]];
+	}
 	[openDlg setDirectoryURL:[NSURL fileURLWithPath:nsPath]];
 
 	// Display the dialog.  If the OK button was pressed,
