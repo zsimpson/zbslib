@@ -630,8 +630,8 @@ struct FVec4 {
 
 struct DVec3 {
 	union { double r, x; };
-	union { double g, y; };
-	union { double b, z; };
+	union { double g, y, t; };
+	union { double b, z, p; };
 
 	DVec3() { x = y = z = 0.0; }
 	DVec3( int _x, int _y, int _z ) { x = _x; y = _y; z = _z; }
