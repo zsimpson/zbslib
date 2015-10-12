@@ -202,6 +202,9 @@ struct KineticTrace {
 	void copy( KineticTrace &t );
 		// Copy evertyhing, loses current data, reallocates
 
+	void copyTime( KineticTrace &t );
+		// Copies time only, as many entries as will fit in our cols.
+
 	void copyRange( KineticTrace &t, double t0, double t1 );
 		// Copy only values for time in range [t0,t1): loses current data, reallocates
 
@@ -794,20 +797,27 @@ struct KineticExperiment {
 	
 	// Titration Profile
 	//------------------------------------------------------------
-	
+	// TODO - I ran across this when adding weighting profile below
+	// and wondered about it, and I'm not sure this is actually used
+	// in any useful way.  It could perhaps be removed. tfb oct 2015
 	KineticTrace titrationProfile;
 	virtual int loadTitrationProfile( char *filespec ) { return 1; }
-	
+
 	// Optional Threading
 	//------------------------------------------------------------
 
 	#ifdef KIN_MULTITHREAD
 		PMutex traceOCMutex;
+		PMutex traceFWMutex;
 		#define TRACEOC_LOCK(x)    x->traceOCMutex.lock()
 		#define TRACEOC_UNLOCK(x)  x->traceOCMutex.unlock()
+		#define TRACEFW_LOCK(x)    x->traceFWMutex.lock()
+		#define TRACEFW_UNLOCK(x)  x->traceFWMutex.unlock()
 	#else
 		#define TRACEOC_LOCK(x)    
 		#define TRACEOC_UNLOCK(x)  
+		#define TRACEFW_LOCK(x)    
+		#define TRACEFW_UNLOCK(x)  
 	#endif
 
 
@@ -829,6 +839,19 @@ struct KineticExperiment {
 		void enableObservableFit( int which, int updateSeries=0 );
 			// enable this observable for fitting (inc. all series conc)
 	#endif
+
+	// Fit Weighting Profile
+	//------------------------------------------------------------
+
+	KineticTrace fitWeightingProfile;
+		// This trace holds an arbitrary function which serves as a 
+		// weighting profile when fitting the current experiment.
+		// experimental, oct 2015
+	void setWeightingProfileExp1( double b );	
+		// In practice this is a single exponential decay, and is used
+		// to force a fit to better model the early/fast transient.
+	
+
 
 
 	//experiment:

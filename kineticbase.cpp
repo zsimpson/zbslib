@@ -480,6 +480,14 @@ void KineticTrace::copy( KineticTrace &t ) {
 	}
 }
 
+void KineticTrace::copyTime( KineticTrace &src ) {
+	int n = min( colsAlloced, src.cols );
+		// copy as many of t's time entries as we have room for.
+	memcpy( time, src.time, sizeof( time[0] ) * n );
+	cols = max( cols, n );
+		// increase our cols to n if n is greater than the cols we had.
+}
+
 void KineticTrace::copyRange( KineticTrace &t, double t0, double t1 ) {
 	int count=0;
 	int first=0;
@@ -2025,6 +2033,8 @@ int KineticExperiment::measuredDataHasSigma() {
 	return 1;
 }
 
+
+
 #ifdef USE_KINFIT_V2
 void KineticExperiment::resetFitContext( int resetFitOutputFactors ) {
 	// RESET the member fitDataContext as well as those in series conc experiments.
@@ -2057,6 +2067,25 @@ void KineticExperiment::enableObservableFit( int which, int updateSeries ) {
 	}
 }
 #endif
+
+void KineticExperiment::setWeightingProfileExp1( double b ) {
+	// evaluate an exponential function with the given parameters over the timescale
+	// of the experiment. 
+	double minT, maxT, minY, maxY;
+	traceOC.getBounds( minT, maxT, minY, maxY );
+	
+	TRACEFW_LOCK( this );
+	fitWeightingProfile.init( 1, traceOC.cols );
+	fitWeightingProfile.copyTime( traceOC );
+
+	for( int i=0; i<fitWeightingProfile.cols; i++ ) {
+		double t = ( fitWeightingProfile.getTime( i ) - minT ) / ( maxT - minT );
+		fitWeightingProfile.set( i, 0, exp(-b*t) );
+	}
+	fitWeightingProfile.polyFit();
+	TRACEFW_UNLOCK( this );
+}
+
 
 int KineticExperiment::getObservableConstantsForExperiment( ZTLVec< KineticParameterInfo* > &vec ) {
 	vec.clear();
@@ -2323,6 +2352,9 @@ void KineticExperiment::copy( KineticExperiment &copyFrom, int copyMeasured, int
 		fd.copy( copyFrom.fd );
 	}
 	#endif
+	TRACEFW_LOCK( this );
+	fitWeightingProfile.copy( copyFrom.fitWeightingProfile );
+	TRACEFW_UNLOCK( this );
 
 	viewInfo.clear();
 	viewInfo.copyFrom( copyFrom.viewInfo );
