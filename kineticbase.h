@@ -847,7 +847,7 @@ struct KineticExperiment {
 		// This trace holds an arbitrary function which serves as a 
 		// weighting profile when fitting the current experiment.
 		// experimental, oct 2015
-	void setWeightingProfileExp1( double b );	
+	void setWeightingProfileExp1( double A, double b, double C );	
 		// In practice this is a single exponential decay, and is used
 		// to force a fit to better model the early/fast transient.
 	

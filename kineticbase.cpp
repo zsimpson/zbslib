@@ -2068,7 +2068,7 @@ void KineticExperiment::enableObservableFit( int which, int updateSeries ) {
 }
 #endif
 
-void KineticExperiment::setWeightingProfileExp1( double b ) {
+void KineticExperiment::setWeightingProfileExp1( double A, double b, double C ) {
 	// evaluate an exponential function with the given parameters over the timescale
 	// of the experiment. 
 	double minT, maxT, minY, maxY;
@@ -2080,7 +2080,7 @@ void KineticExperiment::setWeightingProfileExp1( double b ) {
 
 	for( int i=0; i<fitWeightingProfile.cols; i++ ) {
 		double t = ( fitWeightingProfile.getTime( i ) - minT ) / ( maxT - minT );
-		fitWeightingProfile.set( i, 0, exp(-b*t) );
+		fitWeightingProfile.set( i, 0, A * exp(-b*t) + C );
 	}
 	fitWeightingProfile.polyFit();
 	TRACEFW_UNLOCK( this );
