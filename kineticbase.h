@@ -174,6 +174,9 @@ struct KineticTrace {
 	double getLastTime() { return cols ? time[cols-1] : 0; }
 		// Fetch time on last column
 
+	double getLastData( int row ) { return cols ? getData( cols-1, row ) : 0; }
+		// Fetch data on last column
+
 	void addCol( double *vector );
 		// Add column, where vector[0] is time.  Length of vector should be rows+1 (1 for time)
 
