@@ -38,7 +38,7 @@ struct KineticExperiment;
 //
 //------------------------------------------------------------------------------------------
 
-enum paramType { PT_ANY=-1, PT_GENERIC=0, PT_RATE, PT_OUTPUTFACTOR, PT_VOLTCOEF, PT_TEMPCOEF, PT_PRESCOEF, PT_CONCCOEF, PT_NUMTYPES };
+enum paramType { PT_ANY=-1, PT_GENERIC=0, PT_RATE, PT_OUTPUTFACTOR, PT_VOLTCOEF, PT_TEMPCOEF, PT_PRESCOEF, PT_CONCCOEF, PT_INITCONC, PT_NUMTYPES };
 	// NOTE: If you add new types, add them to the END!  Numeric equivalents of these
 	// types are saved to disk and when loaded you'll mess things up otherwise.
 

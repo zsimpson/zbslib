@@ -603,7 +603,36 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 	ParamInfo *pi;
 	KineticParameterInfo *kpi;
 
-	// COPY RATES 
+	printf( "\n=============================================================\n" );
+	printf( "copyValuesToKineticSystem\n\n");
+
+
+	// NOTE: it seems like we could just iterate over EVERY KineticParamInfo, look it up by
+	// name, and if it is found, copy the bestfit value.
+
+	for( int i=0; i<kSystem.parameterInfo.count; i++ ) {
+		KineticParameterInfo *kpi = &kSystem.parameterInfo[i];
+        ZTmpStr name( "%s", kpi->name );
+        switch( kpi->type ) {
+        	case PI_INIT_COND:
+				KineticExperiment *e = kSystem.experiments[ kpi->experiment ];
+        		name.set( "%s_e%d_m%d", kpi->name, e->id, e->mixsteps[kpi->mixstep].id );
+        		break;
+        }
+        printf( "NEWPARAM: %s (e%d, m%d) -> %s\n", kpi->name, kpi->experiment, kpi->mixstep, name.s );
+        
+		pi = paramByName( name );
+		if( pi ) {
+			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
+			printf( "  NEWCOPY: %s -> %g\n", name.s, kpi[i].value );
+		}
+	}
+
+	printf( "\n" );
+
+	/*
+
+	// COPY RATES
 	int i,numParams = 0;
 	kpi = kSystem.paramGet( PI_REACTION_RATE, &numParams );
 	for( i=0; i<numParams; i++ ) {
@@ -611,6 +640,7 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 		if( pi ) {
 			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
 			assert( kpi[i].value >= 0.0 && "negative rate copied to model!" );
+			printf( "copied rate %d %s\n", i, kpi[i].name );
 		}
 		else {
 			trace( "WARNING: parameter %s (val=%g) not found!\n", kpi[ i ].name, kpi[ i ].value );
@@ -626,10 +656,13 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 				pi = paramByName( kpi[ 0 ].name );
 				if( pi ) {
 					kpi[ 0 ].value = bestFit ? pi->bestFitValue : pi->initialValue;
+					printf( "copied coef %s\n", kpi[i].name );
+
 				}
 				pi = paramByName( kpi[ 1 ].name );
 				if( pi ) {
 					kpi[ 1 ].value = bestFit ? pi->bestFitValue : pi->initialValue;
+					printf( "copied coef %s\n", kpi[i].name );
 				}
 			}
 		}
@@ -644,15 +677,15 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 			// fit did not reference the given constant.  Should we add the
 			// constant to the FitData anyway when the fit is setup?
 			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
+			printf( "copied obsconst %d %s\n", i, kpi[i].name );
+
 		}
 	}
 
+	*/
 
+	printf( "\n=============================================================\n" );
 
-	// v2 does not fit initial conditions.
-
-	// NOTE: it seems like we could just iterate over EVERY KineticParamInfo, look it up by
-	// name, and if it is found, copy the bestfit value.
 }
 
 void FitData::copyBestFitValuesToKineticSystem( KineticSystem & kSystem ) {
