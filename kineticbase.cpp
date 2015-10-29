@@ -1605,9 +1605,9 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 
 		int icCount=0, rrCount=0;
 		double *ic = system->paramGetVector( PI_INIT_COND, &icCount, experimentIndex, i );
-		printf( "simulate: ics are: %g, %g, %g\n", ic[0], ic[1], ic[2] );
+		//printf( "simulate: ics are: %g, %g, %g\n", ic[0], ic[1], ic[2] );
 		double *rr = system->paramGetVector( PI_REACTION_RATE, &rrCount );
-		printf( "simulate: rates are: %g, %g\n", rr[0], rr[1] );
+		//printf( "simulate: rates are: %g, %g\n", rr[0], rr[1] );
 
 		if( voltageDepends ) {
 			system->updateVoltageDependentRates( experimentIndex, i, rr );
@@ -3353,7 +3353,7 @@ void KineticSystem::clear() {
 	}
 }
 
-const int KineticSystem_Version = 20090225;
+const int KineticSystem_Version = 20151029;
 int KineticSystem::loadBinary( FILE *f ) {
 	// Check 32 vs 64 bit issues, endianness, etc.
 	int byteswap, dataLongSize;
@@ -3367,6 +3367,7 @@ int KineticSystem::loadBinary( FILE *f ) {
 
 	int size;
 	switch( version ) {
+		case 20151029:
 		case 20090225:
 		case 20081016: {
 			// Read viewInfo, this contains reactionText as entered by user; parse to 
@@ -3474,6 +3475,16 @@ int KineticSystem::loadBinary( FILE *f ) {
 
 			// Setup the system parameters using saved values
 			allocParameterInfo( &savedParams );
+			// KintekExplorer is just now allowing initial conditions to be fit, but I want to default these to
+			// 'off' in the KineticSystem for all previously saved files (which were saved with the fitFlag turned
+			// on, even though we never looked at it.) 29 Oct 2015
+			if( version != 20151029 ) {
+				for( int i=0; i<parameterInfo.count; i++ ) {
+					if( parameterInfo[i].type == PI_INIT_COND ) {
+						parameterInfo[i].fitFlag = 0;
+					}
+				}
+			}
 			compile();
 		}
 		break;

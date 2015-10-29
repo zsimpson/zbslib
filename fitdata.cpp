@@ -844,7 +844,6 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 					pi->bestFitValue = exp( pi->bestFitValue );
 				}
 			}
-			printf( "  gsl param update: %s %g (fit)", pi->paramName, pi->bestFitValue );
 		}
 		else {
 			// not used by fit, so bestFit is just initial
