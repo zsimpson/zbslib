@@ -1605,7 +1605,9 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 
 		int icCount=0, rrCount=0;
 		double *ic = system->paramGetVector( PI_INIT_COND, &icCount, experimentIndex, i );
+		printf( "simulate: ics are: %g, %g, %g\n", ic[0], ic[1], ic[2] );
 		double *rr = system->paramGetVector( PI_REACTION_RATE, &rrCount );
+		printf( "simulate: rates are: %g, %g\n", rr[0], rr[1] );
 
 		if( voltageDepends ) {
 			system->updateVoltageDependentRates( experimentIndex, i, rr );

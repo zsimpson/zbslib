@@ -612,6 +612,8 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 
 	for( int i=0; i<kSystem.parameterInfo.count; i++ ) {
 		KineticParameterInfo *kpi = &kSystem.parameterInfo[i];
+		printf( "--- " );
+		kpi->dump( &kSystem );
         ZTmpStr name( "%s", kpi->name );
         switch( kpi->type ) {
         	case PI_INIT_COND:
@@ -626,6 +628,7 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
 			printf( "  NEWCOPY: %s -> %g\n", name.s, kpi[i].value );
 		}
+
 	}
 
 	printf( "\n" );
@@ -857,6 +860,7 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 					pi->bestFitValue = exp( pi->bestFitValue );
 				}
 			}
+			printf( "  gsl param update: %s %g (fit)", pi->paramName, pi->bestFitValue );
 		}
 		else {
 			// not used by fit, so bestFit is just initial
