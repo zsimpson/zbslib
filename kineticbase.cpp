@@ -1790,6 +1790,9 @@ int KineticExperiment::reagentsEmpty() {
 		double eqStart = viewInfo.getD( "eqStart" );
 		double eqEnd   = viewInfo.getD( "eqEnd" );
 		double eqStep  = viewInfo.getD( "eqStep" );
+		if( !eqStep ) {
+			eqStep = (double) viewInfo.getI( "eqSteps" );
+		}
 		if( (eqStart != 0 || eqEnd != 0) && eqStep != 0 ) {
 			return 0;
 		}
