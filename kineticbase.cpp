@@ -5083,7 +5083,9 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 
 						info.value   = saved ? saved->value   : ms==0 ? (i<2 ? 1.0 : 0.0) : 0;
 						info.group   = saved ? saved->group   : 0;
-						info.fitFlag = saved ? saved->fitFlag : 1;
+						info.fitFlag = saved ? saved->fitFlag : 0;
+							// oct 2015: kintek is now allowing fit of initial conditions, but these should
+							// default to NOT being fit.
 						info.qIndex = q++;
 						info.qIndex = min( info.qIndex, maxQ );
 							// see note above at definition of maxQ, and comment directly below

@@ -603,17 +603,11 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 	ParamInfo *pi;
 	KineticParameterInfo *kpi;
 
-	printf( "\n=============================================================\n" );
-	printf( "copyValuesToKineticSystem\n\n");
-
-
-	// NOTE: it seems like we could just iterate over EVERY KineticParamInfo, look it up by
-	// name, and if it is found, copy the bestfit value.
-
+	// NEW: oct 2015 - just iterate over every parameter, and update anything that we 
+	// find in the FitData parameters.  The old way is commeted out below.
+	//
 	for( int i=0; i<kSystem.parameterInfo.count; i++ ) {
-		KineticParameterInfo *kpi = &kSystem.parameterInfo[i];
-		printf( "--- " );
-		kpi->dump( &kSystem );
+        KineticParameterInfo *kpi = &kSystem.parameterInfo[i];
         ZTmpStr name( "%s", kpi->name );
         switch( kpi->type ) {
         	case PI_INIT_COND:
@@ -621,18 +615,11 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
         		name.set( "%s_e%d_m%d", kpi->name, e->id, e->mixsteps[kpi->mixstep].id );
         		break;
         }
-        printf( "NEWPARAM: %s (e%d, m%d) -> %s\n", kpi->name, kpi->experiment, kpi->mixstep, name.s );
-        
 		pi = paramByName( name );
 		if( pi ) {
-			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
-			printf( "  NEWCOPY: %s -> %g\n", name.s, kpi[i].value );
+			kpi->value = bestFit ? pi->bestFitValue : pi->initialValue;
 		}
-
 	}
-
-	printf( "\n" );
-
 	/*
 
 	// COPY RATES
@@ -686,9 +673,6 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 	}
 
 	*/
-
-	printf( "\n=============================================================\n" );
-
 }
 
 void FitData::copyBestFitValuesToKineticSystem( KineticSystem & kSystem ) {
