@@ -183,7 +183,7 @@ void ZUIPlot3d::render() {
 
 	glMatrixMode( GL_PROJECTION );
 	//float maxRadius = max( radius.x, max( radius.y, radius.z ) ) * ( 1.f + BORDER_PERCENT );
-	glOrtho( x0, x1, y0, y1, -10000.f, 10000.f );
+	glOrtho( x0, x1, y0, y1, -1000000.f, 1000000.f );
 		// we prefer an orthographic projection for 3d plotting
 
 	glMatrixMode( GL_MODELVIEW );
