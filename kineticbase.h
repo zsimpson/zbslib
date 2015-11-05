@@ -332,6 +332,7 @@ struct KineticParameterInfo {
 		#define PI_PRESSURE_COEF (256)
 		#define PI_SOLVENTCONC (512)
 		#define PI_SOLVENTCONC_COEF (1024)
+		#define PI_ALL (0xFFFF)
 
 
 	int experiment;
@@ -1147,11 +1148,11 @@ struct KineticSystem {
 		// values from some saved table without having to realloc the param vector, such
 		// that pointers into this vector will remain valid
 
-	int fittingParametersCount();
+	int fittingParametersCount( int typeMask=PI_ALL );
 		// Count how many parameters are set to fit
 
-	void clrFitFlags( int typeMask=0xFFFF, int experiment=-1 );
-	void setFitFlags( int typeMask=0xFFFF, int experiment=-1 );
+	void clrFitFlags( int typeMask=PI_ALL, int experiment=-1 );
+	void setFitFlags( int typeMask=PI_ALL, int experiment=-1 );
 
 	KineticParameterInfo *paramGet( int type, int *count=0, int experimentIndex=-1, int mixstep=0 );
 	KineticParameterInfo *paramGetByName( char *name );

@@ -5366,10 +5366,10 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	}
 }
 
-int KineticSystem::fittingParametersCount() {
+int KineticSystem::fittingParametersCount( int typeMask ) {
 	int count = 0;
 	for( int q=0; q<parameterInfo.count; q++ ) {
-		if( parameterInfo[q].fitFlag ) {
+		if( (parameterInfo[q].type & typeMask) && parameterInfo[q].fitFlag ) {
 			count++;
 		}
 	}
