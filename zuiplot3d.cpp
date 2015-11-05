@@ -86,6 +86,11 @@ void ZUIPlot3d::getSceneDimsWithBorder( FVec3 &centroid, FVec3 &radius,
 	float x1 = getF("x1");
 	float y1 = getF("y1");
 	float z1 = getF("z1");
+	
+	if( getI("plotLogZ") ) {
+		z0 = z0>0 ? log10(z0) : 0;
+		z1 = z1>0 ? log10(z1) : 0;
+	}
 
 	radius = FVec3( (x1-x0)/2.f, (y1-y0)/2.f, (z1-z0)/2.f );
 	centroid = FVec3( x0 + radius.x, y0 + radius.y, z0 + radius.z );
@@ -116,6 +121,11 @@ void ZUIPlot3d::getSceneScaledDimsWithBorder( FVec3 &centroid, FVec3 &radius, FV
 	float y1 = getF("y1");
 	float z1 = getF("z1");
 
+	if( getI("plotLogZ") ) {
+		z0 = z0>0 ? log10(z0) : 0;
+		z1 = z1>0 ? log10(z1) : 0;
+	}
+
 	radius = FVec3( (x1-x0)/2.f, (y1-y0)/2.f, (z1-z0)/2.f );
 	centroid = FVec3( x0 + radius.x, y0 + radius.y, z0 + radius.z );
 
@@ -128,31 +138,16 @@ void ZUIPlot3d::getSceneScaledDimsWithBorder( FVec3 &centroid, FVec3 &radius, FV
 	float maxRadius = max( radius.x, max( radius.y, radius.z ) );
 	scale = FVec3( maxRadius/radius.x, maxRadius/radius.y, maxRadius/radius.z );
 
-	_x0 = scale.x * ( x0 - radius.x * ( 1.f + borderPercent ));
-	_x1 = scale.x * ( x1 + radius.x * ( 1.f + borderPercent ));
-	_y0 = scale.y * ( y0 - radius.y * ( 1.f + borderPercent ));
-	_y1 = scale.y * ( y1 + radius.y * ( 1.f + borderPercent ));
-	_z0 = scale.z * ( z0 - radius.z * ( 1.f + borderPercent ));
-	_z1 = scale.z * ( z1 + radius.z * ( 1.f + borderPercent ));
-
 	_x0 = scale.x * ( x0 - radius.x * borderPercent );
 	_x1 = scale.x * ( x1 + radius.x * borderPercent );
 	_y0 = scale.y * ( y0 - radius.y * borderPercent );
 	_y1 = scale.y * ( y1 + radius.y * borderPercent );
 	_z0 = scale.z * ( z0 - radius.z * borderPercent );
 	_z1 = scale.z * ( z1 + radius.z * borderPercent );
-
-	/*
-	float tmp = _z0;
-	_z0 = _z1;
-	_z1 = tmp;
-	scale.z *= -1.f;
-	*/
 }
 
 void ZUIPlot3d::render() {
 	ZUIPanel::render();
-	//return;
 
 	// 
 	// Validate dims and use scissoring to clip the client render
@@ -182,31 +177,35 @@ void ZUIPlot3d::render() {
 		// this initializes all matrices to indentity
 
 	glMatrixMode( GL_PROJECTION );
-	//float maxRadius = max( radius.x, max( radius.y, radius.z ) ) * ( 1.f + BORDER_PERCENT );
 	glOrtho( x0, x1, y0, y1, -1000000.f, 1000000.f );
 		// we prefer an orthographic projection for 3d plotting
 
 	glMatrixMode( GL_MODELVIEW );
-	// THIS IS THE KEYBOARD STUFF THAT I SHOULD PUT INTO ZVIEWPOINT2
 	glTranslatef( centroid.x * scale.x, centroid.y * scale.y, centroid.z * scale.z);
 	glRotatef( rotateX, 1, 0, 0 );
 	glRotatef( rotateY, 0, 1, 0 );
 	glTranslatef( -centroid.x * scale.x, -centroid.y * scale.y, -centroid.z * scale.z);
 		// rotate about the centroid of the scene
 
-
-
 	vp.zviewpointTransAxes = centroid;
 	vp.zviewpointScaleAxes = scale;
 	vp.zviewpointSetupView();
-
 
 	drawLegendAxes();
 
 	void *p = getp( "unrangedCallback" );
 	if( p ) {
+		z0 = getF( "z0" );
 		z1 = getF( "z1" );
-		glTranslatef( 0.f, 0.f, z1 );
+		double transZ = z1;
+		
+		if( getI("plotLogZ") ) {
+			z0 = log10(z0);
+			z1 = log10(z1);
+			transZ = z0 + z1;
+		}
+		
+		glTranslatef( 0.f, 0.f, transZ );
 		glScalef( 1.f, 1.f, -1.f );
 
 		PlotUnrangedCallback *callback = (PlotUnrangedCallback *)p;
@@ -228,7 +227,7 @@ void ZUIPlot3d::render() {
 		// GL_SCISSOR_BIT
 }
 
-void zglLegendScale( FVec3 p1, FVec3 p2, FVec3 tickVec, float tickStart, float tickOffset, float tickStep, float tickCount, FVec3 &radius, char *label ) {
+void zglLegendScale( FVec3 p1, FVec3 p2, FVec3 tickVec, float tickStart, float tickOffset, float tickStep, float tickCount, FVec3 &radius, char *label, int logZ ) {
 	// draws a line from p1 to p2 with tick marks tickVec for labeling scenes in 3 dimensions.
 	// the font draw is handled elsewhere to prevent dependency on fonts in this module.
 	// tickStart is relative t
@@ -286,9 +285,16 @@ void zglLegendScale( FVec3 p1, FVec3 p2, FVec3 tickVec, float tickStart, float t
 		for( int i=0; i<tickCount; i++ ) {
 			// mkness: round value to a multiple of tickStep to clean up appearance (i.e. so 0 does not appear as -0).
 			value = float (tickStep * floor ((value / tickStep) + 0.5));
-
+ 
 			glTranslatef( 0.f, 0.f, scaleForFont.z * t1.z );
-			zglFontPrint( ZTmpStr( "%g", value), scaleForFont.x * t1.x, scaleForFont.y * t1.y, "verdana60" );
+			ZTmpStr printValue;
+			if( !logZ ) {
+				printValue.set( "%g", value );
+			}
+			else {
+				printValue.set( "1e%g", value );
+			}
+			zglFontPrint( printValue, scaleForFont.x * t1.x, scaleForFont.y * t1.y, "verdana60" );
 			glTranslatef( 0.f, 0.f, scaleForFont.z * -t1.z );
 			t0.add( tStep );
 			t1.add( tStep );
@@ -362,17 +368,25 @@ void ZUIPlot3d::drawLegendAxes() {
 	FVec3 tickx( ( x1 - x0 ) / 20.f, 0.f, 0.f ); 
 	FVec3 tickz( 0.f, 0.f, ( z1 - z0 ) / 20.f );
 
-	float xStart, xStep, xCount, yStart, yStep, yCount, zStart, zStep, zCount;
+	float xStart, xStep, xCount, yStart, yStep, yCount, zStart, zStep, zCount, z0Unscaled, z1Unscaled;
+	z0Unscaled = getF("z0");
+	z1Unscaled = getF("z1");
+	int logZ = getI("plotLogZ");
+	if( logZ ) {
+		z0Unscaled = z0Unscaled>0 ? log10(z0Unscaled) : 0;
+		z1Unscaled = z1Unscaled>0 ? log10(z1Unscaled) : 0;
+	}
+
 	legendTickValues( getF( "x0" ), getF( "x1" ), xStart, xStep, xCount );
 	legendTickValues( getF( "y0"), getF( "y1" ), yStart, yStep, yCount );
-	legendTickValues( getF( "z0" ), getF( "z1" ), zStart, zStep, zCount );
+	legendTickValues( z0Unscaled, z1Unscaled, zStart, zStep, zCount );
 	
 	setupColor( "axesColor" );
 	glLineWidth( 1.f );
-	zglLegendScale( p1, p5, tickz, yStart, yStart-y0, yStep, yCount, radius, getS( "y-label" ) );
-	zglLegendScale( p1, p2, tickz, xStart, xStart-x0, xStep, xCount, radius, getS( "x-label" ) );
-	zglLegendScale( p2, p3, tickx, zStart, zStart-z0, zStep, zCount, radius, getS( "z-label" ) );
-	zglLegendScale( p3, p7, tickx, yStart, yStart-y0, yStep, yCount, radius, getS( "y-label" ) );
+	zglLegendScale( p1, p5, tickz, yStart, yStart-y0, yStep, yCount, radius, getS( "y-label" ), 0 );
+	zglLegendScale( p1, p2, tickz, xStart, xStart-x0, xStep, xCount, radius, getS( "x-label" ), 0 );
+	zglLegendScale( p2, p3, tickx, zStart, zStart-z0, zStep, zCount, radius, getS( "z-label" ), logZ );
+	zglLegendScale( p3, p7, tickx, yStart, yStart-y0, yStep, yCount, radius, getS( "y-label" ), 0 );
 	
 
 	//
