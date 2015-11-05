@@ -67,14 +67,30 @@ ParamInfo::ParamInfo( ParamInfo &toCopy ) {
 }
 
 //----------------------------------------
-const int ParamInfo_Version = 20080407;
+const int ParamInfo_Version = 20151105;
 int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 	int version;
 	freadEndian( &version, sizeof( version ), 1, f, byteswap );
 	
 	switch( version ) {
 		case 20080407: {
-			freadEndian( paramName, 1, sizeof( paramName ), f, byteswap );
+			#define OLD_PARAMNAME_SIZE 16
+				// before we doubled the size to 32; see header for comment.
+			freadEndian( paramName, 1, OLD_PARAMNAME_SIZE, f, byteswap );
+			freadEndian( &initialValue, sizeof( initialValue ), 1, f, byteswap );
+			freadEndian( &type, sizeof( type ), 1, f, byteswap );
+			freadEndian( &constraint, sizeof( constraint ), 1, f, byteswap );
+			freadEndian( ratioMasterParamName, 1, OLD_PARAMNAME_SIZE, f, byteswap );
+			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
+			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
+			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
+			freadEndian( &covarStdError2x, sizeof( covarStdError2x ), 1, f, byteswap );
+		}
+		break;
+			
+		case 20151105: {
+				// identical to above, but using sizeof(paramName) which is now 32.
+			freadEndian( paramName, 1, sizeof(paramName), f, byteswap );
 			freadEndian( &initialValue, sizeof( initialValue ), 1, f, byteswap );
 			freadEndian( &type, sizeof( type ), 1, f, byteswap );
 			freadEndian( &constraint, sizeof( constraint ), 1, f, byteswap );

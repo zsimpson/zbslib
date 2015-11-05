@@ -78,7 +78,11 @@ struct ParamInfo {
 	// The parameter name will be the key for a hash.  The key will map to
 	// this struct.
 
-	#define PARAMNAME_MAXLEN 16
+	#define PARAMNAME_MAXLEN 32
+		// I doubled this on 2015-11-05 because we're now fitting initial concs and some of those
+		// reagents have long names.  This is a bummer because it's going to increase file size
+		// of fitspace considerably.  Would be much nicer if the ParamInfo struct was a hashtable
+		// instead, so we weren't writing a bunch of 0's to disk.
 	char paramName[ PARAMNAME_MAXLEN ];
 
 
