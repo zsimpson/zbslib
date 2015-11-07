@@ -627,8 +627,23 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
         ZTmpStr name( "%s", kpi->name );
         switch( kpi->type ) {
         	case PI_INIT_COND:
+				// We are now fitting initial conditions.  But in the case of a series
+				// experiment (which is really several experiments), while we *do* want
+				// to allow the "series reagent" to take on unique values and be fit separately,
+				// we *don't* want this for other reagents in the experiment, even though
+				// they are technically separate parameters in the kSystem.parameterInfo.
+				// We instead want the rest of the series to take on the value of the "master"
+				// experiment, since it is possibly being fit, and we'll need it's value copied
+				// into the "slave" experiment parameters.
 				KineticExperiment *e = kSystem.experiments[ kpi->experiment ];
-        		name.set( "%s_e%d_m%d", kpi->name, e->id, e->mixsteps[kpi->mixstep].id );
+				int expId = e->id;
+				if( e->slaveToExperimentId != -1 && (kpi->reagent != e->reagentIndexForSeries || kpi->mixstep != e->mixstepIndexForSeries) ) {
+					// exp is a slave and this reagent is not the series reagent
+					expId = e->slaveToExperimentId;
+						// this will cause the name below to reference the name for the master
+						// such that the value of the master parameter gets stuffed into kpi->value
+				}
+        		name.set( "%s_e%d_m%d", kpi->name, expId, e->mixsteps[kpi->mixstep].id );
         		break;
         }
 		pi = paramByName( name );
@@ -636,8 +651,8 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 			kpi->value = bestFit ? pi->bestFitValue : pi->initialValue;
 		}
 	}
-	/*
-
+	
+	/* OLD WAY
 	// COPY RATES
 	int i,numParams = 0;
 	kpi = kSystem.paramGet( PI_REACTION_RATE, &numParams );
