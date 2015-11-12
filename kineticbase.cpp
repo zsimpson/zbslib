@@ -5083,17 +5083,10 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 						info.experiment = ke->getExperimentIndex();
 						info.reagent = i;
 						info.mixstep = ms;
+
 						ZTmpStr unique( "%s_e%d_m%d", reagentGetName(i), ke->id, ke->mixsteps[ms].id );
 						strcpy( info.name, reagentGetName(i) );
 						saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
-
-						if( !saved && ke->slaveToExperimentId != -1 ) {
-							// Look to our master for the IC if we don't have it ourselves, such that experiments that
-							// were saved with SERIES_EXP_FULL_IC off will be setup correctly; this is only necessary
-							// when loading older files that do not have all initial conditions for each experiment.
-							unique.set( "%s_e%d_m%d", reagentGetName(i), ke->slaveToExperimentId, ke->mixsteps[ms].id );
-							saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
-						}
 
 						info.value   = saved ? saved->value   : ms==0 ? (i<2 ? 1.0 : 0.0) : 0;
 						info.group   = saved ? saved->group   : 0;
