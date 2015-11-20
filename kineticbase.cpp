@@ -3632,7 +3632,12 @@ int parseIsEmpty() {
 	return 1;
 }
 	
+#ifdef KIN_DEV
+static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?][A-Za-z_0-9.~$#:?]*\\^?)" );
+	// allow 'caret' to be used as a 'label' indicator
+#else
 static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?][A-Za-z_0-9.~$#:?]*)" );
+#endif
 static void parseSymbol() {
 	if( parseSymbolRegEx.test(parsePtr) ) {
 		zStrPrependS( parseToken, parseSymbolRegEx.get(1) );
@@ -3726,7 +3731,7 @@ int KineticSystem::reactionsAddByFullText( char *_text ) {
 	if( processedText ) {
 		_text = processedText;
 	}
-	
+
 	// PREPARE the tokenizer
 	parsePtr = _text;
 	parseToken = 0;
@@ -3852,7 +3857,151 @@ int KineticSystem::reactionsAddByFullText( char *_text ) {
 			}
 		}
 	}
+
+	reactionsAddUnlabeled();
+		// if there were any 'labeled' reagents, create non-labeled competing reactions.
+
+	if( processedText ) {
+		delete processedText;
+	}
+
 	return state;
+}
+
+int KineticSystem::reactionsAddUnlabeled() {
+	#ifndef KIN_DEV
+		return 0;
+	#endif
+	// From Ken's request:
+	// the user enters E + S’ = ES’ = FS’
+	// that would translate into two pathways:
+	// Labeled: E + S’ = ES’ = FS’
+	// Unlabeled: E + S = ES = FS
+
+	char labelSymbol = '^';
+		// I'm starting with this, because single-quote is a pain in the ass to use with zMsqQueue etc
+		// due to ecaped-quote accounting.
+
+	int preAddCount = reactionCount();
+	int addedCount = 0;
+	for( int i=0; i<preAddCount; i++ ) {
+		char *rs = reactionGetString( i );
+		if( strchr( rs, labelSymbol ) ) {
+			char *nolabel[4] = {0,};
+			reactionGetReagents( i, &nolabel[0], &nolabel[1], &nolabel[2], &nolabel[3] );
+			for( int n=0; n<4; n++ ) {
+				if( nolabel[n] ) {
+					int labelIndex = strlen(nolabel[n])-1;
+						// note: the regex for parsing reaction text ensures that if labelSymbol shows up, it must be
+						// the last char in a reagent name.
+					if( nolabel[n][labelIndex] == labelSymbol ) {
+						nolabel[n] = strdup( nolabel[n] );
+						nolabel[n][labelIndex] = 0;
+						if( reagentFindByName(nolabel[n]) == -1 ) {
+							reagents.add( nolabel[n] );
+						}
+					}
+				}
+			}
+			reactionAddByNames( nolabel[0], nolabel[1], nolabel[2], nolabel[3] );
+			addedCount++;
+
+			// I need a way to track which labeled reaction this unlabeled reaction is related to.
+			// This is because there may be reactions with no labeling in the original set of reactions,
+			// so it's not the case that the second half of the system exactly mirrors the first.	
+			reactions[reactions.count-1].labeled = i;
+		}
+	}
+	return addedCount;
+}
+
+int KineticSystem::updateGroupAndRateValueForUnlabeledPairings() {
+	#ifndef KIN_DEV
+		return 0;
+	#endif
+	// The rates for non-labeled reactions corresponding to a labeled reaction must be
+	// tied to the labeled reaction, which is adjustable by the user.  For normal reactions,
+	// we employ a "group" number that says how the paramter is fit.  
+	// 0 - fit 
+	// 1 - fixed
+	// 2-10: a "ratio" group.  Members maintain their relative ratios to each other.
+
+	// With an unlabeled pair, we manage all this behind the scenes.  We can always assign 
+	// groups based on what the non-labeled reaction is.
+	//
+	// Unlabeled is X ---> then labeled is Y
+	//
+	// case 1: 0 --> assign both the labeled and unlabeled reaction to a free group, 100-whatever
+	// case 2: 1 --> 1 (both are fixed)
+	// case 3: 2-10 --> assign unlabeled to same group
+	//
+	// Explanations:
+	//
+	// case 1: the labeled is being fit, but we must ensure the unlabeled maintains the same rate constant, 
+	//         and we do this by assigning both to a group that is not represented in the UI.  Only groups
+	//         0-9 have visual respresentations in the UI, so a rate with group 100 will appear as 0, which
+	//         correctly indicates to the user it is being "fit".  I picked 100 arbitrarily to make it well away
+	//		   from the values represented in the UI, in case we add more user-controllable groups.
+	//
+	// case 2: both are fixed
+	//
+	// case 3: if the user has assigned a rate to group, with other rates, then the unlabeled must be
+	//         in that same group.  The only trick here is to ensure that the rate values are the same
+	//         when this assignment is made.
+	//
+
+	#define VIRTUAL_GROUPS_START 100
+	int nextFreeVirtualGroup = VIRTUAL_GROUPS_START;
+
+	int groupChanged = 0;
+
+	int count;
+	KineticParameterInfo *kpi = paramGet( PI_REACTION_RATE, &count );
+	assert( count == reactionCount() );
+
+	for( int i=0; i<count; i++ ) {
+		// the reactions are a parallel structure to these rates, and can be indexed identically.
+		if( reactions[i].labeled != -1 ) {
+			// this is an unlabeled member of a pair
+			int labeled = reactions[i].labeled;
+			assert( labeled < count );
+
+			// perhaps we should rename this fn to indicate this is happening also,
+			// but the whole purpose of the grouping regime is to ensure parameter
+			// values for unlabeled reactions is locked to the labeled versions.
+			kpi[i].value = kpi[labeled].value;
+
+			if( kpi[labeled].group == 0 || kpi[labeled].group >= VIRTUAL_GROUPS_START ) {
+				// note that if the group is already a "virtual group" we also assign the
+				// next available one so that a reparameterized system always consistently
+				// uses a contiguous range of these, avoiding collision issues.
+				if( kpi[labeled].group != kpi[i].group || kpi[i].group != nextFreeVirtualGroup ) {
+					kpi[labeled].group = nextFreeVirtualGroup;
+					kpi[i].group = nextFreeVirtualGroup;
+					groupChanged = 1;
+//					printf( "group for reactions %d^ (%d) changed to %d\n", labeled, i, kpi[i].group );
+				}
+				nextFreeVirtualGroup++;
+			}
+			else {
+				assert( kpi[labeled].group >= 1 && kpi[labeled].group <= 10 );
+				if( kpi[i].group != kpi[labeled].group ) {
+					kpi[i].group = kpi[labeled].group;
+					groupChanged = 1;
+//					printf( "group for reactions %d^ (%d) changed to %d\n", labeled, i, kpi[i].group );
+				}
+			}
+		}
+	}
+	
+	// if( groupChanged ) {
+	// 	printf( "Current groups:\n" );
+	// 	for( int i=0; i<count; i++ ) {
+	// 		printf( " reaction %d(%d): group %d\n", i, reactions[i].labeled, kpi[i].group );
+	// 	}
+	// }
+
+	return groupChanged;
 }
 
 // end reaction string parser
@@ -4683,10 +4832,15 @@ void KineticSystem::updateConcentrationDependentRatesAtRefConc( double oldRefCon
 }
 
 
-#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || \
+#ifdef KIN_DEV
+#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || c == '^' || \
 			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
 	// These were allowed (_.~$#:) in v1 and will be allowed until we invent fancy symbology, if that happens.
 	// NOTE: you must ensure this matches the regex defined int the reaction parser parseSymbolRegEx
+#else
+#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || \
+			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
+#endif
 	
 
 int isReservedWord( char *symbolBegin, int len ) {
@@ -4991,6 +5145,8 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 
 		parameterInfo.add( info );
 	}
+	updateGroupAndRateValueForUnlabeledPairings();
+		// do any special group assignment for labeled/unlabeled reaction pairs
 
 	// EXTRACT Observable Constants into a hash for counting; note that we process 
 	// experiments by series such that irrespective of the ordering in the experiments

@@ -772,8 +772,12 @@ void FitData::setupParamRatioConstraintsFromSystem( KineticSystem &kSystem ) {
 	clearConstraintType( CT_RATIO );
 
 	int pCount = paramCount();
-	int numGroups = 11;
+	int numGroups = 256;
 		// group numbering: 0->no group; 1->"fixed", >=2 -> a ratio group
+		// in practice, user-spec'd groups are 0-10, but we emply special
+		// groups starting at 100 to link labeled/unlabeled pathways behind
+		// the scenes.  So 256 is just an arbitrarily large number we're not 
+		// ever likely to come close to.
 	
 	ParamInfo **linkedParams = (ParamInfo**)alloca( pCount * sizeof(ParamInfo*) );
 
@@ -784,11 +788,19 @@ void FitData::setupParamRatioConstraintsFromSystem( KineticSystem &kSystem ) {
 		// Add all params that are members of group g to the list, then setup 
 		// the ratio constraints for that list.
 		//
-		for( ZHashWalk w(params); w.next(); ) {
-			char *name = (char*)w.key;
-			ParamInfo *pi = *((ParamInfo**)w.val);
+		
+		// OLD WAY: order of params is arbitrary
+		// for( ZHashWalk w(params); w.next(); ) {
+		// 	char *name = (char*)w.key;
+		// 	ParamInfo *pi = *((ParamInfo**)w.val);
+
+		// NEW WAY: would like to process params in order added
+		// by the user, so that ratio masters are earliest params.
+		int count = orderedParams.activeCount();
+		for( int i=0; i<count; i++ ) {
+			ParamInfo *pi = paramByOrder( i );
 			
-			KineticParameterInfo *kpi = kSystem.paramGetByName( name );
+			KineticParameterInfo *kpi = kSystem.paramGetByName( pi->paramName );
 
 			if( kpi->group == g ) {
 				linkedParams[ linkCount++ ] = pi;

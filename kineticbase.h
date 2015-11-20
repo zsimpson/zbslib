@@ -961,16 +961,20 @@ struct KineticSystem {
 
 	// Reactions
 	//----------------------------------------
-	union Reaction {
+	struct Reaction {
 		// Reactions are unidirectional and consist of 1 or 2 inputs and 1 or 2 outputs
 		// -1 represents no reactant.
-		int react[2][2];
-		struct {
-			int in0, in1, out0, out1;
+		union {
+			int react[2][2];
+			struct {
+				int in0, in1, out0, out1;
+			};
 		};
-//		int fitFlag;
+		int labeled;
+			// if this reaction is the unlabeled-member of a pair of reactions (e.g. radiolabeled, flourescent-tracer)
+			// then this is the index of the corresponding labeled reaction.
 		Reaction() { reset(); }
-		void reset() { in0=in1=out0=out1=-1; /*fitFlag=1;*/ }
+		void reset() { in0=in1=out0=out1=-1; labeled=-1; }
 	};
 
 	ZTLVec<Reaction> reactions;
@@ -1010,6 +1014,10 @@ struct KineticSystem {
 		// Returns 1 on success; note that reagents/reactions are overwritten even in the case of a 
 		// failed parse!
 
+	int reactionsAddUnlabeled();
+	int updateGroupAndRateValueForUnlabeledPairings();
+		// both experimental: see comments at definition
+
 	int reactionGet( int which, int side, int ab ) {
 		return reactions[which].react[side][ab];
 	}
@@ -1029,6 +1037,9 @@ struct KineticSystem {
 
 	static char *reactionGetRateName( int reaction );
 		// return a string that names the rate which controls this reaction, e.g. "k+1"
+
+
+
 
 
 	// Observable Constants
