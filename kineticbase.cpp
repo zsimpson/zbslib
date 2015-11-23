@@ -5243,6 +5243,11 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 						ZTmpStr unique( "%s_e%d_m%d", reagentGetName(i), ke->id, ke->mixsteps[ms].id );
 						strcpy( info.name, reagentGetName(i) );
 						saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
+						if( !saved && s != 0 ) {
+							// try to get the saved value for the series master if possible
+							unique.set( "%s_e%d_m%d", info.name, series[0]->id, series[0]->mixsteps[ms].id );
+							saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
+						}
 
 						info.value   = saved ? saved->value   : ms==0 ? (i<2 ? 1.0 : 0.0) : 0;
 						info.group   = saved ? saved->group   : 0;
