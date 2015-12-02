@@ -624,7 +624,7 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 	//
 	for( int i=0; i<kSystem.parameterInfo.count; i++ ) {
         KineticParameterInfo *kpi = &kSystem.parameterInfo[i];
-        ZTmpStr name( "%s", kpi->name );
+        ZTmpStr name( "%s", kpi->suffixedFriendlyName() );
         switch( kpi->type ) {
         	case PI_INIT_COND:
 				// We are now fitting initial conditions.  But in the case of a series
@@ -636,74 +636,20 @@ void FitData::copyValuesToKineticSystem( KineticSystem & kSystem, int bestFit ) 
 				// experiment, since it is possibly being fit, and we'll need it's value copied
 				// into the "slave" experiment parameters.
 				KineticExperiment *e = kSystem.experiments[ kpi->experiment ];
-				int expId = e->id;
 				if( e->slaveToExperimentId != -1 && (kpi->reagent != e->reagentIndexForSeries || kpi->mixstep != e->mixstepIndexForSeries) ) {
 					// exp is a slave and this reagent is not the series reagent
-					expId = e->slaveToExperimentId;
-						// this will cause the name below to reference the name for the master
+					KineticExperiment *master = kSystem.getExperimentById( e->slaveToExperimentId );
+					name.set( "%s", kpi->suffixedFriendlyName( master->getExperimentIndex() ) );
+						// This will cause the name to reference the name for the master
 						// such that the value of the master parameter gets stuffed into kpi->value
 				}
-        		name.set( "%s_e%d_m%d", kpi->name, expId, e->mixsteps[kpi->mixstep].id );
-        		break;
+        	break;
         }
 		pi = paramByName( name );
 		if( pi ) {
 			kpi->value = bestFit ? pi->bestFitValue : pi->initialValue;
 		}
-	}
-	
-	/* OLD WAY
-	// COPY RATES
-	int i,numParams = 0;
-	kpi = kSystem.paramGet( PI_REACTION_RATE, &numParams );
-	for( i=0; i<numParams; i++ ) {
-		pi = paramByName( kpi[ i ].name );
-		if( pi ) {
-			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
-			assert( kpi[i].value >= 0.0 && "negative rate copied to model!" );
-			printf( "copied rate %d %s\n", i, kpi[i].name );
-		}
-		else {
-			trace( "WARNING: parameter %s (val=%g) not found!\n", kpi[ i ].name, kpi[ i ].value );
-		}
-	}
-
-	// COPY any rate-dependency coeficients 
-	//
-	for( i=0; i<numParams; i++ ) {
-		for( int j=0; j<4; j++ ) {
-			kpi = kSystem.paramGetRateCoefs( i, kSystem.rateDependCoefTypes[j] );
-			if( kpi ) {
-				pi = paramByName( kpi[ 0 ].name );
-				if( pi ) {
-					kpi[ 0 ].value = bestFit ? pi->bestFitValue : pi->initialValue;
-					printf( "copied coef %s\n", kpi[i].name );
-
-				}
-				pi = paramByName( kpi[ 1 ].name );
-				if( pi ) {
-					kpi[ 1 ].value = bestFit ? pi->bestFitValue : pi->initialValue;
-					printf( "copied coef %s\n", kpi[i].name );
-				}
-			}
-		}
-	}
-
-	// COPY OUTPUT FACTORS (observable constants)
-	kpi = kSystem.paramGet( PI_OBS_CONST, &numParams );
-	for( i=0; i<numParams; i++ ) {
-		ParamInfo *pi = paramByName( kpi[ i ].name );
-		if( pi ) {
-			// pi may be null in the case that the experiments that were
-			// fit did not reference the given constant.  Should we add the
-			// constant to the FitData anyway when the fit is setup?
-			kpi[ i ].value = bestFit ? pi->bestFitValue : pi->initialValue;
-			printf( "copied obsconst %d %s\n", i, kpi[i].name );
-
-		}
-	}
-
-	*/
+	}	
 }
 
 void FitData::copyBestFitValuesToKineticSystem( KineticSystem & kSystem ) {

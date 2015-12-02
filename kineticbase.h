@@ -407,6 +407,9 @@ struct KineticParameterInfo {
 		group = 0;
 	}
 
+	char *suffixedFriendlyName( int forceExpIndex=-1 );
+		// name displayed in ui to user
+
 	void dump( KineticSystem *s );
 		// debug
 };

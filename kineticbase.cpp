@@ -1351,6 +1351,22 @@ void KineticTrace::saveText( char *filename, int row, double stepSize ) {
 // KineticParameterInfo
 //------------------------------------------------------------------------------------------------------------------------------------
 
+char * KineticParameterInfo::suffixedFriendlyName( int forceExpIndex ) {
+	if( type == PI_INIT_COND ) {
+		// Initial condition names, because they are per-experiment, and per-mixstep, need more 
+		// than just a reagent name to identify them.  Internally, we use experiment and mixstep
+		// IDs for this purpose, because those IDs will not change upon reparameterization.  But
+		// for display to the user, indices make more sense so that a user can know that E-e2m1
+		// means reagent E, experiment 2, mixstep 1.
+		static ZTmpStr friendlyName;
+			// careful! :)
+		int expIndex = forceExpIndex != -1 ? forceExpIndex : experiment;
+		friendlyName.set( "%s-e%dm%d", name, expIndex+1, mixstep+1 );
+		return friendlyName;
+	}
+	return name;
+}
+
 void KineticParameterInfo::dump( KineticSystem *s ) {
 	char buf[256];
 	int buflen=256;
@@ -4512,6 +4528,7 @@ KineticParameterInfo *KineticSystem::paramGet( int type, int *count, int experim
 }
 
 KineticParameterInfo *KineticSystem::paramGetByName( char *name ) {
+	
 	for( int i=0; i<parameterInfo.count; i++ ) {
 		if( !strcmp( parameterInfo[i].name, name ) ) {
 			return &parameterInfo[i];
