@@ -1668,7 +1668,9 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 			//
 			for( int r=0; r<reagentCount(); r++ ) {
 				if( viewInfo.has( ZTmpStr( "purgeReagentMix%d%s", i, system->reagentGetName( r ) ) ) ) {
-					dilutedC[ r ] = 0.0;
+					dilutedC[ r ] = ic[r];
+						// This used to be set to 0.0 because we are purging, but now we allow a purge to a given
+						// value, and that value should already be setup in the ic.
 				}
 			}
 		}
