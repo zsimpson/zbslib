@@ -1382,6 +1382,26 @@ void KineticParameterInfo::dump( KineticSystem *s ) {
 	trace( "\tValue: %g\n", value );
 }
 
+char * KineticParameterInfo::paramTypeName( int type ) {
+	// type is a bitfield so can't index into a list of names...
+	switch( type ) {
+		case PI_REACTION_RATE: return "PI_REACTION_RATE";
+		case PI_OBS_CONST: return "PI_OBS_CONST";
+		case PI_INIT_COND: return "PI_INIT_COND";
+		case PI_VOLTAGE: return "PI_VOLTAGE";
+		case PI_VOLTAGE_COEF: return "PI_VOLTAGE_COEF";
+		case PI_TEMPERATURE: return "PI_TEMPERATURE";
+		case PI_TEMPERATURE_COEF: return "PI_TEMPERATURE_COEF";
+		case PI_PRESSURE: return "PI_PRESSURE";
+		case PI_PRESSURE_COEF: return "PI_PRESSURE_COEF";
+		case PI_SOLVENTCONC: return "PI_SOLVENTCONC";
+		case PI_SOLVENTCONC_COEF: return "PI_SOLVENTCONC_COEF";
+		case PI_ALL: return "PI_ALL";
+	}
+	return "Combined or Invalid paramType";
+}
+
+
 // SavedKineticParameterInfo
 //------------------------------------------------------------------------------------------------------------------------------------
 

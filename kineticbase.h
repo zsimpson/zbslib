@@ -334,7 +334,6 @@ struct KineticParameterInfo {
 		#define PI_SOLVENTCONC_COEF (1024)
 		#define PI_ALL (0xFFFF)
 
-
 	int experiment;
 		// If type == PI_INIT_COND then this field tells which experiment of the system
 
@@ -411,6 +410,9 @@ struct KineticParameterInfo {
 		// name displayed in ui to user
 
 	void dump( KineticSystem *s );
+		// debug
+
+	static char * paramTypeName( int type );
 		// debug
 };
 
