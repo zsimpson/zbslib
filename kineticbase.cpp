@@ -4030,7 +4030,7 @@ int KineticSystem::updateGroupAndRateValueForUnlabeledPairings() {
 				nextFreeVirtualGroup++;
 			}
 			else {
-				assert( kpi[labeled].group >= 1 && kpi[labeled].group <= 10 );
+				assert( kpi[labeled].group >= 1 && kpi[labeled].group <= 27 );
 				if( kpi[i].group != kpi[labeled].group ) {
 					kpi[i].group = kpi[labeled].group;
 					groupChanged = 1;
