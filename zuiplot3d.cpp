@@ -89,7 +89,7 @@ void ZUIPlot3d::getSceneDimsWithBorder( FVec3 &centroid, FVec3 &radius,
 	
 	if( getI("plotLogZ") ) {
 		z0 = z0>0 ? log10(z0) : 0;
-		z1 = z1>0 ? log10(z1) : 0;
+		z0 = z0>0 ? log10(z0) : min( -2, z1 - 1.f );
 	}
 
 	radius = FVec3( (x1-x0)/2.f, (y1-y0)/2.f, (z1-z0)/2.f );
@@ -122,8 +122,8 @@ void ZUIPlot3d::getSceneScaledDimsWithBorder( FVec3 &centroid, FVec3 &radius, FV
 	float z1 = getF("z1");
 
 	if( getI("plotLogZ") ) {
-		z0 = z0>0 ? log10(z0) : 0;
 		z1 = z1>0 ? log10(z1) : 0;
+		z0 = z0>0 ? log10(z0) : min( -2, z1 - 1.f );
 	}
 
 	radius = FVec3( (x1-x0)/2.f, (y1-y0)/2.f, (z1-z0)/2.f );
@@ -200,8 +200,8 @@ void ZUIPlot3d::render() {
 		double transZ = z1;
 		
 		if( getI("plotLogZ") ) {
-			z0 = log10(z0);
-			z1 = log10(z1);
+			z1 = z1>0 ? log10(z1) : 0;
+			z0 = z0>0 ? log10(z0) : min( -2, z1 - 1.f );
 			transZ = z0 + z1;
 		}
 		
@@ -319,7 +319,7 @@ void legendTickValues( float v0, float v1, float &start, float &step, float &cou
 	// Given values v0 < v1, find a start value and a step value for
 	// placing tick marks on a legend.  i.e., find "nice round numbers"
 	// that will make for a good graphic display.
-
+	
 	assert( v0 < v1 );
 	
 	int log=0;
@@ -373,8 +373,10 @@ void ZUIPlot3d::drawLegendAxes() {
 	z1Unscaled = getF("z1");
 	int logZ = getI("plotLogZ");
 	if( logZ ) {
-		z0Unscaled = z0Unscaled>0 ? log10(z0Unscaled) : 0;
 		z1Unscaled = z1Unscaled>0 ? log10(z1Unscaled) : 0;
+		z0Unscaled = z0Unscaled>0 ? log10(z0Unscaled) : min( -2, z1Unscaled - 1.f );
+			// on a logz scale, if z0 is 0, we need to pick an arbitrarily small log value
+			// that is very close to 0.
 	}
 
 	legendTickValues( getF( "x0" ), getF( "x1" ), xStart, xStep, xCount );
