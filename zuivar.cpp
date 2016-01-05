@@ -323,7 +323,10 @@ void ZUIVar::render() {
 	ZUIPanel::render();
 
 	setupColor( (char*)(getI( "disabled" ) ? "varTextColorDisabled" : "varTextColor") );
-	if( getI( "inEditMode" ) ) {
+	if( getI( "inEditMode" ) || !headChild->getI( "hidden" ) ) {
+		// the two conditions above are probably supposed to be equivalent, but they
+		// appear not to be.  headChild is the textEditor.  If it is visible, we should
+		// not render our own text, lest it show thru an invisible textEditor panel.
 		return;
 	}
 
