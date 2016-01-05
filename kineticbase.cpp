@@ -1351,17 +1351,26 @@ void KineticTrace::saveText( char *filename, int row, double stepSize ) {
 // KineticParameterInfo
 //------------------------------------------------------------------------------------------------------------------------------------
 
-char * KineticParameterInfo::suffixedFriendlyName( int forceExpIndex ) {
+char * KineticParameterInfo::suffixedFriendlyName( int masterOrdinal, int slaveOrdinal, int mixstepCount ) {
 	if( type == PI_INIT_COND ) {
 		// Initial condition names, because they are per-experiment, and per-mixstep, need more 
 		// than just a reagent name to identify them.  Internally, we use experiment and mixstep
 		// IDs for this purpose, because those IDs will not change upon reparameterization.  But
 		// for display to the user, indices make more sense so that a user can know that E-e2m1
-		// means reagent E, experiment 2, mixstep 1.
+		// means reagent E, experiment 2, mixstep 1.  For series experiments, we use the slaveOrdinal
+		// like: E-e2.2m1, which means experiment 2, second experiment in the series
 		static ZTmpStr friendlyName;
 			// careful! :)
-		int expIndex = forceExpIndex != -1 ? forceExpIndex : experiment;
-		friendlyName.set( "%s-e%dm%d", name, expIndex+1, mixstep+1 );
+		if( slaveOrdinal != 0 ) {
+			friendlyName.set( "%s-e%d.%d", name, masterOrdinal, slaveOrdinal );
+		}
+		else {
+			friendlyName.set( "%s-e%d", name, masterOrdinal );
+		}
+		if( mixstepCount > 1 ) {
+			// only add the mixstep text if there are multiple mixsteps
+			friendlyName.set( "%sm%d", friendlyName.s, mixstep+1 );
+		}
 		return friendlyName;
 	}
 	return name;
@@ -1448,7 +1457,7 @@ int KineticExperiment::getExperimentIndex() {
 	return -1;
 }
 
-int KineticExperiment::getMasterExperimentOrdinal() {
+int KineticExperiment::getMasterExperimentOrdinal( int *slaveOrdinal ) {
 	// The strange name is meant to cause you to notice
 	// that this does NOT return the index of this experiments
 	// "master" experiment.  It counts the master experiments,
@@ -1456,15 +1465,36 @@ int KineticExperiment::getMasterExperimentOrdinal() {
 	// of this experiment.  E.g. if this is the 3rd master
 	// experiment in the system, or is a slave to the 3rd master, 
 	// we will return 3.
-	
+	//
+	// NEW: if slaveOrdinal is non-NULL, also return the 1-based ordinal 
+	// indicating which experiment in the series we are.  If we are the 
+	// master, this is 1.  If we are not part of a series, this is 0.
 
-	int masterIndex = slaveToExperimentId >= 0 ? system->getExperimentById( slaveToExperimentId )->getExperimentIndex() : getExperimentIndex();
 	int masterOrdinal = 0;
+	int masterIndex = slaveToExperimentId >= 0 ? system->getExperimentById( slaveToExperimentId )->getExperimentIndex() : getExperimentIndex();
 	for( int i=0; i<=masterIndex; i++ ) {
 		if( system->experiments[i]->slaveToExperimentId < 0 ) {
 			masterOrdinal++;
 		}
 	}
+
+	// NEW:
+	if( slaveOrdinal ) {
+		*slaveOrdinal = 0;
+			// Returned as 0 if we are not part of a series.
+		ZTLVec< KineticExperiment* > series;
+		int count = getSeries( series );
+		if( count > 1 ) {
+			// we are part of a series
+			for( int i=0; i<count; i++ ) {
+				if( series[i] == this ) {
+					*slaveOrdinal = i+1;
+					break;
+				}
+			}
+		}
+	}
+
 	return masterOrdinal;
 }
 

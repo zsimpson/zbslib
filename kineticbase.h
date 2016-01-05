@@ -406,7 +406,7 @@ struct KineticParameterInfo {
 		group = 0;
 	}
 
-	char *suffixedFriendlyName( int forceExpIndex=-1 );
+	char *suffixedFriendlyName( int masterOrdinal, int slaveOrdinal, int mixstepCount );
 		// name displayed in ui to user
 
 	void dump( KineticSystem *s );
@@ -459,12 +459,14 @@ struct KineticExperiment {
 		// But anyone wishing to track an experiment reliably across deletions etc... should
 		// reference the id (above) instead.
 
-	int getMasterExperimentOrdinal();
+	int getMasterExperimentOrdinal( int *slaveOrdinal=0 );
 		// Series experiments consist of a single master experiment and one or more "slave"
 		// experiments.  A non-series experiment is also considered a master.  This returns 
 		// the 'ordinal' of our master - telling the caller that the master in question is
 		// the 1st, 2nd, or 3rd master in the list, and so on.  This value cannot be used to
 		// index into any array maintained by the system.
+		// If slaveOrdinal is non-NULL, set it to the 1-based ordinal indicating which position
+		// this experiment occupies in the series.  Set it to 0 if we are not part of a series.
 
 	int reactionCount();
 	int reagentCount();
