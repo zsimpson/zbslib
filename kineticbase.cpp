@@ -2307,6 +2307,14 @@ double KineticExperiment::getSeriesSolventConcentration() {
 	return -1.0;
 }
 
+double KineticExperiment::getSeriesValue() {
+	KineticParameterInfo *pi = getSeriesParameterInfo();
+	if( pi ) {
+		return pi->value;
+	}
+	return -1;
+}
+
 void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax ) {
 	simulationStepsMin = 100000;
 	simulationStepsMax = 0;

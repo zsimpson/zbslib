@@ -312,6 +312,18 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 				}
 			}
 		}
+
+		// Temp util: write out these files to a text file so that I can copy them
+		// into the python code for use when exporting spectra as EPS.
+		/*
+		FILE *f = fopen( "/tmp/spec.txt", "wt" );
+		fprintf( f, "plotColorSpectraCount = %d\n", spectralColorsCount );
+		fprintf( f, "plotColorSpectra = [\n" );
+		for( int i=0; i<spectralColorsCount; i++ ) {
+			fprintf( f, "\t[ %.3f, %.3f, %.3f ],\n", spectralColors[i].r, spectralColors[i].g, spectralColors[i].b );
+		}
+		fprintf( f, "]\n" );
+		*/
 	}
 
 	if( spectralColors && spectralColorsCount ) {

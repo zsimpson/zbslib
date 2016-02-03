@@ -524,6 +524,9 @@ struct KineticExperiment {
 	double getSeriesSolventConcentration();
 		// return the solvent conc for this exp in a series or -1 if not a solventconc series.
 
+	double getSeriesValue();
+		// return the value for the series, whatever kind it is, as long as a "seriesType" is present.
+
 	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax );
 		// useful stats for a collection of experiments in a concentration series
 
