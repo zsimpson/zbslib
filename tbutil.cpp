@@ -271,14 +271,29 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 	*/
 
 	// version that goes from blue to red
+	//#define PYTHON_PALETTE
+		// define this to produce a palette and write it to a file
+		// that can be pasted into the python code for EPS plots of wavelength data.
+	#ifdef PYTHON_PALETTE
+	ramp _ramps[6] = {
+		{ 16, 0, +1	},	// ramp up red
+		{ 32, 1, +1	},	// ramp up green
+		{ 32, 0, -1	},	// ramp dn red
+		{ 32, 2, +1 },  // ramp up blue
+		{ 32, 1, -1 },  // ramp dn green
+		{ 32, 0, +1 },  // ramp up red
+			// nsteps may be arbitrary values; this setting produces a 256 color palette.
+	};
+	#else
 	ramp _ramps[4] = {
 		{ 52, 1, +1	},	// ramp up green
 		{ 52, 0, -1	},	// ramp dn red
 		{ 52, 2, +1 },  // ramp up blue
 		{ 52, 1, -1 },  // ramp dn green
-		//{ 51, 0, +1 },  // ramp up red
+//		{ 48, 0, +1 },  // ramp up red
 			// nsteps may be arbitrary values; this setting produces a 256 color palette.
 	};
+	#endif
 
 
 	if( !spectralColors ) {
@@ -292,30 +307,46 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 			spectralColors = new FVec3[ paletteSize ];
 		}
 		if( spectralColors ) {
-			spectralColorsCount = paletteSize;						
-			float r=1.f;
-			float g=0.f;
-			float b=0.f;
+			spectralColorsCount = paletteSize;		
+			#ifdef PYTHON_PALETTE
+			FVec3 color( 0.5f, 0.f, 0.f );
+					// start at a dark red
+			#else				
+			FVec3 color( 1.f, 0.f, 0.f );
+					// start at full red
+			#endif
 			int index=0;
 			for( i=0; i<nramps; i++ ) {
-				float delta = 1.f / (_ramps[i].steps - 1);
+				float target = _ramps[i].direction < 0 ? 0.f : 1.f;
+					// target saturation is either 0.f or 1.f for the component, depending on direction.
+				#ifdef PYTHON_PALETTE
+					if( i == nramps-1 ) {
+						target = 0.5f;
+							// in the python palette, the last ramp should bring the r component from
+							// 0 to 0.5f so that the purple isn't so bright.
+					}
+				#endif
+				float current = color[_ramps[i].component];
+				printf( "startin ramp %d: current color is %.2f,%.2f,%.2f\n", i, color.r, color.g, color.b );
+				float delta = ( target - color[_ramps[i].component] ) / (_ramps[i].steps - 1);
+				if( delta < 0 ) delta = -delta;
 				for( int j=0; j<_ramps[i].steps; j++, index++ ) {
-					spectralColors[index].r = r;
-					spectralColors[index].g = g;
-					spectralColors[index].b = b;
-					r += _ramps[i].component == 0 ? delta * _ramps[i].direction : 0.f;
-					g += _ramps[i].component == 1 ? delta * _ramps[i].direction : 0.f;
-					b += _ramps[i].component == 2 ? delta * _ramps[i].direction : 0.f;
-					r = min( r, 1.f ); r = max( r, 0.f);
-					g = min( g, 1.f ); g = max( g, 0.f);
-					b = min( b, 1.f ); b = max( b, 0.f);
+					spectralColors[index].r = color.r;
+					spectralColors[index].g = color.g;
+					spectralColors[index].b = color.b;
+					color.r += _ramps[i].component == 0 ? delta * _ramps[i].direction : 0.f;
+					color.g += _ramps[i].component == 1 ? delta * _ramps[i].direction : 0.f;
+					color.b += _ramps[i].component == 2 ? delta * _ramps[i].direction : 0.f;
+					color.r = min( color.r, 1.f ); color.r = max( color.r, 0.f);
+					color.g = min( color.g, 1.f ); color.g = max( color.g, 0.f);
+					color.b = min( color.b, 1.f ); color.b = max( color.b, 0.f);
 				}
 			}
 		}
 
+		#ifdef PYTHON_PALETTE
 		// Temp util: write out these files to a text file so that I can copy them
 		// into the python code for use when exporting spectra as EPS.
-		/*
 		FILE *f = fopen( "/tmp/spec.txt", "wt" );
 		fprintf( f, "plotColorSpectraCount = %d\n", spectralColorsCount );
 		fprintf( f, "plotColorSpectra = [\n" );
@@ -323,7 +354,8 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 			fprintf( f, "\t[ %.3f, %.3f, %.3f ],\n", spectralColors[i].r, spectralColors[i].g, spectralColors[i].b );
 		}
 		fprintf( f, "]\n" );
-		*/
+		fclose( f );
+		#endif
 	}
 
 	if( spectralColors && spectralColorsCount ) {
