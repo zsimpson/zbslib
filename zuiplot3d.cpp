@@ -88,7 +88,7 @@ void ZUIPlot3d::getSceneDimsWithBorder( FVec3 &centroid, FVec3 &radius,
 	float z1 = getF("z1");
 	
 	if( getI("plotLogZ") ) {
-		z0 = z0>0 ? log10(z0) : 0;
+		z1 = z1>0 ? log10(z1) : 0;
 		z0 = z0>0 ? log10(z0) : min( -2, z1 - 1.f );
 	}
 
