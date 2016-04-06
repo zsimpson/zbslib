@@ -14,15 +14,45 @@
 
 #ifdef __APPLE__
 	extern "C" {
+        // printStackTrace() copied from https://oroboro.com/stack-trace-on-crash/
+	    #include <execinfo.h>    
+        static inline void printStackTrace( FILE *out = stderr, unsigned int max_frames = 127 ) {
+            fprintf(out, "stack trace:\n");
+            
+            // storage array for stack trace address data
+            void* addrlist[max_frames+1];
+            
+            // retrieve current stack addresses
+            unsigned int addrlen = backtrace( addrlist, sizeof( addrlist ) / sizeof( void* ));
+            
+            if ( addrlen == 0 ) {
+                fprintf( out, "  \n" );
+                return;
+            }
+            
+            // create readable strings to each frame.
+            char** symbollist = backtrace_symbols( addrlist, addrlen );
+            
+            // print the stack trace.
+            for ( unsigned int i = 1; i < addrlen; i++ ) {
+                fprintf( out, "%s\n", symbollist[i]);
+            }
+            
+            free(symbollist);
+        }
+        
 		void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function) {
 			char buffer[256];
 			sprintf( buffer, "assert failed: '%s' at %s:%d func='%s'\n", assertion, file, line, function );
 			FILE *f = fopen( "assert.txt", "wt" );
 			if( f ) {
 				fprintf( f, "%s", buffer );
+                fflush( f );
+                printStackTrace( f );
 				fclose( f );
 			}
 			fprintf( stderr, "%s", buffer );
+            printStackTrace( stderr );
        		fflush( stderr );
        		exit(1);
 		}
