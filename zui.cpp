@@ -1407,6 +1407,27 @@ void ZUI::scissorIntersect( int _x, int _y, int _w, int _h ) {
 // So for stopflow, these are removed and replaced with only the attributes needed.
 // For other zlab apps, these continue to be used.
 
+void traceRecurseRenderChain( ZUI *z ) {
+	static int level=0;
+
+	level++;
+
+	static char indent[512];
+	memset( indent, 0, 512 );
+	memset( indent, 32, level );
+
+	trace( "%s%s %s\n", indent, z->name, z->getS( "class", "unknown" ) );
+	if( level == 1 ) {
+		char *zuiContents = z->dumpToString();
+		trace( " zui dump for top of recurse:\n%s\n", zuiContents );
+	}
+	for( ZUI *o=z->headChild; o; o=o->nextSibling ) {
+		traceRecurseRenderChain( o );
+	}
+
+	level--;
+}
+
 #ifdef _DEBUG
 char zuiLastRender[512];
 #endif
@@ -1526,10 +1547,11 @@ void ZUI::recurseRender( int whichDirtyRect ) {
 		glGetIntegerv( GL_MODELVIEW_STACK_DEPTH, &matDepth2 );
 		
 		if( matDepth1 != matDepth2 ) {
-			trace( "matDepth problem: matDepth1=%d, matDepth2=%d", matDepth1, matDepth2 );
+			trace( "matDepth problem: matDepth1=%d, matDepth2=%d, recurseRender chain follows:\n", matDepth1, matDepth2 );
+			traceRecurseRenderChain( o );
 		}
 		if( attDepth1 != attDepth2 ) {
-			trace( "attDepth problem: attDepth1=%d, attDepth2=%d", attDepth1, attDepth2 );
+			trace( "attDepth problem: attDepth1=%d, attDepth2=%d\n", attDepth1, attDepth2 );
 		}
 
 		assert( matDepth1 == matDepth2 );
