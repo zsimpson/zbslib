@@ -1502,26 +1502,8 @@ void ZUI::recurseRender( int whichDirtyRect ) {
 
 
 	SFTIME_START (PerfTime_ID_Zlab_render_render, PerfTime_ID_Zlab_render_recurse);
-
-#ifdef KIN_DEMO
-	int matDepth1=0, matDepth2=0;
-	glGetIntegerv( GL_MODELVIEW_STACK_DEPTH, &matDepth1 );
-#endif
-
 	render();
 	SFTIME_END (PerfTime_ID_Zlab_render_render);
-
-#ifdef KIN_DEMO
-	glGetIntegerv( GL_MODELVIEW_STACK_DEPTH, &matDepth2 );
-	if( matDepth1 != matDepth2 ) {
-		trace( "matDepth problem: matDepth1=%d, matDepth2=%d", matDepth1, matDepth2 );
-		trace( "zui rendered was %s\n", this->name );
-		char *zuiContents = this->dumpToString();
-		trace( "zui dump:\n%s\n", zuiContents );
-		assert( false && "aborting render" );
-	}
-
-#endif
 
 #ifndef SFFAST
 	glPopAttrib();
