@@ -3199,10 +3199,13 @@ void KineticExperiment::observablesGetMinMax( double &minVal, double &maxVal, in
 	if( maxVal < -1e299 ) maxVal = 0;
 }
 
-void KineticExperiment::computeSSEPerObservable( normalizeType _normalize ) {
+void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVec< double > *sigmas ) {
 	TRACEOC_LOCK( this );
 	ssePerObservable.setCount( traceOC.rows );
 	normalizeTypeUsedForSSE.setCount( traceOC.rows );
+	if( sigmas ) {
+		sigmas->setCount( traceOC.rows );
+	}
 
 	traceOCResiduals.clear();
 	for( int i=0; i<traceOC.rows; i++ ) {
@@ -3278,6 +3281,9 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize ) {
 					normalizeTypeUsedForSSE.set( i, NT_None );
 				}
 			}
+		}
+		if( sigmas ) {
+			sigmas->set( i, normVal );
 		}
 		int mcount = measuredCount( i );
 		double sum = 0.0;

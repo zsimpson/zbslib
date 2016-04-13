@@ -758,7 +758,7 @@ struct KineticExperiment {
 	ZTLVec<normalizeType> normalizeTypeUsedForSSE;
 		// which normalizeType was used for each observable in computing the above sse
 	
-	void computeSSEPerObservable( normalizeType normalize = NT_NumTypes );
+	void computeSSEPerObservable( normalizeType normalize = NT_NumTypes, ZTLVec< double > *sigmas=0 );
 		// compute sse for each observable, optionally normalized.  Note that the default
 		// value of normalize here is not a valid type, and results in the normalization
 		// using the per-trace sigma information that is available (perhaps none).
