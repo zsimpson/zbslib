@@ -1518,7 +1518,7 @@ void ZUI::recurseRender( int whichDirtyRect ) {
 
 	for( ZUI *o=headChild; o; o=o->nextSibling ) {
 		int attDepth1=0, attDepth2=0;
-		int matDepth1, matDepth2;
+		int matDepth1=0, matDepth2=0;
 
 		glGetIntegerv( GL_ATTRIB_STACK_DEPTH,    &attDepth1 );
 		glGetIntegerv( GL_MODELVIEW_STACK_DEPTH, &matDepth1 );
