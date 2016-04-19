@@ -538,13 +538,7 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		else {
 			double divisor = 50.0;
 			if( zmsgI( alt ) ) {
-#ifdef KIN_DEV
-				// remove this after Ken plays with values & decides on a nice default for KinExp
-				extern double Kin_preciseTwiddleFactor;
-				divisor *= Kin_preciseTwiddleFactor;
-#else
 				divisor *= getD( "preciseTwiddleFactor", 1.0 );
-#endif
 			}
 			newVal = startVal * exp( (localY - startY)  / divisor );
 		}

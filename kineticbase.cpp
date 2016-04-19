@@ -3722,12 +3722,8 @@ int parseIsEmpty() {
 	return 1;
 }
 	
-#ifdef KIN_DEV
 static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?][A-Za-z_0-9.~$#:?]*\\^?)" );
 	// allow 'caret' to be used as a 'label' indicator
-#else
-static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?][A-Za-z_0-9.~$#:?]*)" );
-#endif
 static void parseSymbol() {
 	if( parseSymbolRegEx.test(parsePtr) ) {
 		zStrPrependS( parseToken, parseSymbolRegEx.get(1) );
@@ -3959,9 +3955,6 @@ int KineticSystem::reactionsAddByFullText( char *_text ) {
 }
 
 int KineticSystem::reactionsAddUnlabeled() {
-	#ifndef KIN_DEV
-		return 0;
-	#endif
 	// From Ken's request:
 	// the user enters E + S’ = ES’ = FS’
 	// that would translate into two pathways:
@@ -4006,9 +3999,6 @@ int KineticSystem::reactionsAddUnlabeled() {
 }
 
 int KineticSystem::updateGroupAndRateValueForUnlabeledPairings() {
-	#ifndef KIN_DEV
-		return 0;
-	#endif
 	// The rates for non-labeled reactions corresponding to a labeled reaction must be
 	// tied to the labeled reaction, which is adjustable by the user.  For normal reactions,
 	// we employ a "group" number that says how the paramter is fit.  
@@ -4923,16 +4913,10 @@ void KineticSystem::updateConcentrationDependentRatesAtRefConc( double oldRefCon
 }
 
 
-#ifdef KIN_DEV
 #define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || c == '^' || \
 			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
 	// These were allowed (_.~$#:) in v1 and will be allowed until we invent fancy symbology, if that happens.
 	// NOTE: you must ensure this matches the regex defined int the reaction parser parseSymbolRegEx
-#else
-#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || \
-			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
-#endif
-	
 
 int isReservedWord( char *symbolBegin, int len ) {
 	char *fns[]  = { "log", "ln", "pow", "exp", "VOLT", "TEMP", "PRES", "CONC", "SCONC", "DERIV" };
