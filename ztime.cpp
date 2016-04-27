@@ -66,6 +66,7 @@
 #include "assert.h"
 #include "stdio.h"
 #include "string.h"
+#include "float.h"
 // MODULE includes:
 #include "ztime.h"
 // ZBSLIB includes:
@@ -275,6 +276,7 @@ void zTimeTick() {
 			zTimeFPS = 1.0 / zTimeDT;
 		}
 		else if( zTimeDT < 0.0 ) {
+			#ifndef DEBUG_TIME_RUNNING_BACKWARDS
 			int timeRunningBackwards = 1;
 			assert( !timeRunningBackwards );
 			// ZBS added 3 July 2007 after discovering that time was running backwards
@@ -282,7 +284,13 @@ void zTimeTick() {
 			// Aparently the problem is related to multi-core machines switching
 			// between threads so that QueryPerformanceCounter fails
 			// No, the problem didn't go away.  It's still here.
-
+			#else
+			// DEBUG_TIME_RUNNING_BACKWARDS is a special #define in the _kin plugin for kintek.
+			// I want the debug info above, but for now I don't want to stop the program when
+			// this happens.  Do other shadowgarden etc. stuff really want this to abort
+			// when this happens?
+			zTimeDT = DBL_MIN;
+			#endif
 		}
 	}
 
