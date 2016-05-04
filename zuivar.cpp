@@ -537,6 +537,9 @@ void ZUIVar::handleMsg( ZMsg *msg ) {
 		}
 		else {
 			double divisor = 50.0;
+			if( getI( "alwaysPrecise" ) ) {
+				divisor *= defaultPreciseTwiddleFactor;
+			}
 			if( zmsgI( alt ) ) {
 				divisor *= getD( "preciseTwiddleFactor", 1.0 );
 			}
