@@ -1953,21 +1953,17 @@ void KineticExperiment::measuredCreateFake( int numSteps, double variance ) {
 	}
 }
 
-void KineticExperiment::measuredCreateFakeForMixsteps( int N, double sigma, double offset, int logTime, double **timeRefs ) {
+void KineticExperiment::measuredCreateFakeForMixsteps( int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
 	// Create synthetic experimental data for fit analysis etc, for the current mixstepDomain.
-	measuredCreateFakeForMixsteps( measured, N, sigma, offset, logTime, timeRefs );
+	measuredCreateFakeForMixsteps( measured, N, sigma, offset, logTime, timeRefs, errType, errP1, errP2 );
 }
-#ifdef KIN_DEV
-// temporary for testing
-extern int Kin_genDataVariatedSigma;
-extern double Kin_genDataVariation;
-#endif
-void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &genTraces, int N, double sigma, double offset, int logTime, double **timeRefs ) {
+
+void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &genTraces, int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
 	// Create synthetic experimental data for fit analysis etc, for the current mixstepDomain.
 
 	int isEquilibrium = viewInfo.getI( "isEquilibrium" );
 	int isPulseChase  = viewInfo.getI( "isPulseChase" );
-
+	
 	for( int i=0; i<observablesCount(); i++ ) {
 		if( viewInfo.getI( ZTmpStr("obs%d-plot",i) ) ) {
 						
@@ -2030,6 +2026,9 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 				// these are applied *after* the determination of dataBeginIndex such that any
 				// data in this trace (or part of trace) will be overwritten by the new data.
 			
+			
+			double perObservableErrorTerm = -1;
+
 			int n;
 			for( int m=0; m<mixstepsToCreateDataFor; m++ ) {
 				if( mixstepsToCreateDataFor > 1 ) {
@@ -2073,17 +2072,32 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 
 					double simulationTime = time + dataToSimulationOffset;
 
-					// testing different sigma per datapoint:
-					double useSigma = sigma;
-					#ifdef KIN_DEV
-						if( Kin_genDataVariatedSigma ) {
-							double sigmaVariation = zrandGaussianF() * sigma * Kin_genDataVariation;
-							useSigma = sigma + sigmaVariation;
+					//
+					// Compute error term - we've always used zrandGaussianF() but below
+					// I'm using some info stuffed into viewInfo to allow playing with
+					// different kinds of error.
+					//
+					double errorTerm = 0;
+					if( sigma != 0 ) {
+						switch( errType ) {
+							case 0: // normal
+								errorTerm = zrandGaussianF() * sigma;
+								break;
+							case 1: // with added sinusoidal drift
+								if( perObservableErrorTerm == -1 ) {
+									perObservableErrorTerm = zrandD( 0, PI2 );
+										// so that sinusoidal noise is offset per observable.
+								}
+								double periods = errP1;
+								double sinAmp = errP2;
+								double t = perObservableErrorTerm + PI2 * periods * double(n-dataBeginIndex) / double(N);
+								errorTerm = sin(t) * sinAmp + zrandGaussianF() * sigma;
+								break;	
 						}
-					#endif
-					
+					}
+
 					double val = getTraceOCSLERP( simulationTime, i, isEquilibrium || isPulseChase );
-					genTraces[i]->set( n, 0, time, val + zrandGaussianF() * useSigma, genTraces[i]->sigma ? &useSigma : 0 );
+					genTraces[i]->set( n, 0, time, val + errorTerm, genTraces[i]->sigma ? &sigma : 0 );
 						// note that we store the sigma per datapoint if this trace is alloc'd to hold sigma,
 						// which will always be true if we just created.  We just don't want to try to store sigma
 						// in a trace that already existed for which sigma was not available.  All or nothing.

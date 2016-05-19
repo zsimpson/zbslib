@@ -794,10 +794,10 @@ struct KineticExperiment {
 	void measuredCreateFake( int numSteps, double variance );
 		// Create pretend data for the experiment
 
-	void measuredCreateFakeForMixsteps( int n, double sigma, double offset, int logTime, double **timeRefs=0 );
+	void measuredCreateFakeForMixsteps( int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
 		// create synthetic data, respecting mixstep settings
 
-	void measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &traces, int n, double sigma, double offset, int logTime, double **timeRefs=0 );
+	void measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &traces, int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
 		// create synthetic data, respecting mixstep settings
 
 	int measuredCount( int i ) { return i<measured.count ? (measured[i] ? measured[i]->cols : 0) : 0; }
