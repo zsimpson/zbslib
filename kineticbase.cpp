@@ -3771,7 +3771,7 @@ int isReservedWord( char *symbol ) {
 }
 
 char * KineticSystem::preprocessReactions( char *text ) {
-	ZRegExp expandChainReaction( "(.*)\\{\\s*(\\S+)=\\s*(\\S+)\\s*\\}(\\d+)(.*)" );
+	ZRegExp expandChainReaction( "(.*)\\{\\s*(\\S+)\\s*=\\s*(\\S+)\\s*\\}(\\d+)(.*)" );
 	viewInfo.del( "preprocessedLinkedReactionCount" );
 
 	if( expandChainReaction.test( text ) ) {
