@@ -3770,17 +3770,25 @@ int isReservedWord( char *symbol ) {
 	return 0;
 }
 
-char * KineticSystem::preprocessReactions( char *text ) {
-	ZRegExp expandChainReaction( "(.*)\\{\\s*(\\S+)\\s*=\\s*(\\S+)\\s*\\}(\\d+)(.*)" );
-	viewInfo.del( "preprocessedLinkedReactionCount" );
+char * KineticSystem::expandChainReaction( char *text ) {
+	//
+	// Expand our chain-reaction syntax to the full set of reactions.
+	// Note that you can have reactions before or after this repeat
+	// syntax, but the repeat part works like this:
+	//
+	//	{A=B}3 
+	//
+	//  A = B = B1 = B2
+	//
+	ZRegExp regexChainReaction( "(.*)\\{\\s*(\\S+)\\s*=\\s*(\\S+)\\s*\\}(\\d+)(.*)" );
 
-	if( expandChainReaction.test( text ) ) {
-		int lastlen = strlen( expandChainReaction.get( 5 ) );
+	if( regexChainReaction.test( text ) ) {
+		int lastlen = strlen( regexChainReaction.get( 5 ) );
 			// ZRegxp uses a set of 4 static buffers, so we can't "get" all 5 without overwriting
-		char *first = expandChainReaction.get( 1 );
-		char *a0	= expandChainReaction.get( 2 );
-		char *a1	= expandChainReaction.get( 3 );
-		int count	= expandChainReaction.getI( 4 );
+		char *first = regexChainReaction.get( 1 );
+		char *a0	= regexChainReaction.get( 2 );
+		char *a1	= regexChainReaction.get( 3 );
+		int count	= regexChainReaction.getI( 4 );
 		
 		int len = strlen( first ) + (strlen(a0) + strlen(a1) + 3) * count + lastlen;
 		char *newText = (char *)malloc( len * 2 );
@@ -3791,12 +3799,107 @@ char * KineticSystem::preprocessReactions( char *text ) {
 		for( int i=0; i<count-1; i++ ) {
 			strcat( newText, ZTmpStr( "=%s%d", a1, i+1 ) );
 		}
-		char *last	= expandChainReaction.get( 5 );
+		char *last	= regexChainReaction.get( 5 );
 		strcat( newText, last );
 
 		viewInfo.putI( "preprocessedLinkedReactionCount", count );
+		viewInfo.putI( "preprocessedLinkedReactionStride", 1 );
 		return newText;
 	}
+	return 0;
+}
+
+char * KineticSystem::expandRepeatedReaction( char *text ) {
+	// New: "repeated" reaction allows indexing within a reaction like this:
+	//
+	// { E+A(i)=EA(i)  EA(i)=E+A(i+1)}3
+	//
+	// E + A1 = EA1		EA1 = E + A2
+	// E + A2 = EA2		EA2 = E + A3
+	// E + A3 = EA3		EA3 = E + A4 
+	//
+	ZRegExp regexRepeatedReaction( "(.*)\\{(.+)\\}(\\d+)(.*)" );
+	
+	// the regex stuff does not work past newlines, so we need to
+	// replace the newlines with some token that we'll swap back
+	char *_text = (char*)alloca( strlen(text)+1 );
+	strcpy( _text, text );
+	char *src = text;
+	char *dst = _text;
+	while( (*dst = *src++) ) {
+		if( *dst == '\n' ) {
+			*dst = '@';
+		}
+		dst++;
+	}
+	
+
+	if( regexRepeatedReaction.test( _text ) ) {
+		char *middle= regexRepeatedReaction.get( 2 );
+		if( strstr(middle,"(i)") && strstr(middle,"(i+1)") ) {
+
+			char *first = regexRepeatedReaction.get( 1 );
+			int count	= regexRepeatedReaction.getI( 3 );
+			char *last	= regexRepeatedReaction.get( 4 );
+	
+			int len = strlen( first ) + strlen(middle) * count + strlen(last);
+			char *newText = (char *)malloc( len * 2 );
+			sprintf( newText, first );
+
+			// ZRegExp index0( "\\(i\\)" );
+			// ZRegExp index1( "\\(i+1\\)" );
+			for( int i=0; i<count; i++ ) {
+				ZStr *zs = new ZStr( middle );
+				zStrReplace( zs, "\\(i\\)", ZTmpStr( "%d", i+1 ) );
+				zStrReplace( zs, "\\(i\\+1\\)", ZTmpStr( "%d", i+2 ) );
+				char *result = zStrJoin( 0, zs );
+				strcat( newText, result );
+				if( i != count-1 ) {
+					strcat( newText, "@" );
+				}
+				zStrDelete( zs );
+				delete( result );
+			}
+			strcat( newText, last );
+
+			ZStr *zs =  zStrSplitByChar( '=', middle );
+			viewInfo.putI( "preprocessedLinkedReactionCount", count );
+			viewInfo.putI( "preprocessedLinkedReactionStride", zStrCount(zs)-1 );
+				// Stride = how many reactions in the repeated section. This is used to
+				// link the rates of corresponding reactions.
+			zStrDelete( zs );
+			
+			src = newText;
+			while( *src ) {
+				if( *src == '@' ) {
+					*src = '\n';
+				}
+				src++;
+			}
+			return newText;
+		}
+	}
+	return 0;
+}
+
+char * KineticSystem::preprocessReactions( char *text ) {
+
+	viewInfo.del( "preprocessedLinkedReactionCount" );
+	viewInfo.del( "preprocessedLinkedReactionStride" );
+	viewInfo.del( "preprocessReactionsInputText" );
+
+	char *processed = 0;
+
+	if( (processed = expandChainReaction( text )) ) {
+		viewInfo.putS( "preprocessReactionsInputText", text );
+		return processed;
+	}
+
+	if( (processed = expandRepeatedReaction( text )) ) {
+		viewInfo.putS( "preprocessReactionsInputText", text );
+		return processed;
+	}
+
 	return 0;
 }
 
@@ -5213,8 +5316,9 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	// REACTION RATES
 	int q = 0;
 	int p = 0;
-	
-	int preprocessedLinkedReactionCount = viewInfo.getI( "preprocessedLinkedReactionCount" ) * 2;
+
+	int preprocessedLinkedReactionStride = viewInfo.getI( "preprocessedLinkedReactionStride", 1 ) * 2;
+	int preprocessedLinkedReactionCount = viewInfo.getI( "preprocessedLinkedReactionCount" ) * preprocessedLinkedReactionStride;
 	for( int r=0; r<reactionCount(); r++ ) {
 		KineticParameterInfo info;
 		info.type = PI_REACTION_RATE;
@@ -5229,7 +5333,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 		info.pIndex = p++;
 
 		if( r < preprocessedLinkedReactionCount ) {
-			info.group = r & 1 ? 3 : 2;
+			info.group = 2 + r % preprocessedLinkedReactionStride;
 		}
 
 		parameterInfo.add( info );

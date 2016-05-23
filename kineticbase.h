@@ -1014,6 +1014,8 @@ struct KineticSystem {
 	void reactionAddByNames( char *in0, char *in1, char *out0, char *out1 );
 	void reactionAddByNamesTwoWay( char *in0, char *in1, char *out0, char *out1 );
 
+	char * expandChainReaction( char *text );
+	char * expandRepeatedReaction( char *text );
 	char * preprocessReactions( char *text );
 		// experimental; see comments at definition
 
