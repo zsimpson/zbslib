@@ -2185,8 +2185,8 @@ ZUI::ZUILayoutCell *ZUI::layoutPack( float maxW, float maxH, float &_w, float &_
 	int row=0, col=0;
 	int cellI=0;
 
-	float maxRowH[256] = {0,};
-	float maxColW[256] = {0,};
+	float maxRowH[512] = {0,};
+	float maxColW[512] = {0,};
 	assert( numCells < sizeof(maxRowH)/sizeof(maxRowH[0]) );
 	if( side == 'L' || side == 'R' ) {
 		// ACCUMULATE the width of each child, creating new rows as needed
