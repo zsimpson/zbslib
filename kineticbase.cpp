@@ -3481,8 +3481,8 @@ int KineticSystem::loadBinary( FILE *f ) {
 
 			char *rText   = (char*)alloca( 1024 );
 			int  rTextLen = 1024;
-			viewInfo.getS( "preprocessReactionsInputText", 0, rText, &rTextLen );
-			if( rText[0] ) {
+			if( viewInfo.has( "preprocessReactionsInputText" )) {
+				viewInfo.getS( "preprocessReactionsInputText", 0, rText, &rTextLen );
 				assert( rTextLen < 1024 );
 			}
 			else {
