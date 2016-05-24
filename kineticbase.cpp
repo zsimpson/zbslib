@@ -5848,9 +5848,9 @@ char * KineticSystem::reactionGetUniqueString( int reaction ) {
 	static char reactionString[256];
 	reactionString[0] = 0;
 
-	#define MAX_REACTANTS 256
+	#define MAX_REACTANTS 1024
 	char reactantNames[MAX_REACTANTS][32];
-//	assert(reagents.count<MAX_REACTANTS);
+	assert(reagents.count<MAX_REACTANTS);
 	if( reagents.count >= MAX_REACTANTS ) {
 		return 0;
 	}
