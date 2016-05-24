@@ -969,6 +969,8 @@ struct KineticSystem {
 	int reagentFindByName( char *r );
 		// Returns -1 if not found
 
+	int reagentIsUsedByReaction( int reagentIndex, int reactionIndex );
+
 	// Reactions
 	//----------------------------------------
 	struct Reaction {

@@ -3702,6 +3702,15 @@ int KineticSystem::reagentFindByName( char *r ) {
 	return -1;
 }
 
+int KineticSystem::reagentIsUsedByReaction( int reagentIndex, int reactionIndex ) {
+	Reaction &reaction = reactions[reactionIndex];
+	if( reagentIndex == reaction.in0 || reagentIndex == reaction.in1 ||
+	    reagentIndex == reaction.out0 || reagentIndex == reaction.out1 ) {
+		return 1;
+	}
+	return 0;
+}
+
 void KineticSystem::reactionAddByNames( char *in0, char *in1, char *out0, char *out1 ) {
 	Reaction reaction;
 	reaction.in0 = reagentFindByName( in0 );
