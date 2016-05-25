@@ -5347,7 +5347,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 		info.qIndex = q++;
 		info.pIndex = p++;
 
-		if( r < preprocessedLinkedReactionCount ) {
+		if( !saved && r < preprocessedLinkedReactionCount ) {
 			info.group = 2 + r % preprocessedLinkedReactionStride;
 		}
 
