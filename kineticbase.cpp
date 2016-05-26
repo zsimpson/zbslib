@@ -3833,7 +3833,7 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 	// E + A2 = EA2		EA2 = E + A3
 	// E + A3 = EA3		EA3 = E + A4 
 	//
-	ZRegExp regexRepeatedReaction( "(.*)\\{(.+)\\}(\\d+)(.*)" );
+	ZRegExp regexRepeatedReaction( "(.*)\\{(.+)\\}\\(i=(\\d+),(\\d+)\\)(.*)" );
 	
 	// the regex stuff does not work past newlines, so we need to
 	// replace the newlines with some token that we'll swap back
@@ -3852,24 +3852,29 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 	if( regexRepeatedReaction.test( _text ) ) {
 		char *middle= regexRepeatedReaction.get( 2 );
 		if( strstr(middle,"(i)") && strstr(middle,"(i+1)") ) {
+			int count_first = regexRepeatedReaction.getI( 3 );
+			int count_last = regexRepeatedReaction.getI( 4 );
+			if( count_last <= count_first ) {
+				return 0;
+			}
 
 			char *first = regexRepeatedReaction.get( 1 );
-			int count	= regexRepeatedReaction.getI( 3 );
-			char *last	= regexRepeatedReaction.get( 4 );
+			char *middle= regexRepeatedReaction.get( 2 );
+			char *last	= regexRepeatedReaction.get( 5 );
+				// note that we have to get middle again because these ptr are to
+				// 4 cycled static buffers in ZRegExp
 	
-			int len = strlen( first ) + strlen(middle) * count + strlen(last);
+			int len = strlen( first ) + strlen(middle) * (count_last-count_first+1) + strlen(last);
 			char *newText = (char *)malloc( len * 2 );
 			sprintf( newText, first );
 
-			// ZRegExp index0( "\\(i\\)" );
-			// ZRegExp index1( "\\(i+1\\)" );
-			for( int i=0; i<count; i++ ) {
+			for( int i=count_first; i<=count_last; i++ ) {
 				ZStr *zs = new ZStr( middle );
-				zStrReplace( zs, "\\(i\\)", ZTmpStr( "%d", i+1 ) );
-				zStrReplace( zs, "\\(i\\+1\\)", ZTmpStr( "%d", i+2 ) );
+				zStrReplace( zs, "\\(i\\)", ZTmpStr( "%d", i ) );
+				zStrReplace( zs, "\\(i\\+1\\)", ZTmpStr( "%d", i+1 ) );
 				char *result = zStrJoin( 0, zs );
 				strcat( newText, result );
-				if( i != count-1 ) {
+				if( i != count_last ) {
 					strcat( newText, "@" );
 				}
 				zStrDelete( zs );
@@ -3878,7 +3883,7 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 			strcat( newText, last );
 
 			ZStr *zs =  zStrSplitByChar( '=', middle );
-			viewInfo.putI( "preprocessedLinkedReactionCount", count );
+			viewInfo.putI( "preprocessedLinkedReactionCount", count_last-count_first+1 );
 			viewInfo.putI( "preprocessedLinkedReactionStride", zStrCount(zs)-1 );
 				// Stride = how many reactions in the repeated section. This is used to
 				// link the rates of corresponding reactions.
