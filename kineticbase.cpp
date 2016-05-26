@@ -3834,6 +3834,7 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 	// E + A3 = EA3		EA3 = E + A4 
 	//
 	ZRegExp regexRepeatedReaction( "(.*)\\{(.+)\\}\\(i=(\\d+),(\\d+)\\)(.*)" );
+	ZRegExp old_regexRepeatedReaction( "(.*)\\{(.+)\\}(\\d+)(.*)" );
 	
 	// the regex stuff does not work past newlines, so we need to
 	// replace the newlines with some token that we'll swap back
@@ -3847,8 +3848,22 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 		}
 		dst++;
 	}
-	
 
+	//
+	// TODO: remove this after Ken has rescued any older models he needs.
+	// While this is here, it means the older syntax {}5 is allowed,
+	// and I'd prefer only the new syntax {}(i=1,5) be allowed for simplicity.
+	//
+	if( old_regexRepeatedReaction.test( _text) ) {
+		char *__text = (char*)alloca( strlen(_text)+3 );
+		strcpy( __text, old_regexRepeatedReaction.get(1) );
+		strcat( __text, ZTmpStr( "{%s}", old_regexRepeatedReaction.get(2) ) );
+		strcat( __text, ZTmpStr( "(i=1,%d)", old_regexRepeatedReaction.getI( 3 ) ) );
+		strcat( __text, old_regexRepeatedReaction.get( 4 ) );
+		_text = __text;
+	}
+	
+	
 	if( regexRepeatedReaction.test( _text ) ) {
 		char *middle= regexRepeatedReaction.get( 2 );
 		if( strstr(middle,"(i)") && strstr(middle,"(i+1)") ) {
@@ -3868,6 +3883,8 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 			char *newText = (char *)malloc( len * 2 );
 			sprintf( newText, first );
 
+			// Note: zStrReplace uses ZRegExp, so the internal static bufs may get overwritten.
+			// So below we'll be getting "last" and "middle" again before using them.
 			for( int i=count_first; i<=count_last; i++ ) {
 				ZStr *zs = new ZStr( middle );
 				zStrReplace( zs, "\\(i\\)", ZTmpStr( "%d", i ) );
@@ -3880,8 +3897,10 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 				zStrDelete( zs );
 				delete( result );
 			}
+			last = regexRepeatedReaction.get( 5 );
 			strcat( newText, last );
 
+			middle= regexRepeatedReaction.get( 2 );
 			ZStr *zs =  zStrSplitByChar( '=', middle );
 			viewInfo.putI( "preprocessedLinkedReactionCount", count_last-count_first+1 );
 			viewInfo.putI( "preprocessedLinkedReactionStride", zStrCount(zs)-1 );
