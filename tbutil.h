@@ -58,6 +58,8 @@ extern int FF_USETABS;
 
 char * replaceExtension( char *filepath, char *newExt, bool lastOnly=1 );
 	// replace last or multiple extensions with new string. 
+//char * replaceStringInFilename( char *filepath, char *oldExt, char *newExt );
+	// replace specific ext or string in filename portion of path
 
 char *lowerString( char *s );
 	// return static that holds lc version of string

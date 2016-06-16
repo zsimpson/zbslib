@@ -172,7 +172,8 @@ char * formatFloat( double val, int sig, char formatCode, int width, bool leftJu
 
 char * replaceExtension( char *filepath, char *newExt, bool lastOnly ) {
 	// SET or REPLACE extension in filepath. This will replace multitple
-	// extenstions in cases like myfile.ext.ext
+	// extenstions in cases like myfile.ext1.ext2, unless lastOnly is true.
+	//
 	// RETURNS pointer to this static: (be careful!)
 	static char replaceExtensionResults[512];
 	assert( newExt && filepath && strlen( filepath ) + strlen( newExt ) < 512 );
@@ -191,28 +192,36 @@ char * replaceExtension( char *filepath, char *newExt, bool lastOnly ) {
 		strcat( replaceExtensionResults, "." );
 	}
 	strcat( replaceExtensionResults, newExt );
-/*  OLD WAY (pre 05aug2008):
-	ZFileSpec fs( filepath );
-	char *ext = fs.getExt();
-	if( !*ext ) {
-		sprintf( replaceExtensionResults, "%s.%s", fs.get(), newExt );
-	}
-	else if( !strcmp( ext, newExt ) ) {
-		strcpy( replaceExtensionResults, filepath );
-	}
-	else {
-		char extWithPeriodRegEx[16];
-		char newExtWithPeriod[16];
-		sprintf( extWithPeriodRegEx, "\\.%s", ext );
-		sprintf( newExtWithPeriod, ".%s", newExt );
-		ZStr fname( fs.get() );
-		zStrReplace( &fname, extWithPeriodRegEx, newExtWithPeriod );	
-		strcpy( replaceExtensionResults, fname.getS() );
-	}
-*/
-
 	return replaceExtensionResults;
 }
+
+/*
+char * replaceStringInFilename( char *filepath, char *oldExt, char *newExt ) {
+	// REPLACE specific text oldExt with newExt in a filename.
+	// e.g. replaceStringInFilename( "/path/to/filename.sim.txt", ".sim.txt", ".sim.data.txt" )
+	//
+	// This was written for extensions but renamed to more accurately indicate that
+	// this replaces any string in the filename portion -- after any slashes, if 
+	// slashes exist in filepath.
+	//
+	// RETURNS pointer to this static: (be careful!)
+	static char replaceStringResults[512];	
+	assert( oldExt && newExt && filepath && strlen( filepath ) + strlen( newExt ) < 512 );
+
+	strcpy( replaceStringResults, filepath );
+	char *p = replaceStringResults + strlen( filepath );
+	while( --p > replaceStringResults && *p != '\\' && *p != '/' );
+		// any extension must be beyond p, which points to slashes or start of filepath
+
+	char *found = strstr( replaceStringResults, oldExt );
+	if( found && found > p ) {
+		// Found a matching string that is an extension
+		strcpy( found, newExt );
+	}
+	return replaceStringResults;
+}
+*/
+
 
 //-----------------------------------------------------------------------------------------
 // like lc in perl
