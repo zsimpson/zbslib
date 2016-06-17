@@ -85,7 +85,7 @@ char *stripTrailingSlashes( char *s ) {
 	int l = strlen( s );
 	char *t = &s[l-1];
 	while( t > s && *t == dirChar ) {
-		*t++ = 0;
+		*t-- = 0;
 	}
 	return s;
 }
