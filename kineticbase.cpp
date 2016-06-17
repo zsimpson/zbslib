@@ -3785,6 +3785,11 @@ int isReservedWord( char *symbol ) {
 	return 0;
 }
 
+#define MAX_REPEAT_REACTION 1000
+	// Sanity check to prevent crashing the app by entering a huge repeat value for reactions,
+	// in which case a malloc to hold the text strings might fail.
+	// In practice, the client code may wish to limit this to still more reasonable values.
+
 char * KineticSystem::expandChainReaction( char *text ) {
 	//
 	// Expand our chain-reaction syntax to the full set of reactions.
@@ -3804,6 +3809,10 @@ char * KineticSystem::expandChainReaction( char *text ) {
 		char *a0	= regexChainReaction.get( 2 );
 		char *a1	= regexChainReaction.get( 3 );
 		int count	= regexChainReaction.getI( 4 );
+
+		if( count > MAX_REPEAT_REACTION) {
+			return 0;
+		}
 		
 		int len = strlen( first ) + (strlen(a0) + strlen(a1) + 3) * count + lastlen;
 		char *newText = (char *)malloc( len * 2 );
@@ -3827,7 +3836,8 @@ char * KineticSystem::expandChainReaction( char *text ) {
 char * KineticSystem::expandRepeatedReaction( char *text ) {
 	// New: "repeated" reaction allows indexing within a reaction like this:
 	//
-	// { E+A(i)=EA(i)  EA(i)=E+A(i+1)}3
+	// { E+A(i)=EA(i)  EA(i)=E+A(i+1)}(i=1,3)
+	// { E+A(i)=EA(i)  EA(i)=E+A(i+1)}3 	// deprecated
 	//
 	// E + A1 = EA1		EA1 = E + A2
 	// E + A2 = EA2		EA2 = E + A3
@@ -3870,6 +3880,9 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 			int count_first = regexRepeatedReaction.getI( 3 );
 			int count_last = regexRepeatedReaction.getI( 4 );
 			if( count_last <= count_first ) {
+				return 0;
+			}
+			if( count_last - count_first > MAX_REPEAT_REACTION ) {
 				return 0;
 			}
 
@@ -5878,15 +5891,10 @@ int qsort_cmp( const void *v1, const void *v2 ) {
 
 char * KineticSystem::reactionGetUniqueString( int reaction ) {
 
-	static char reactionString[256];
+	static char reactionString[768];
 	reactionString[0] = 0;
 
-	#define MAX_REACTANTS 1024
-	char reactantNames[MAX_REACTANTS][32];
-	assert(reagents.count<MAX_REACTANTS);
-	if( reagents.count >= MAX_REACTANTS ) {
-		return 0;
-	}
+	char reactantNames[4][128];
 
 	//
 	// build a string containing the concatenated reaction names with their balance
@@ -5907,7 +5915,7 @@ char * KineticSystem::reactionGetUniqueString( int reaction ) {
 		strcpy( reactantNames[ count++ ], ZTmpStr( "%s%d", reagents[ r->out1 ], +1 ) );
 	}
 
-	qsort( reactantNames, count, 32, qsort_cmp );
+	qsort( reactantNames, count, 128, qsort_cmp );
 
 	// CONCAT into reactionString
 	for( int i=0; i<count; i++ )  {
