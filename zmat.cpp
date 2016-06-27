@@ -598,12 +598,14 @@ void ZMat::dump() {
 	#define ZMAT_DUMP_BUFLEN 4096
 	char buf[ZMAT_DUMP_BUFLEN] = {0,};
 
+	assert( rows*cols*6 < ZMAT_DUMP_BUFLEN && "increase buf size for zmat dump()" );
+		// NOTE: this is not bullet-proof, just a sanity check.  6 is the shortest
+		// possible length for each formatted value, but they could end up longer.
+
 	for( int r=0; r<rows; r++ ) {
 		for( int c=0; c<cols; c++ ) {
 			sprintf( buf+strlen(buf), "%+3.2le ", fetchD(r,c) );
 		}
-		int len = strlen(buf);
-		assert( len < ZMAT_DUMP_BUFLEN - 16 && "increase buf size for zmat dump()" );
 		sprintf( buf+strlen(buf), "\n" );
 	}
 
