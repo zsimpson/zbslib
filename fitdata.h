@@ -13,12 +13,6 @@
 	#include "pmutex.h"
 #endif
 
-#include "gsl_vector_double.h"
-	// for gsl_vector support by FitData
-#include "gsl_matrix_double.h"
-	// for gsl_matrix in Levmar experiments with FitData
-
-
 struct KineticSystem;
 struct KineticExperiment;
 
@@ -112,7 +106,7 @@ struct ParamInfo {
 	int fitIndex;
 		// the index of this parameter in the list of parameters that are 
 		// actually being fit.  For example, the index into the array of 
-		// parameters used by gsl fitting routines.  More generally, says
+		// double *params used by fitting routines.  More generally, says
 		// this is the nth param based on whatever ordering is imposed by
 		// the fitting system.
 
@@ -254,7 +248,7 @@ struct FitData {
 
 	ZHashTable fitIndexToParamInfo;
 		// convenient lookup of ParamInfo by fitIndex.  See ParamInfo::fitIndex and
-		// FitData::createGslParamVectorFromParams().
+		// FitData::createParamVectorFromParams().
 
 	int nDataPointsToFit;
 		// how many data points exist for currently defined fit?  This is computed in
@@ -296,18 +290,15 @@ struct FitData {
 		// we need to provide an error vector to the existing fitting function callbacks.
 		// This gets alloc'd and used only by this minimizer-based fitting. tfb jan2013
 
-	// Experimental for Levmar fitter:
-	//--------------------------------
+	void *fitterJacobian;
+		// Added to keep a handy pointer into fitter-allocated workspace, e.g. Levmar.  This
+		// is not owned by us, is not copied, and its use depends on implementation of the
+		// jacobian callback for the particular fitter being used.
 
-	double gslFuncSSE;
-	gsl_vector *gslParams;
-	gsl_vector *gslFunEval;
-	gsl_vector *gslErrTermsOut;
-	gsl_matrix *gslJacTermsOut;
-		// The Levmar fitter uses plain vectors of double to store function output
-		// and jacobian computations.  To allow the use of all the function and jacobian
-		// callbacks that were written for use with GSL, we're going to maintain gsl
-		// structures per fit for use by an adaptor function in kin_fit_levmar.cpp
+	int fitOptionLnRates;
+	int fitOptionNegErr;
+		// non-saved options that may be set ahead of fitting to pass user options down into
+		// fitting routines.
 
 	int nFunEval;
 	int nJacEval;
@@ -326,7 +317,6 @@ struct FitData {
 	void saveBinary( FILE *f );
 
 	void clear();
-	void clearLevmarData();
 	void clearParams();
 	void clearFitSystem();
 
@@ -367,21 +357,26 @@ struct FitData {
 		// setup rate ratio constraint information in our params based on the settings
 		// of the passed model.
 
-	int createGslParamVectorFromParams( gsl_vector **pv, int useBestFitValue=0 );
-		// allocate and populate a gsl vector with initial/bestfit vals for the
+	int createParamVectorFromParams( double **pv, int useBestFitValue=0 );
+		// allocate and populate a double* vector with initial/bestfit vals for the
 		// params that will be fit given our current settings.  This also
 		// sets the fitIndex member of each paramInfo involved in the fit,
 		// and creates the working hash used to later lookup params by this
 		// fitIndex.  Returns #params allocated in vector.
-	
-	void updateParamsFromGslParamVector( const gsl_vector *v );
-		// update the current bestFitValue of our params from the values
-		// contained in the passed gsl_vector, keep tracking also of the last value.
 
-	int createParamVectorFromParams( double **pv, double **lb, double **ub );
-		// analogous to GSL version above, but populates standard arrays of double
-		// rather than gsl_vector, for levmar experiments.  Also populates upper
-		// and lower bounds values based on param contraints.
+	int createParamBoundsVectors( double **lb, double **ub );
+		// Alloc & populate bounds for the params that are being fit.
+	
+	void updateParamsFromParamVector( const double *v );
+		// update the current bestFitValue of our params from the values
+		// contained in the passed double*, keep tracking also of the last value.
+
+	void computeCovarFromJacobian( const double *v, const double *J, int rowMajor );
+		// Set the covariance matrix covar to (JT*J)^-1 after adjusting J for
+		// chain-rule terms applied during composition of J.  
+
+	void updateParamErrorsFromCovar( double errScale );
+		// set the error on fitted parameters as sqrt(diag(covar)) * errScale
 
 	int fitIndexByParamName( char *name );
 

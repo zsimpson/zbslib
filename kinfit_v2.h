@@ -138,6 +138,11 @@ struct fitDataContextSingle {
 		// Added for Simplex-based fitting using the gsl minimizer framework in which
 		// we need to provide an error vector to the existing fitting function callbacks.
 		// This gets alloc'd and used only by this minimizer-based fitting. tfb jan2013
+
+	void *fitterJacobian;
+		// Added to keep a handy pointer into fitter-allocated workspace, e.g. Levmar.  This
+		// is not owned by us, is not copied, and its use depends on implementation of the
+		// jacobian callback for the particular fitter being used.
 	
 	int evalFuncOnly;
 		// if non-zero, fit-function will only evaluate itself at given params and fill

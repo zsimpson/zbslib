@@ -595,12 +595,15 @@ int ZMat::saveCSV( char *filename ) {
 }
 
 void ZMat::dump() {
-	char buf[4096] = {0,};
+	#define ZMAT_DUMP_BUFLEN 4096
+	char buf[ZMAT_DUMP_BUFLEN] = {0,};
 
 	for( int r=0; r<rows; r++ ) {
 		for( int c=0; c<cols; c++ ) {
 			sprintf( buf+strlen(buf), "%+3.2le ", fetchD(r,c) );
 		}
+		int len = strlen(buf);
+		assert( len < ZMAT_DUMP_BUFLEN - 16 && "increase buf size for zmat dump()" );
 		sprintf( buf+strlen(buf), "\n" );
 	}
 

@@ -23,6 +23,7 @@
 #include "ztmpstr.h"
 #include "zmathtools.h"
 #include "zregexp.h"
+#include "zmat.h"
 
 #include "string.h"
 #include "math.h"
@@ -211,11 +212,6 @@ FitData::FitData() {
 	jacSystem = 0;
 	bOwnsFitSystem = false;
 
-	gslParams = 0;
-	gslFunEval = 0;
-	gslErrTermsOut = 0;
-	gslJacTermsOut = 0;
-
 	clear();
 }
 
@@ -225,11 +221,6 @@ FitData::FitData( FitData &_copy ) {
 	fitSystem = 0;
 	jacSystem = 0;
 	bOwnsFitSystem = false;
-
-	gslParams = 0;
-	gslFunEval = 0;
-	gslErrTermsOut = 0;
-	gslJacTermsOut = 0;
 
 	copy( _copy );
 }
@@ -374,25 +365,6 @@ void FitData::saveBinary( FILE *f ) {
 
 //----------------------------------------
 
-void FitData::clearLevmarData() {
-	if( gslParams ) {
-		gsl_vector_free( gslParams );
-		gslParams = 0;
-	}
-	if( gslFunEval ) {
-		gsl_vector_free( gslFunEval );
-		gslFunEval = 0;
-	}
-	if( gslErrTermsOut ) {
-		gsl_vector_free( gslErrTermsOut );
-		gslErrTermsOut = 0;
-	}
-	if( gslJacTermsOut ) {
-		gsl_matrix_free( gslJacTermsOut );
-		gslJacTermsOut = 0;
-	}
-}
-
 void FitData::clear() {
 	fitInProgress	= 0;
 	clearFitSystem();
@@ -409,7 +381,9 @@ void FitData::clear() {
 	covar.clear();
 	properties.clear();
 
-	clearLevmarData();
+	fitterJacobian = 0;
+	fitOptionLnRates = 0;
+	fitOptionNegErr = 0;
 }
 
 //----------------------------------------
@@ -461,6 +435,9 @@ void FitData::copy( FitData &toCopy, KineticSystem *fit, KineticSystem *jac, boo
 	sigma			= toCopy.sigma;
 	covar.copy( toCopy.covar );
 	properties.copyFrom( toCopy.properties );
+
+	fitOptionLnRates = toCopy.fitOptionLnRates;
+	fitOptionNegErr = toCopy.fitOptionNegErr;
 }
 
 //----------------------------------------
@@ -765,11 +742,11 @@ void FitData::setupParamRatioConstraintsFromSystem( KineticSystem &kSystem ) {
 
 //----------------------------------------
 
-int FitData::createGslParamVectorFromParams( gsl_vector **pv, int useBestFitValues /*=0*/ ) {
-	// ALLOCATE & POPULATE a gsl_vector containing the inital parameter values 
+int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0*/ ) {
+	// ALLOCATE & POPULATE a double* containing the inital parameter values 
 	// for a fit by examining parameter specs.  We we also set the fitIndex for
 	// each ParamInfo struct involved in the fit, allowing one to look up the
-	// position in the gsl parameter array by name via fd.params.
+	// position in the double* parameter array by name via fd.params.
 
 	// Returns: actual parameter count allocated & initialized.
 
@@ -777,7 +754,7 @@ int FitData::createGslParamVectorFromParams( gsl_vector **pv, int useBestFitValu
 	if( !vecsize ) {
 		return 0;
 	}
-	gsl_vector *v = gsl_vector_alloc( vecsize );
+	double *v = (double*)malloc( vecsize * sizeof(double) );
 
 	int count = 0;
 	ParamInfo *pi;
@@ -792,12 +769,20 @@ int FitData::createGslParamVectorFromParams( gsl_vector **pv, int useBestFitValu
 				value = sqrt( value );
 					// ye olde "fit the square root and square the output trick"
 			}
-			if( pi->constraint == CT_NONPOSITIVE ) {
+			else if( pi->constraint == CT_NONPOSITIVE ) {
 				value = sqrt( fabs(value) );
 					// ye olde "fit the square root and square the output trick"
 			}
+			else if( pi->constraint == CT_BOX && pi->type == PT_RATE ) {
+				if( fitOptionLnRates ) {
+					if( value == 0.0 ) {
+						value = 1e-15;
+					}
+					value = log( value );
+				}
+			}
 
-			gsl_vector_set( v, count++, value );
+			v[count++] = value;
 		}
 		else {
 			pi->fitIndex = -1;
@@ -811,8 +796,75 @@ int FitData::createGslParamVectorFromParams( gsl_vector **pv, int useBestFitValu
 
 //----------------------------------------
 
-void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
-	// the gsl_vector contains the fitter's current guess at best fits 
+static ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
+static ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
+
+int FitData::createParamBoundsVectors( double **lb, double **ub ) {
+	//
+	// alloc and populate double* vectors that hold upper and lower bounds
+	// for parameters that are being fit.
+	//
+	int vecsize   = paramCount( PT_ANY, 1 );
+	if( !vecsize ) {
+		return 0;
+	}
+	double *l = (double*)malloc( vecsize * sizeof(double) );
+	double *u = (double*)malloc( vecsize * sizeof(double) );
+
+	int count = 0;
+	ParamInfo *pi;
+	int totalParams = params.activeCount();
+	for( int i=0; i<totalParams; i++ ) {
+		pi = paramByOrder( i );
+		if( pi->usedByFit() ) {
+
+			#define KIN_MAXPARAMVALUE 1e15
+				// duplicated from _kin.h
+
+			l[ count ] = -KIN_MAXPARAMVALUE;
+			u[ count ] = +KIN_MAXPARAMVALUE;
+
+			if( pi->constraint == CT_BOX ) {
+				// The only constraint-type that gets non-default bounds...  The user has 
+				// Set the bounds via UI, or we get defaults based on the name-class of the param.
+				if( scaleFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "scaleConstantL", 0.9 );
+					u[ count ] = properties.getD( "scaleConstantU", 1.1 );
+				}
+				else if( offsetFactor.test( pi->paramName ) ) {
+					l[ count ] = properties.getD( "offsetConstantL", -0.1 );
+					u[ count ] = properties.getD( "offsetConstantU", +0.1 );
+				}
+				else {
+					l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
+					u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );					
+					if( pi->type == PT_RATE && fitOptionLnRates ) {
+						l[count] = log( max(1e-15, l[count]) );
+						u[count] = log( u[count] );
+					}
+				}
+				pi->lb = l[count];
+				pi->ub = u[count];
+					// NOTE: the pi-> members are used as a conenvience for debugging info.  The current
+					// fitting routine (levmar) uses these arrays of double to read boundaries.
+				printf( "Bounds for parameter %s: %g, %g\n", pi->paramName, l[count], u[count] );
+
+			}
+			count++;
+		}
+	}
+	assert( count == vecsize );
+	
+	*lb = l;
+	*ub = u;
+
+	return count;
+}
+
+//----------------------------------------
+
+void FitData::updateParamsFromParamVector( const double *v ) {
+	// the double *v contains the fitter's current guess at best fits 
 	// to attempt.  We want to store these values in our bestFitValue member
 	// of each ParamInfo, while also moving the previous val to bestFitValueLast.
 
@@ -822,7 +874,7 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 		assert( pi );
 		pi->bestFitValueLast = pi->bestFitValue;
 		if( pi->usedByFit() ) {
-			pi->bestFitValue = gsl_vector_get( v, pi->fitIndex );
+			pi->bestFitValue = v[pi->fitIndex];
 			if( pi->constraint == CT_NONNEGATIVE ) {
 				pi->bestFitValue = pi->bestFitValue * pi->bestFitValue;
 					// ye olde "fit the square root and square the output trick"
@@ -832,8 +884,7 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 					// ye olde "fit the square root and square the output trick"
 			}
 			else if( pi->constraint == CT_BOX && pi->type == PT_RATE ) {
-				extern int Kin_fitLevmarLn;
-				if( Kin_fitLevmarLn ) {
+				if( fitOptionLnRates ) {
 					pi->bestFitValue = exp( pi->bestFitValue );
 				}
 			}
@@ -848,95 +899,98 @@ void FitData::updateParamsFromGslParamVector( const gsl_vector *v ) {
 }
 
 //----------------------------------------
-static ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
-static ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
 
-int FitData::createParamVectorFromParams( double **pv, double **lb, double **ub ) {
-	// Identical to GSL version except we're allocating and populating
-	// a double* array instead of a gsl_vector.
-	//
-	// And now we've added optionally populating the upper and lower bounds vectors
+void FitData::computeCovarFromJacobian( const double *v, const double *J, int rowMajor ) {
+	// Compute the covariance matrix as (JT*J)^-1
+	// This involves factoring chain-rule terms out of J before doing linear algebra.
+	// These terms are based on the parameter values as utilized by the fitter, so
+	// these are passed in v.   
+	// 
 
-	int useBestFitValues = false;
-
-	int vecsize   = paramCount( PT_ANY, 1 );
-	if( !vecsize ) {
-		return 0;
+	ZMat jac;
+	int nParamsToFit = paramCount( PT_ANY, 1 );
+	if( rowMajor ) {
+		ZMat _jac;
+		_jac.alloc( nParamsToFit, nDataPointsToFit, zmatF64 );
+		_jac.copyDataD( (double*)J );
+		zmatTranspose( _jac, jac );
+	
 	}
-	double *v = (double*)malloc( vecsize * sizeof(double) );
-	double *l = (double*)malloc( vecsize * sizeof(double) );
-	double *u = (double*)malloc( vecsize * sizeof(double) );
+	else {
+		jac.alloc( nDataPointsToFit, nParamsToFit, zmatF64 );
+		jac.copyDataD( (double*)J );
+	}
 
-	int count = 0;
-	ParamInfo *pi;
-	int totalParams = params.activeCount();
-	for( int i=0; i<totalParams; i++ ) {
-		pi = paramByOrder( i );
+	// Divide out any chain terms that were applied during the jacobian calculation.
+	// The params passed in v are those used by the fitter in computing the jacobian,
+	// so for example may be the square or natural log of the "real" parameter value.
+	// This is what creates the need for the chain terms which we now seek to remove,
+	// so that errors reported on the parameters refer to the "real" parameters, and
+	// are not instead errors on the composite function of the parameter.
+	//
+	for( int i=0; i<nParamsToFit; i++ ) {
+		ParamInfo *pi = paramByFitIndex( i );
+		if( pi->constraint == CT_BOX && pi->type == PT_RATE ) {
+			if( fitOptionLnRates ) {
+				double chainTerm = exp( v[i] );
+				for( int n=0; n<nDataPointsToFit; n++ ) {
+					jac.putD( n, i, jac.getD( n, i ) / chainTerm );
+				}
+			}
+		}
+		else if( pi->constraint == CT_NONNEGATIVE || pi->constraint == CT_NONPOSITIVE ) {
+			double chainTerm = 2.0 * v[i];
+			for( int n=0; n<nDataPointsToFit; n++ ) {
+				jac.putD( n, i, jac.getD( n, i ) / chainTerm );
+			}
+		}
+	}
+	
+	// Now get the covar from J.  Note that historically covar has been a zmatF32 matrix,
+	// so we are retaining that format, even though jac is zmat64.
+	extern double zmatPseudoInverseViaSVD( ZMat &in, ZMat &out );
+	ZMat JT, JTJ, JTJinv;
+	zmatTranspose( jac, JT );
+	zmatMul( JT, jac, JTJ );
+	zmatPseudoInverseViaSVD( JTJ, JTJinv );
+	assert( JTJinv.cols == nParamsToFit && JTJinv.rows == nParamsToFit && "JTJinv bad dims" );
+	covar.alloc( nParamsToFit, nParamsToFit, zmatF32 );
+	for( int c=0; c<JTJinv.cols; c++ ) {
+		for( int r=0; r<JTJinv.rows; r++ ) {
+			double f = JTJinv.getD( r, c );
+			if( !( f>DBL_MIN && f<DBL_MAX ) ) {
+				f = 0.0;
+					// this handles nan, inf
+			}
+			if( f > FLT_MAX ) {
+				f = FLT_MAX;
+					// until we convert the covar matrix to zmat64
+			}
+			covar.putF( r, c, (float)f );
+		}
+	}
+}
+
+//----------------------------------------
+
+void FitData::updateParamErrorsFromCovar( double errScale ) {
+	// set the error on fitted parameters as sqrt(diag(covar)) * errScale
+	int nParams = paramCount( PT_ANY );
+	for( int i=0; i<nParams; i++ ) {
+		ParamInfo *pi = paramByOrder( i );
+		assert( pi );
 		if( pi->usedByFit() ) {
-			pi->fitIndex = count;
-			fitIndexToParamInfo.bputP( &count, sizeof(count), pi );
-			double value = useBestFitValues ? pi->bestFitValue : pi->initialValue;
-
-			#define KIN_MAXPARAMVALUE 1e15
-				// duplicated from _kin.h
-
-			l[ count ] = -KIN_MAXPARAMVALUE;
-			u[ count ] = +KIN_MAXPARAMVALUE;
-
-			if( pi->constraint == CT_NONNEGATIVE ) {
-				value = sqrt( value );
-					// ye olde "fit the square root and square the output trick"
-			}
-			else if( pi->constraint == CT_NONPOSITIVE ) {
-				value = sqrt( fabs(value) );
-					// ye olde "fit the square root and square the output trick"
-			}
-			else if( pi->constraint == CT_BOX ) {
-				// with levamr we can do box constraints.
-				if( scaleFactor.test( pi->paramName ) ) {
-					l[ count ] = properties.getD( "scaleConstantL", 0.9 );
-					u[ count ] = properties.getD( "scaleConstantU", 1.1 );
-				}
-				else if( offsetFactor.test( pi->paramName ) ) {
-					l[ count ] = properties.getD( "offsetConstantL", -0.1 );
-					u[ count ] = properties.getD( "offsetConstantU", +0.1 );
-				}
-				else {
-					l[ count ] = properties.getD( ZTmpStr( "%sL", pi->paramName ), 0.0 );
-					u[ count ] = properties.getD( ZTmpStr( "%sU", pi->paramName ), +KIN_MAXPARAMVALUE );					
-					extern int Kin_fitLevmarLn;
-					if( pi->type == PT_RATE && Kin_fitLevmarLn ) {
-						//				assert( value != 0.0 && "log of 0 rate!");
-						if( value == 0.0 ) {
-							value = 1e-15;
-						}
-						value = log( value );
-						l[count] = log( max(1e-15, l[count]) );
-						u[count] = log( u[count] );
-					}
-				}
-				pi->lb = l[count];
-				pi->ub = u[count];
-					// NOTE: the pi-> members are used as a conenvience for debugging info.  The current
-					// fitting routine (levmar) uses these arrays of double to read boundaries.
-				printf( "Bounds for parameter %s[%g]: %g, %g\n", pi->paramName, value, l[count], u[count] );
-
-			}
-
-			v[ count++ ] = value;
+			pi->covarStdError2x = covar.getF( pi->fitIndex, pi->fitIndex ) * 2.0 * errScale;
+			printf( "errScale is %g\n", errScale );
 		}
 		else {
-			pi->fitIndex = -1;
+			// not used by fit, so bestFit is just initial
+			pi->covarStdError2x = 0.0;
 		}
 	}
-	assert( count == vecsize );
-	
-	*pv = v;
-	*lb = l;
-	*ub = u;
-
-	return count;
 }
+
+//----------------------------------------
 
 int FitData::fitIndexByParamName( char *name ) {
 	// inefficient, but not a bottleneck.
