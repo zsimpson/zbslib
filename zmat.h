@@ -303,6 +303,25 @@ void zmatDiagonalMatrixToVector( ZMat &mat, ZMat &vec );
 void zmatSortColsByRow0Value( ZMat &mat );
 	// qsorts the cols based on values in row 0
 
+class ZMatLUSolver {
+	// TODO?  This is really general linear algebra, and does not use
+	// ZMat internally, but seems appropriate to place here with matrix.
+	// See zmat_gsl and zmat_eigen for concrete subclasses.
+protected:
+	double *A;
+		// input matrix, not owned.
+	int dim;
+		// dimension of A
+	int colMajor;
+		// stride type
+	ZMatLUSolver() {}
+public:
+	ZMatLUSolver( double *_A, int _dim, int _colMajor=1 ) : A(_A), dim(_dim), colMajor(_colMajor) {}
+	virtual ~ZMatLUSolver() {}
+	virtual int decompose() = 0;
+	virtual int solve( double *B, double *x ) = 0;
+};
+
 
 #endif
 

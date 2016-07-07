@@ -1,3 +1,7 @@
+// @ZBS {
+//		*MODULE_OWNER_NAME zintegrator_gsl
+// }
+
 #ifndef ZINTEGRATOR_GSL
 #define ZINTEGRATOR_GSL
 

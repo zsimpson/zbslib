@@ -1,17 +1,18 @@
-#ifndef ZMAT_GSL_H
-#define ZMAT_GSL_H
+#ifndef ZMAT_EIGEN_H
+#define ZMAT_EIGEN_H
 
 #include "zmat.h"
-#include "gsl/gsl_linalg.h"
+#include <Eigen/LU>
 
-void zmatMUL_GSL( ZMat &aMat, ZMat &bMat, ZMat &cVec );
+
+void zmatMUL_Eigen( ZMat &aMat, ZMat &bMat, ZMat &cVec );
 	// C = A * B
 
-void zmatSVD_GSL( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
+void zmatSVD_Eigen( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
 
-void zmatQRSolve_GSL( ZMat &A, ZMat &B, ZMat &x );
+void zmatQRSolve_Eigen( ZMat &A, ZMat &B, ZMat &x );
 
-class ZMatLUSolver_GSL : public ZMatLUSolver {
+class ZMatLUSolver_Eigen : public ZMatLUSolver {
 	// In factoring GSL dependency out of various zbslib & other routines, it is handy
 	// to have an object which can hold state since it is often the case that one does
 	// a decomposition, and then follows with multiple solve(), and importantly, other
@@ -19,14 +20,12 @@ class ZMatLUSolver_GSL : public ZMatLUSolver {
 	// declaration of this for Eigen, for example, and how these are both used by
 	// zintegrator and kineticbase in zbslib.
 	
-	// gsl stuff
-	gsl_matrix_view gslA;
-	gsl_permutation *gslP;
-	int sign;		
+	// Eigen stuff
+	Eigen::PartialPivLU<Eigen::MatrixXd>  eigenA_lu;
 
 public:
-	ZMatLUSolver_GSL( double *A, int dim, int colMajor=0 );
-	~ZMatLUSolver_GSL();
+	ZMatLUSolver_Eigen( double *A, int dim, int colMajor=1 );
+	~ZMatLUSolver_Eigen();
 	int decompose();
 	int solve( double *B, double *x );
 		// solve Ax = B, must call decompose() first.

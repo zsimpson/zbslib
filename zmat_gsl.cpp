@@ -147,3 +147,74 @@ void zmatSVD_GSL( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat ) {
 	gsl_vector_free( WORK );
 }
 
+void zmatQRSolve_GSL( ZMat &_A, ZMat &_B, ZMat &_x ) {
+	// Solves the linear system Ax = B for x using QR decomposition.
+	//
+	// This was written for KinTek Explorer by tfb for dealign with 3d spectra.
+	// We think of the data in A as being a set of column vectors, each with A.rows data points.
+	//
+	int dataCount = _A.rows;
+	int components = _A.cols;
+	
+	if( _x.rows != components || _x.cols != _B.cols ) {
+		_x.alloc( components, _B.cols, zmatF64 );
+	}
+	
+	//
+	// ZMat is col-major, but gsl is row major, so we transpose, get a gsl view on rows,
+	// and do QR decomposition
+	//
+	ZMat A;
+	zmatTranspose( _A, A );
+	gsl_matrix_view gslA = gsl_matrix_view_array ( (double*)A.mat, dataCount, components );
+	gsl_vector *tau = gsl_vector_alloc( components );
+	int retval = gsl_linalg_QR_decomp( &gslA.matrix, tau );
+	
+	//
+	// Now solve for one column of _B at a time, store the results in _x
+	//
+	gsl_vector *x = gsl_vector_alloc( components );
+	gsl_vector *residual = gsl_vector_alloc( dataCount );
+	
+	for( int d=0; d < _B.cols; d++ ) {
+		gsl_vector_view gslB = gsl_vector_view_array ( _B.getPtrD( 0, d ), dataCount );
+		int retval = gsl_linalg_QR_lssolve ( &gslA.matrix, tau, &gslB.vector, x, residual );
+		
+		for( int c=0; c<components; c++ ) {
+			_x.putD( c, d, gsl_vector_get( x, c ) );
+		}
+	}
+	
+	gsl_vector_free (x);
+	gsl_vector_free( residual );
+}
+
+//---------------------------------------------------------------------------------------------
+// ZMatLUSolver_GSL
+
+ZMatLUSolver_GSL::ZMatLUSolver_GSL( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ) {
+	assert( !colMajor && "GSL must be in rowMajor" );
+	gslA = gsl_matrix_view_array( A, dim, dim );
+	gslP = gsl_permutation_alloc( dim );
+}
+
+ZMatLUSolver_GSL::~ZMatLUSolver_GSL() {
+	gsl_permutation_free( gslP );
+}
+	
+int ZMatLUSolver_GSL::decompose() {
+	int err = gsl_linalg_LU_decomp( &gslA.matrix, gslP, &sign );
+	// printf( "GSL: LU decompose\n" );
+	return err == GSL_SUCCESS;
+}
+
+int ZMatLUSolver_GSL::solve( double *B, double *x ) {
+	// solve Ax = B, must call decompose() first.
+	gsl_vector_view gslB = gsl_vector_view_array( B, dim );
+	gsl_vector_view gslX = gsl_vector_view_array( x, dim );
+	int err = gsl_linalg_LU_solve( &gslA.matrix, gslP, &gslB.vector, &gslX.vector );
+	return err == GSL_SUCCESS;
+}
+
+
+

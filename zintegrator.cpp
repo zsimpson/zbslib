@@ -34,7 +34,27 @@
 #include "zintegrator.h"
 // ZBSLIB includes:
 
-#define xMKNESS    // enable debugging help for John
+#ifndef NO_GSL
+// @ZBSIF !configDefined( "NO_GSL" )
+// the above is for the perl-parsing of files for dependencies; we don't
+// want the dependency builder to see these includes if NO_GSL is defined.
+	#include "zmat_gsl.h"
+// @ZBSENDIF
+#endif
+
+#ifdef KIN
+// This is here to prevent a dependency on the Eigen linear alebgra library
+// which is employed by KinTek to replace dependency on GSL.  Eigen LA is 
+// more comprehensive than GSL, and perhaps should be the default for LA.
+// GSL is GPL'd, so KinTek can't ship it.  (tfb july 2016)
+// @ZBSIF configDefined( "KIN" )
+// the above is for the perl-parsing of files for dependencies.  
+	#include "zmat_eigen.h"
+// @ZBSENDIF
+#endif
+
+
+
 
 // ZIntegrator
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -258,13 +278,10 @@ int ZIntegrator::integrate() {
 
 ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 	int _dim, double *_initCond, double _x0, double _x1, double _errAbs, double _errRel, double _stepInit, double _stepMin, int _storeOut, 
-	CallbackDeriv _deriv, CallbackJacob _jacob, void *_callbackUserParams, CallbackLUDecompose _luDecompose, CallbackLUSolve _luSolve
+	CallbackDeriv _deriv, CallbackJacob _jacob, void *_callbackUserParams
 )
 : ZIntegrator( _dim, _initCond, _x0, _x1, _errAbs, _errRel, _stepInit, _stepMin, _storeOut, _deriv, _jacob, _callbackUserParams )
 {
-	luDecompose = _luDecompose;
-	luSolve = _luSolve;
-
 	// Originally part of controller
 	reject = 0;
 	stepIsFirst = 1;
@@ -288,6 +305,26 @@ ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 	ytemp = (double *)malloc( dim * sizeof(double) );
 	yerr = (double *)malloc( dim * sizeof(double) );
 	yout = (double *)malloc( dim * sizeof(double) );
+
+	#ifdef KIN
+		#ifdef KIN_DEV
+			// in the DEV version of KinTek, allow options for comparison.
+			extern int Kin_simLuGSL;
+			if( Kin_simLuGSL ) {
+				luSolver = new ZMatLUSolver_GSL( a, _dim );
+			}
+			else {
+				luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+			}
+		#else
+			// in shipping versions of KinTek software, never use GSL.
+			luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+		#endif
+
+	#else
+		// outside of KinTek plugins, always use GSL linear algebra
+		luSolver = new ZMatLUSolver_GSL( a, _dim );
+	#endif
 }
 
 ZIntegratorRosenbrockStifflyStable::~ZIntegratorRosenbrockStifflyStable() {
@@ -386,14 +423,16 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			}
 
 			// LU Demopose
-			(*luDecompose)( a, dim, permutation, &luSign );
+			//(*luDecompose)( a, dim, permutation, &luSign );
+			luSolver->decompose();
 
 
 			// SOLVE for k1
 			for( i=0; i<dim; i++) {
 				ytemp[i] = dydx[i] + step*RC_d1*dfdx[i];
 			}
-			(*luSolve)( a, dim, permutation, ytemp, k1 );
+			//(*luSolve)( a, dim, permutation, ytemp, k1 );
+			luSolver->solve( ytemp, k1 );
 
 
 			// SOLVE for k2
@@ -404,7 +443,8 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			for( i=0; i<dim; i++) {
 				ytemp[i] = dydxnew[i] + step*RC_d2*dfdx[i] + RC_c21*k1[i]/step;
 			}
-			(*luSolve)( a, dim, permutation, ytemp, k2 );
+			//(*luSolve)( a, dim, permutation, ytemp, k2 );
+			luSolver->solve( ytemp, k2 );
 
 
 			// SOLVE for k3
@@ -415,7 +455,8 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			for( i=0; i<dim; i++) {
 				ytemp[i] = dydxnew[i] + step*RC_d3*dfdx[i] + ( RC_c31*k1[i] + RC_c32*k2[i] ) / step;
 			}
-			(*luSolve)( a, dim, permutation, ytemp, k3 );
+			//(*luSolve)( a, dim, permutation, ytemp, k3 );
+			luSolver->solve( ytemp, k3 );
 
 
 			// SOLVE for k4
@@ -426,7 +467,8 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			for( i=0; i<dim; i++) {
 				ytemp[i] = dydxnew[i] + step*RC_d4*dfdx[i] + ( RC_c41*k1[i] + RC_c42*k2[i] + RC_c43*k3[i] ) / step;
 			}
-			(*luSolve)( a, dim, permutation, ytemp, k4 );
+			//(*luSolve)( a, dim, permutation, ytemp, k4 );
+			luSolver->solve( ytemp, k4 );
 
 
 			// SOLVE for k5
@@ -438,7 +480,8 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			for( i=0; i<dim; i++) {
 				k6[i] = dydxnew[i] + ( RC_c51*k1[i] + RC_c52*k2[i] + RC_c53*k3[i] + RC_c54*k4[i] ) / step;
 			}
-			(*luSolve)( a, dim, permutation, k6, k5 );
+			//(*luSolve)( a, dim, permutation, k6, k5 );
+			luSolver->solve( k6, k5 );
 
 			// SOLVE for yerr
 			for( i=0; i<dim; i++) {
@@ -448,7 +491,8 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 			for( i=0; i<dim; i++) {
 				k6[i] = dydxnew[i] + ( RC_c61*k1[i] + RC_c62*k2[i] + RC_c63*k3[i] + RC_c64*k4[i] + RC_c65*k5[i] ) / step;
 			}
-			(*luSolve)( a, dim, permutation, k6, yerr );
+			//(*luSolve)( a, dim, permutation, k6, yerr );
+			luSolver->solve( k6, yerr );
 
 			// UPDATE yout
 			for( i=0; i<dim; i++) {

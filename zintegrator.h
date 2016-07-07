@@ -7,8 +7,7 @@
 
 #include "stdio.h"	// to get size_t
 
-typedef int (*CallbackLUDecompose)( double *matA, int dim, size_t *permutation, int *signNum );
-typedef int (*CallbackLUSolve)( double *matU, int dim, size_t *permutation, double *B, double *X );
+class ZMatLUSolver;
 
 typedef int (*CallbackDeriv)( double x, double *y, double *dYdx, void *params );
 typedef int (*CallbackJacob)( double x, double *y, double *dFdY, double *dFdx, void *params );
@@ -121,14 +120,13 @@ struct ZIntegratorRosenbrockStifflyStable : ZIntegrator {
 	double errOld;
 	double stepOld;
 
-	CallbackLUDecompose luDecompose;
-	CallbackLUSolve luSolve;
+	ZMatLUSolver *luSolver;
 
 	virtual int stepper( double &stepNext );
 
 	ZIntegratorRosenbrockStifflyStable(
 		int _dim, double *_initCond, double _x0, double _x1, double _errAbs, double _errRel, double _stepInit, double _stepMin, int _storeOut,
-		CallbackDeriv _deriv, CallbackJacob _jacob, void *_callbackUserParams, CallbackLUDecompose _luDecompose, CallbackLUSolve _luSolve
+		CallbackDeriv _deriv, CallbackJacob _jacob, void *_callbackUserParams
 	);
 	virtual ~ZIntegratorRosenbrockStifflyStable();
 };

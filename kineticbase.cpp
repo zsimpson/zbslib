@@ -18,9 +18,12 @@
 
 // OPERATING SYSTEM specific includes:
 // SDK includes:
-#include "gsl/gsl_odeiv.h"
-#include "gsl/gsl_vector.h"
-#include "gsl/gsl_linalg.h"
+#ifndef NO_GSL
+	// A plugin may #define NO_GSL to prevent use of that GPL'd library.
+	#include "gsl/gsl_odeiv.h"
+	#include "gsl/gsl_vector.h"
+	#include "gsl/gsl_linalg.h"
+#endif
 // STDLIB includes:
 #include "string.h"
 #include "math.h"
@@ -36,11 +39,30 @@
 #include "zrand.h"
 #include "zmathtools.h"
 #include "zprof.h"
-#include "zintegrator_gsl.h"
 #include "ztmpstr.h"
 #include "zendian.h"
 #include "zregexp.h"
 #include "zstr.h"
+
+#ifndef NO_GSL
+// @ZBSIF !configDefined( "NO_GSL" )
+// the above is for the perl-parsing of files for dependencies; we don't
+// want the dependency builder to see these includes if NO_GSL is defined.
+	#include "zintegrator_gsl.h"
+	#include "zmat_gsl.h"
+// @ZBSENDIF
+#endif
+
+#ifdef KIN
+// This is here to prevent a dependency on the Eigen linear alebgra library
+// which is employed by KinTek to replace dependency on GSL.  Eigen LA is 
+// more comprehensive than GSL, and perhaps should be the default for LA.
+// GSL is GPL'd, so KinTek can't ship it.  (tfb july 2016)
+// @ZBSIF configDefined( "KIN" )
+// the above is for the perl-parsing of files for dependencies.  
+	#include "zmat_eigen.h"
+// @ZBSENDIF
+#endif
 
 //#define VM_DISASSEMBLE
 	// define this to cause VM disassembly to debug files at various checkpoints
@@ -836,10 +858,7 @@ void KineticTrace::polyFit() {
 		}
 		polyMat.add( new ZMat(_rows, _cols, zmatF64) );
 	}
-
-	gsl_vector *gslX = gsl_vector_alloc( 6 );
-	gsl_permutation *gslP = gsl_permutation_alloc( 6 );
-
+	
 	ZMat powerMat( 5, cols, zmatF64 );
 	for( c=0; c<cols; c++ ) {
 		double tc = time[c];
@@ -856,6 +875,32 @@ void KineticTrace::polyFit() {
 	}
 
 	ZMat m( 6, 6, zmatF64 );
+
+	ZMatLUSolver *lu = 0;
+	int colMajor = 0;
+		// order was transposed above for the benefit of GSL.
+	#ifdef KIN_DEV
+		// for KinTek development build only, allow a choice of what library is used
+		// for linear algebra, so that results can be compared.
+		extern int Kin_simLuGSL;
+		if( Kin_simLuGSL ) {
+			// use GSL
+			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, colMajor );
+		}
+		else {
+			// use Eigen
+			lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+		}
+	#else
+		#ifdef NO_GSL
+			// This is a special #define that plugins may utilize to prevent GPL'd GSL
+			// library from being used.  KinTek non-dev versions use this.
+			lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+		#else					
+			// but by default, all non-commercial software uses GSL.
+			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, colMajor );
+		#endif
+	#endif
 
 	for( c=0; c<cols-2; c++ ) {
 
@@ -904,36 +949,32 @@ void KineticTrace::polyFit() {
 		m.putD( 5, 5, 5.0 * powerMat.getD(3,c+2) );
 
 		// SOLVE by LU. 
-		gsl_matrix_view gslM = gsl_matrix_view_array( (double *)m.mat, 6, 6 );
-
-		int s;
-		int err = gsl_linalg_LU_decomp( &gslM.matrix, gslP, &s );
+		int err = lu->decompose();
 		
 		for( r=0; r<rows; r++ ) {
 			if( polyMat[r]->rows==0 ) {
 				continue;
 					// can't polyfit this row, see "row%d_derivative_only"
 			}
-			double b[6];
+			double b[6],x[6];
 			b[0] = getColPtr(c+0)[r];
 			b[1] = getColPtr(c+1)[r];
 			b[2] = getColPtr(c+2)[r];
 			b[3] = getDerivColPtr(c+0)[r];
 			b[4] = getDerivColPtr(c+1)[r];
 			b[5] = getDerivColPtr(c+2)[r];
-			gsl_vector_view gslB = gsl_vector_view_array( b, 6 );
 
-			err = gsl_linalg_LU_solve( &gslM.matrix, gslP, &gslB.vector, gslX );
+			err = lu->solve( b, x );
 
 			// STORE the coefficients into the polyMat
+			// TODO: you could just solve directly into a colPtr of polyMat
 			for( int i=0; i<6; i++ ) {
-				polyMat[r]->putD( i, c, gsl_vector_get(gslX, i) );
+				polyMat[r]->putD( i, c, x[i] );
 			}
 		}
 	}
-
-	gsl_permutation_free( gslP );
-	gsl_vector_free( gslX );
+	
+	delete lu;
 }
 
 double KineticTrace::getElemSLERP( double _time, int row ) {
@@ -7747,36 +7788,6 @@ KineticIntegrator::~KineticIntegrator() {
 	}
 }
 
-// LU Adaptors
-//----------------------------------
-
-int KineticIntegrator::luDecomposeGSLAdaptor( double *matA, int dim, size_t *permutation, int *signNum ) {
-	gsl_matrix_view gslMatA = gsl_matrix_view_array( matA, dim, dim );
-
-	gsl_permutation gslPerm;
-	gslPerm.size = dim;
-	gslPerm.data = permutation;
-
-	int err = gsl_linalg_LU_decomp( &gslMatA.matrix, &gslPerm, signNum );
-
-	return err == GSL_SUCCESS ? 1 : 0;
-}
-
-int KineticIntegrator::luSolveGSLAdaptor( double *matU, int dim, size_t *permutation, double *B, double *X ) {
-	gsl_matrix_view gslMatA = gsl_matrix_view_array( matU, dim, dim );
-
-	gsl_permutation gslPerm;
-	gslPerm.size = dim;
-	gslPerm.data = permutation;
-
-	gsl_vector_view gslB = gsl_vector_view_array( B, dim );
-	gsl_vector_view gslX = gsl_vector_view_array( X, dim );
-
-	int err = gsl_linalg_LU_solve( &gslMatA.matrix, &gslPerm, &gslB.vector, &gslX.vector );
-
-	return err == GSL_SUCCESS ? 1 : 0;
-}
-
 // Adaptors
 //----------------------------------
 int KineticIntegrator::adapator_compute_D( double t, double *C, double *dC_dt, void *params ) {
@@ -7835,6 +7846,7 @@ void KineticIntegrator::prepareD( double *icC, double *P, double endTime, double
 		delete zIntegrator;
 	}
 	switch( whichIntegrator ) {
+#ifndef NO_GSL
 		case KI_GSLRK45:
 			zIntegrator = new ZIntegratorGSLRK45( 
 				reagentCount, icC, startTime, endTime, errAbsAdjusted, errRel, initStep, minStep, 0,
@@ -7848,12 +7860,11 @@ void KineticIntegrator::prepareD( double *icC, double *P, double endTime, double
 				adapator_compute_D, adapator_compute_dD_dC, this
 			);
 			break;
-
+#endif
 		case KI_ROSS:
 			zIntegrator = new ZIntegratorRosenbrockStifflyStable( 
 				reagentCount, icC, startTime, endTime, errAbsAdjusted, errRel, initStep, minStep, 0,
-				adapator_compute_D, adapator_compute_dD_dC, this, 
-				luDecomposeGSLAdaptor, luSolveGSLAdaptor
+				adapator_compute_D, adapator_compute_dD_dC, this
 			);
 			break;
 
@@ -7950,6 +7961,7 @@ void KineticIntegrator::integrateH( int _wrtParameter, double *icG, double *P, d
 	double *H = (double *)alloca( sizeof(double) * reagentCount );
 
 	switch( whichIntegrator ) {
+#ifndef NO_GSL
 		case KI_GSLRK45:
 			zIntegrator = new ZIntegratorGSLRK45( 
 				reagentCount, icG, 0.0, endTime, 1e-6, 1e-6, 1e-3, 1e-6, 0,
@@ -7964,12 +7976,11 @@ void KineticIntegrator::integrateH( int _wrtParameter, double *icG, double *P, d
 				adapator_compute_H, adapator_compute_dH_dG, this
 			);
 			break;
-
+#endif
 		case KI_ROSS:
 			zIntegrator = new ZIntegratorRosenbrockStifflyStable( 
 				reagentCount, icG, 0.0, endTime, 1e-6, 1e-6, 1e-3, 1e-6, 0,
-				adapator_compute_H, adapator_compute_dH_dG, this, 
-				luDecomposeGSLAdaptor, luSolveGSLAdaptor
+				adapator_compute_H, adapator_compute_dH_dG, this 
 			);
 			break;
 
