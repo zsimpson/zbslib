@@ -61,6 +61,7 @@
 // @ZBSIF configDefined( "KIN" )
 // the above is for the perl-parsing of files for dependencies.  
 	#include "zmat_eigen.h"
+	#include "zmat_nr3.h"
 // @ZBSENDIF
 #endif
 
@@ -889,13 +890,15 @@ void KineticTrace::polyFit() {
 		}
 		else {
 			// use Eigen
-			lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+			//lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, colMajor );
 		}
 	#else
 		#ifdef NO_GSL
 			// This is a special #define that plugins may utilize to prevent GPL'd GSL
 			// library from being used.  KinTek non-dev versions use this.
-			lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+			//lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
+			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, colMajor );
 		#else					
 			// but by default, all non-commercial software uses GSL.
 			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, colMajor );

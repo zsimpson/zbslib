@@ -29,7 +29,7 @@
 
 ZMatLUSolver_NR3::ZMatLUSolver_NR3( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ), pNRlu(0) {
 	assert( !colMajor && "NR3 must be in rowMajor" );
-	pNRa = new MatDoub ( dim, dim, A );
+	pNRa = new MatDoub ( dim, dim, A, 1 );
 }
 
 ZMatLUSolver_NR3::~ZMatLUSolver_NR3() {
@@ -47,8 +47,8 @@ int ZMatLUSolver_NR3::decompose() {
 
 int ZMatLUSolver_NR3::solve( double *B, double *x ) {
 	// solve Ax = B, must call decompose() first.
-	VecDoub b( dim, B );
-	VecDoub _x( dim, x  );
+	VecDoub b( dim, B, 1 );
+	VecDoub _x( dim, x, 1 );
 	pNRlu->solve( b, _x );
 	return 1;
 }

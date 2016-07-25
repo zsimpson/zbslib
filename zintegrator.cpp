@@ -50,6 +50,7 @@
 // @ZBSIF configDefined( "KIN" )
 // the above is for the perl-parsing of files for dependencies.  
 	#include "zmat_eigen.h"
+	#include "zmat_nr3.h"
 // @ZBSENDIF
 #endif
 
@@ -314,11 +315,13 @@ ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 				luSolver = new ZMatLUSolver_GSL( a, _dim );
 			}
 			else {
-				luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+				//luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+				luSolver = new ZMatLUSolver_NR3( a, _dim, 0 );
 			}
 		#else
 			// in shipping versions of KinTek software, never use GSL.
-			luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+			//luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
+			luSolver = new ZMatLUSolver_NR3( a, _dim, 0 );
 		#endif
 
 	#else
