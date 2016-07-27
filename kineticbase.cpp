@@ -62,6 +62,7 @@
 // the above is for the perl-parsing of files for dependencies.  
 	#include "zmat_eigen.h"
 	#include "zmat_nr3.h"
+	#include "zmat_cla321.h"
 // @ZBSENDIF
 #endif
 
@@ -878,30 +879,25 @@ void KineticTrace::polyFit() {
 	ZMat m( 6, 6, zmatF64 );
 
 	ZMatLUSolver *lu = 0;
-	int colMajor = 0;
-		// order was transposed above for the benefit of GSL.
 	#ifdef KIN_DEV
 		// for KinTek development build only, allow a choice of what library is used
 		// for linear algebra, so that results can be compared.
-		extern int Kin_simLuGSL;
-		if( Kin_simLuGSL ) {
-			// use GSL
-			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, colMajor );
-		}
-		else {
-			// use Eigen
-			//lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
-			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, colMajor );
+		extern int Kin_simLuLib;
+		switch( Kin_simLuLib ) {
+			case 0: lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 0 ); break;
+			case 1: lu = new ZMatLUSolver_CLA321( (double*)m.mat, 6, 1 ); break;
+			case 2: lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, 1 ); break;
+			case 3: lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 0 ); break;
 		}
 	#else
 		#ifdef NO_GSL
 			// This is a special #define that plugins may utilize to prevent GPL'd GSL
 			// library from being used.  KinTek non-dev versions use this.
 			//lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
-			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, colMajor );
+			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 0 );
 		#else					
 			// but by default, all non-commercial software uses GSL.
-			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, colMajor );
+			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 0 );
 		#endif
 	#endif
 
@@ -909,47 +905,94 @@ void KineticTrace::polyFit() {
 
 		// LOAD the polynomial matrix
 		// GSL uses row major matricies so I've transposed everything below
-		m.putD( 0, 0, 1.0 );
-		m.putD( 1, 0, powerMat.getD(0,c+0) );
-		m.putD( 2, 0, powerMat.getD(1,c+0) );
-		m.putD( 3, 0, powerMat.getD(2,c+0) );
-		m.putD( 4, 0, powerMat.getD(3,c+0) );
-		m.putD( 5, 0, powerMat.getD(4,c+0) );
-		
-		m.putD( 0, 1, 1.0 );
-		m.putD( 1, 1, powerMat.getD(0,c+1) );
-		m.putD( 2, 1, powerMat.getD(1,c+1) );
-		m.putD( 3, 1, powerMat.getD(2,c+1) );
-		m.putD( 4, 1, powerMat.getD(3,c+1) );
-		m.putD( 5, 1, powerMat.getD(4,c+1) );
-		
-		m.putD( 0, 2, 1.0 );
-		m.putD( 1, 2, powerMat.getD(0,c+2) );
-		m.putD( 2, 2, powerMat.getD(1,c+2) );
-		m.putD( 3, 2, powerMat.getD(2,c+2) );
-		m.putD( 4, 2, powerMat.getD(3,c+2) );
-		m.putD( 5, 2, powerMat.getD(4,c+2) );
-		
-		m.putD( 0, 3, 0.0 );
-		m.putD( 1, 3, 1.0 );
-		m.putD( 2, 3, 2.0 * powerMat.getD(0,c+0) );
-		m.putD( 3, 3, 3.0 * powerMat.getD(1,c+0) );
-		m.putD( 4, 3, 4.0 * powerMat.getD(2,c+0) );
-		m.putD( 5, 3, 5.0 * powerMat.getD(3,c+0) );
-		
-		m.putD( 0, 4, 0.0 );
-		m.putD( 1, 4, 1.0 );
-		m.putD( 2, 4, 2.0 * powerMat.getD(0,c+1) );
-		m.putD( 3, 4, 3.0 * powerMat.getD(1,c+1) );
-		m.putD( 4, 4, 4.0 * powerMat.getD(2,c+1) );
-		m.putD( 5, 4, 5.0 * powerMat.getD(3,c+1) );
-		
-		m.putD( 0, 5, 0.0 );
-		m.putD( 1, 5, 1.0 );
-		m.putD( 2, 5, 2.0 * powerMat.getD(0,c+2) );
-		m.putD( 3, 5, 3.0 * powerMat.getD(1,c+2) );
-		m.putD( 4, 5, 4.0 * powerMat.getD(2,c+2) );
-		m.putD( 5, 5, 5.0 * powerMat.getD(3,c+2) );
+		if( lu->colMajor ) {
+			// clapack, eigen
+			m.putD( 0, 0, 1.0 );
+			m.putD( 0, 1, powerMat.getD(0,c+0) );
+			m.putD( 0, 2, powerMat.getD(1,c+0) );
+			m.putD( 0, 3, powerMat.getD(2,c+0) );
+			m.putD( 0, 4, powerMat.getD(3,c+0) );
+			m.putD( 0, 5, powerMat.getD(4,c+0) );
+			
+			m.putD( 1, 0, 1.0 );
+			m.putD( 1, 1, powerMat.getD(0,c+1) );
+			m.putD( 1, 2, powerMat.getD(1,c+1) );
+			m.putD( 1, 3, powerMat.getD(2,c+1) );
+			m.putD( 1, 4, powerMat.getD(3,c+1) );
+			m.putD( 1, 5, powerMat.getD(4,c+1) );
+			
+			m.putD( 2, 0, 1.0 );
+			m.putD( 2, 1, powerMat.getD(0,c+2) );
+			m.putD( 2, 2, powerMat.getD(1,c+2) );
+			m.putD( 2, 3, powerMat.getD(2,c+2) );
+			m.putD( 2, 4, powerMat.getD(3,c+2) );
+			m.putD( 2, 5, powerMat.getD(4,c+2) );
+			
+			m.putD( 3, 0, 0.0 );
+			m.putD( 3, 1, 1.0 );
+			m.putD( 3, 2, 2.0 * powerMat.getD(0,c+0) );
+			m.putD( 3, 3, 3.0 * powerMat.getD(1,c+0) );
+			m.putD( 3, 4, 4.0 * powerMat.getD(2,c+0) );
+			m.putD( 3, 5, 5.0 * powerMat.getD(3,c+0) );
+			
+			m.putD( 4, 0, 0.0 );
+			m.putD( 4, 1, 1.0 );
+			m.putD( 4, 2, 2.0 * powerMat.getD(0,c+1) );
+			m.putD( 4, 3, 3.0 * powerMat.getD(1,c+1) );
+			m.putD( 4, 4, 4.0 * powerMat.getD(2,c+1) );
+			m.putD( 4, 5, 5.0 * powerMat.getD(3,c+1) );
+			
+			m.putD( 5, 0, 0.0 );
+			m.putD( 5, 1, 1.0 );
+			m.putD( 5, 2, 2.0 * powerMat.getD(0,c+2) );
+			m.putD( 5, 3, 3.0 * powerMat.getD(1,c+2) );
+			m.putD( 5, 4, 4.0 * powerMat.getD(2,c+2) );
+			m.putD( 5, 5, 5.0 * powerMat.getD(3,c+2) );
+		}
+		else {
+			// gsl, nr3
+			m.putD( 0, 0, 1.0 );
+			m.putD( 1, 0, powerMat.getD(0,c+0) );
+			m.putD( 2, 0, powerMat.getD(1,c+0) );
+			m.putD( 3, 0, powerMat.getD(2,c+0) );
+			m.putD( 4, 0, powerMat.getD(3,c+0) );
+			m.putD( 5, 0, powerMat.getD(4,c+0) );
+			
+			m.putD( 0, 1, 1.0 );
+			m.putD( 1, 1, powerMat.getD(0,c+1) );
+			m.putD( 2, 1, powerMat.getD(1,c+1) );
+			m.putD( 3, 1, powerMat.getD(2,c+1) );
+			m.putD( 4, 1, powerMat.getD(3,c+1) );
+			m.putD( 5, 1, powerMat.getD(4,c+1) );
+			
+			m.putD( 0, 2, 1.0 );
+			m.putD( 1, 2, powerMat.getD(0,c+2) );
+			m.putD( 2, 2, powerMat.getD(1,c+2) );
+			m.putD( 3, 2, powerMat.getD(2,c+2) );
+			m.putD( 4, 2, powerMat.getD(3,c+2) );
+			m.putD( 5, 2, powerMat.getD(4,c+2) );
+			
+			m.putD( 0, 3, 0.0 );
+			m.putD( 1, 3, 1.0 );
+			m.putD( 2, 3, 2.0 * powerMat.getD(0,c+0) );
+			m.putD( 3, 3, 3.0 * powerMat.getD(1,c+0) );
+			m.putD( 4, 3, 4.0 * powerMat.getD(2,c+0) );
+			m.putD( 5, 3, 5.0 * powerMat.getD(3,c+0) );
+			
+			m.putD( 0, 4, 0.0 );
+			m.putD( 1, 4, 1.0 );
+			m.putD( 2, 4, 2.0 * powerMat.getD(0,c+1) );
+			m.putD( 3, 4, 3.0 * powerMat.getD(1,c+1) );
+			m.putD( 4, 4, 4.0 * powerMat.getD(2,c+1) );
+			m.putD( 5, 4, 5.0 * powerMat.getD(3,c+1) );
+			
+			m.putD( 0, 5, 0.0 );
+			m.putD( 1, 5, 1.0 );
+			m.putD( 2, 5, 2.0 * powerMat.getD(0,c+2) );
+			m.putD( 3, 5, 3.0 * powerMat.getD(1,c+2) );
+			m.putD( 4, 5, 4.0 * powerMat.getD(2,c+2) );
+			m.putD( 5, 5, 5.0 * powerMat.getD(3,c+2) );			
+		}
 
 		// SOLVE by LU. 
 		int err = lu->decompose();

@@ -51,6 +51,7 @@
 // the above is for the perl-parsing of files for dependencies.  
 	#include "zmat_eigen.h"
 	#include "zmat_nr3.h"
+	#include "zmat_cla321.h"
 // @ZBSENDIF
 #endif
 
@@ -310,23 +311,21 @@ ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 	#ifdef KIN
 		#ifdef KIN_DEV
 			// in the DEV version of KinTek, allow options for comparison.
-			extern int Kin_simLuGSL;
-			if( Kin_simLuGSL ) {
-				luSolver = new ZMatLUSolver_GSL( a, _dim );
-			}
-			else {
-				//luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
-				luSolver = new ZMatLUSolver_NR3( a, _dim, 0 );
+			extern int Kin_simLuLib;
+			switch( Kin_simLuLib ) {
+				case 0: luSolver = new ZMatLUSolver_NR3( a, _dim, 0 ); break;
+				case 1: luSolver = new ZMatLUSolver_CLA321( a, _dim, 1 ); break;
+				case 2: luSolver = new ZMatLUSolver_Eigen( a, _dim, 1 ); break;
+				case 3: luSolver = new ZMatLUSolver_GSL( a, _dim, 0 ); break;
 			}
 		#else
 			// in shipping versions of KinTek software, never use GSL.
-			//luSolver = new ZMatLUSolver_Eigen( a, _dim, 0 );
 			luSolver = new ZMatLUSolver_NR3( a, _dim, 0 );
 		#endif
 
 	#else
 		// outside of KinTek plugins, always use GSL linear algebra
-		luSolver = new ZMatLUSolver_GSL( a, _dim );
+		luSolver = new ZMatLUSolver_GSL( a, _dim, 0 );
 	#endif
 }
 
@@ -418,11 +417,23 @@ int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
 
 			// LOAD mat A with neative of the jacobian, offset the diagonal
 			double recipGam = 1.0 / ( RC_gam * step );
-			for( i=0; i<dim; i++ ) {
-				for( j=0; j<dim; j++ ) {
-					a[j*dim+i] = -dfdy[i*dim+j];
+			if( luSolver->colMajor ) {
+				// clapack, eigen
+				for( i=0; i<dim; i++ ) {
+					for( j=0; j<dim; j++ ) {
+						a[i*dim+j] = -dfdy[i*dim+j];
+					}
+					a[i*dim+i] += recipGam;
 				}
-				a[i*dim+i] += recipGam;
+			}
+			else {
+				// original, for gsl, nr3
+				for( i=0; i<dim; i++ ) {
+					for( j=0; j<dim; j++ ) {
+						a[j*dim+i] = -dfdy[i*dim+j];
+					}
+					a[i*dim+i] += recipGam;
+				}
 			}
 
 			// LU Demopose

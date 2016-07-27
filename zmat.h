@@ -308,14 +308,17 @@ class ZMatLUSolver {
 	// ZMat internally, but seems appropriate to place here with matrix.
 	// See zmat_gsl and zmat_eigen for concrete subclasses.
 protected:
+	// the main reason I make this protected is to prevent construction
+	// of these objects with null constructor.
 	double *A;
 		// input matrix, not owned.
 	int dim;
 		// dimension of A
-	int colMajor;
-		// stride type
 	ZMatLUSolver() {}
 public:
+	int colMajor;
+	// stride type
+
 	ZMatLUSolver( double *_A, int _dim, int _colMajor=1 ) : A(_A), dim(_dim), colMajor(_colMajor) {}
 	virtual ~ZMatLUSolver() {}
 	virtual int decompose() = 0;

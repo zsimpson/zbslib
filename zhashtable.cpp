@@ -1,4 +1,4 @@
-// @ZBS {
+ // @ZBS {
 //		*MODULE_NAME Simple Hash
 //		*MASTER_FILE 1
 //		+DESCRIPTION {
