@@ -22,18 +22,52 @@
 #include "zmat_nr3.h"
 
 #include "nr3.h"
+#include "svd.h"
 #include "ludcmp.h"
 
 //---------------------------------------------------------------------------------------------
-// ZMatLUSolver_GSL
+void zmatSVD_NR3( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat ) {
+	MatDoub NRa( inputMat.rows, inputMat.cols, A, 1 );
 
-ZMatLUSolver_NR3::ZMatLUSolver_NR3( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ), pNRlu(0) {
-	assert( !colMajor && "NR3 must be in rowMajor" );
-	pNRa = new MatDoub ( dim, dim, A, 1 );
+	SVD *svd = new SVD( )
 }
 
-ZMatLUSolver_NR3::~ZMatLUSolver_NR3() {
+
+
+//---------------------------------------------------------------------------------------------
+void zmatQRSolve_NR3( ZMat &A, ZMat &B, ZMat &x ) {
+
+}
+
+
+//---------------------------------------------------------------------------------------------
+// ZMatLinEqSolver_NR3
+
+ZMatLinEqSolver_NR3::ZMatLinEqSolver_NR3( ZMat &_A, int _colMajor ) : ZMatLinEqSolver( _A, _colMajor ), pNRlu(0) {
+	assert( _A.rows == _A.cols );
+	if( colMajor ) {
+		// NR3 is rowmajor, so transpose to our local copy At
+		zmatTranspose( _A, At );
+		colMajor = 0;
+		A = At.mat;
+	}
+	pNRa = new MatDoub ( rows, cols, A, 1 );
+
+}
+
+ZMatLinEqSolver_NR3::ZMatLinEqSolver_NR3( double *A, int rows, int cols, int colMajor ) : ZMatLUSolver( A, rows, cols, colMajor ), pNRlu(0) {
+	assert( !colMajor && "NR3 must be in rowMajor" );
+	pNRa = new MatDoub ( rows, cols, A, 1 );
+}
+
+ZMatLinEqSolver_NR3::~ZMatLinEqSolver_NR3() {
 	delete pNRa;
+}	
+
+//---------------------------------------------------------------------------------------------
+// ZMatLU Solver_NR3
+
+ZMatLUSolver_NR3::~ZMatLUSolver_NR3() {
 	if( pNRlu )
 		delete pNRlu;
 }
@@ -52,3 +86,51 @@ int ZMatLUSolver_NR3::solve( double *B, double *x ) {
 	pNRlu->solve( b, _x );
 	return 1;
 }
+
+//---------------------------------------------------------------------------------------------
+// ZMatSVDSolver_NR3
+
+ZMatSVDSolver_NR3::~ZMatSVDSolver_NR3() {
+	if( pNRsvd )
+		delete pNRsvd;
+}
+	
+int ZMatSVDSolver_NR3::decompose() {
+	if( pNRsvd )
+		delete pNRsvd;
+	pNRsvd = new SVD( *pNRa );
+	return 1;
+}
+
+int ZMatSVDSolver_NR3::solve( double *B, double *x ) {
+	// solve Ax = B, must call decompose() first.
+	VecDoub b( dim, B, 1 );
+	VecDoub _x( dim, x, 1 );
+	pNRsvd->solve( b, _x );
+	return 1;
+}
+
+//---------------------------------------------------------------------------------------------
+// ZMatQRSolver_NR3
+
+ZMatQRSolver_NR3::~ZMatQRSolver_NR3() {
+	if( pNRqr )
+		delete pNRqr;
+}
+	
+int ZMatQRSolver_NR3::decompose() {
+	if( pNRqr )
+		delete pNRqr;
+	pNRqr = new QRdcmp( *pNRa );
+	return 1;
+}
+
+int ZMatQRSolver_NR3::solve( double *B, double *x ) {
+	// solve Ax = B, must call decompose() first.
+	VecDoub b( dim, B, 1 );
+	VecDoub _x( dim, x, 1 );
+	pNRqr->solve( b, _x );
+	return 1;
+}
+
+

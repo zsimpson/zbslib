@@ -303,10 +303,9 @@ void zmatDiagonalMatrixToVector( ZMat &mat, ZMat &vec );
 void zmatSortColsByRow0Value( ZMat &mat );
 	// qsorts the cols based on values in row 0
 
+
 class ZMatLUSolver {
-	// TODO?  This is really general linear algebra, and does not use
-	// ZMat internally, but seems appropriate to place here with matrix.
-	// See zmat_gsl and zmat_eigen for concrete subclasses.
+	// See zmat_gsl, zmat_nr3, zmat_eigen, zmat_cla321 for concrete subclasses.
 protected:
 	// the main reason I make this protected is to prevent construction
 	// of these objects with null constructor.
@@ -319,8 +318,39 @@ public:
 	int colMajor;
 	// stride type
 
-	ZMatLUSolver( double *_A, int _dim, int _colMajor=1 ) : A(_A), dim(_dim), colMajor(_colMajor) {}
+	ZMatLUSolver( ZMat &_A, int _colMajor=1 ) : A(0), dim(_A.rows), colMajor(_colMajor) {} 
+		// ZMat assumed to be square.  Use QR or SVD otherwise.  Subclass must transpose A
+		// if necessary to local copy and set A.
+	ZMatLUSolver( double *_A, int _dim, int _colMajor=0 ) : A(_A), dim(_dim), colMajor(_colMajor) {}
 	virtual ~ZMatLUSolver() {}
+	virtual int decompose() = 0;
+	virtual int solve( double *B, double *x ) = 0;
+};
+
+class ZMatLinEqSolver {
+	// Abstract base class for solving linear equations specified in a matrix.
+	// See zmat_gsl, zmat_nr3, zmat_eigen, zmat_cla321 for concrete subclasses.
+protected:
+	double *A;
+		// input matrix, not owned.
+	int rows;
+	int cols;
+		// dimensions of A
+	ZMat At;
+		// In the case that the ZMat-constructor is used, we may need to
+		// copy and then transpose it, since some libraries are row-major
+		// and ZMat is col-major.  
+	ZMatLinEqSolver() {}
+		// null-constructor protected to prevent un-initialized solvers
+		// from existing.
+public:
+	int colMajor;
+		// stride type
+
+	ZMatLinEqSolver( ZMat &_A, int _colMajor=1 ) : A(_A.mat), rows(_A.rows), cols(_A.cols), colMajor(_colMajor) {}
+		// NOTE: subclass must deal with transpose if necessary
+	ZMatLinEqSolver( double *_A, int _rows, int _cols, int _colMajor=0 ) : A(_A), rows(_rows), cols(_cols), colMajor(_colMajor) {}
+	virtual ~ZMatLinEqSolver() {}
 	virtual int decompose() = 0;
 	virtual int solve( double *B, double *x ) = 0;
 };

@@ -12,7 +12,7 @@ void zmatSVD_Eigen( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
 
 void zmatQRSolve_Eigen( ZMat &A, ZMat &B, ZMat &x );
 
-class ZMatLUSolver_Eigen : public ZMatLUSolver {
+class ZMatLUSolver_Eigen : public ZMatLinEqSolver {
 	// In factoring GSL dependency out of various zbslib & other routines, it is handy
 	// to have an object which can hold state since it is often the case that one does
 	// a decomposition, and then follows with multiple solve(), and importantly, other
@@ -24,7 +24,8 @@ class ZMatLUSolver_Eigen : public ZMatLUSolver {
 	Eigen::PartialPivLU<Eigen::MatrixXd>  eigenA_lu;
 
 public:
-	ZMatLUSolver_Eigen( double *A, int dim, int colMajor=1 );
+	ZMatLUSolver_Eigen( ZMat &a, int colMajor=1 );
+	ZMatLUSolver_Eigen( double *A, int rows, int cols, int colMajor=1 );
 	~ZMatLUSolver_Eigen();
 	int decompose();
 	int solve( double *B, double *x );

@@ -99,7 +99,11 @@ void zmatQRSolve_Eigen( ZMat &A, ZMat &B, ZMat &x ) {
 //---------------------------------------------------------------------------------------------
 // ZMatLUSolver_Eigen
 
-ZMatLUSolver_Eigen::ZMatLUSolver_Eigen( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ) {
+ZMatLUSolver_Eigen::ZMatLUSolver_Eigen( ZMat &A, int colMajor ) : ZMatLinEqSolver( A, colMajor ) {
+	// Eigen can deal with col-major or row major, so either is ok for us.
+}
+
+ZMatLUSolver_Eigen::ZMatLUSolver_Eigen( double *A, int rows, int cols, int colMajor ) : ZMatLinEqSolver( A, rows, cols, colMajor ) {
 }
 
 ZMatLUSolver_Eigen::~ZMatLUSolver_Eigen() {
