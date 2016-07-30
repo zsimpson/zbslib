@@ -347,7 +347,7 @@ public:
 	int colMajor;
 		// stride type
 
-	ZMatLinEqSolver( ZMat &_A, int _colMajor=1 ) : A(_A.mat), rows(_A.rows), cols(_A.cols), colMajor(_colMajor) {}
+	ZMatLinEqSolver( ZMat &_A, int _colMajor=1 ) : A((double*)_A.mat), rows(_A.rows), cols(_A.cols), colMajor(_colMajor) {}
 		// NOTE: subclass must deal with transpose if necessary
 	ZMatLinEqSolver( double *_A, int _rows, int _cols, int _colMajor=0 ) : A(_A), rows(_rows), cols(_cols), colMajor(_colMajor) {}
 	virtual ~ZMatLinEqSolver() {}

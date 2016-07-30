@@ -111,11 +111,11 @@ ZMatLUSolver_Eigen::~ZMatLUSolver_Eigen() {
 	
 int ZMatLUSolver_Eigen::decompose() {
 	if( colMajor ) {
-		Map< Matrix < double, Dynamic, Dynamic, ColMajor > > ma( A, dim, dim );
+		Map< Matrix < double, Dynamic, Dynamic, ColMajor > > ma( A, rows, cols );
 		eigenA_lu.compute( ma );
 	}
 	else {
-		Map< Matrix < double, Dynamic, Dynamic, RowMajor > > ma( A, dim, dim );
+		Map< Matrix < double, Dynamic, Dynamic, RowMajor > > ma( A, rows, cols );
 		eigenA_lu.compute( ma );
 	}
 	//printf( "Eigen: LU decompose\n" );
@@ -124,9 +124,9 @@ int ZMatLUSolver_Eigen::decompose() {
 
 int ZMatLUSolver_Eigen::solve( double *B, double *x ) {
 	// solve Ax = B, must call decompose() first.
-	Map<MatrixXd> mb( B, dim, 1 );
+	Map<MatrixXd> mb( B, rows, 1 );
 	VectorXd _x = eigenA_lu.solve( mb );
-	for( int i=0; i<dim; i++ ) {
+	for( int i=0; i<rows; i++ ) {
 		x[i] = _x(i);
 	}
 	return 1;

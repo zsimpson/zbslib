@@ -7,7 +7,7 @@
 
 #include "stdio.h"	// to get size_t
 
-class ZMatLUSolver;
+class ZMatLinEqSolver;
 
 typedef int (*CallbackDeriv)( double x, double *y, double *dYdx, void *params );
 typedef int (*CallbackJacob)( double x, double *y, double *dFdY, double *dFdx, void *params );
@@ -120,7 +120,7 @@ struct ZIntegratorRosenbrockStifflyStable : ZIntegrator {
 	double errOld;
 	double stepOld;
 
-	ZMatLUSolver *luSolver;
+	ZMatLinEqSolver *luSolver;
 
 	virtual int stepper( double &stepNext );
 

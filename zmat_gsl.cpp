@@ -192,10 +192,10 @@ void zmatQRSolve_GSL( ZMat &_A, ZMat &_B, ZMat &_x ) {
 //---------------------------------------------------------------------------------------------
 // ZMatLUSolver_GSL
 
-ZMatLUSolver_GSL::ZMatLUSolver_GSL( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ) {
+ZMatLUSolver_GSL::ZMatLUSolver_GSL( double *A, int rows, int cols, int colMajor ) : ZMatLinEqSolver( A, rows, cols, colMajor ) {
 	assert( !colMajor && "GSL must be in rowMajor" );
-	gslA = gsl_matrix_view_array( A, dim, dim );
-	gslP = gsl_permutation_alloc( dim );
+	gslA = gsl_matrix_view_array( A, rows, cols );
+	gslP = gsl_permutation_alloc( rows );
 }
 
 ZMatLUSolver_GSL::~ZMatLUSolver_GSL() {
@@ -210,8 +210,8 @@ int ZMatLUSolver_GSL::decompose() {
 
 int ZMatLUSolver_GSL::solve( double *B, double *x ) {
 	// solve Ax = B, must call decompose() first.
-	gsl_vector_view gslB = gsl_vector_view_array( B, dim );
-	gsl_vector_view gslX = gsl_vector_view_array( x, dim );
+	gsl_vector_view gslB = gsl_vector_view_array( B, rows );
+	gsl_vector_view gslX = gsl_vector_view_array( x, rows );
 	int err = gsl_linalg_LU_solve( &gslA.matrix, gslP, &gslB.vector, &gslX.vector );
 	return err == GSL_SUCCESS;
 }

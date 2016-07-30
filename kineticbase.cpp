@@ -878,7 +878,7 @@ void KineticTrace::polyFit() {
 
 	ZMat m( 6, 6, zmatF64 );
 
-	ZMatLUSolver *lu = 0;
+	ZMatLinEqSolver *lu = 0;
 	#ifdef KIN_DEV
 		// for KinTek development build only, allow a choice of what library is used
 		// for linear algebra, so that results can be compared.

@@ -11,7 +11,7 @@ void zmatSVD_GSL( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
 
 void zmatQRSolve_GSL( ZMat &A, ZMat &B, ZMat &x );
 
-class ZMatLUSolver_GSL : public ZMatLUSolver {
+class ZMatLUSolver_GSL : public ZMatLinEqSolver {
 	// In factoring GSL dependency out of various zbslib & other routines, it is handy
 	// to have an object which can hold state since it is often the case that one does
 	// a decomposition, and then follows with multiple solve(), and importantly, other
@@ -25,7 +25,7 @@ class ZMatLUSolver_GSL : public ZMatLUSolver {
 	int sign;		
 
 public:
-	ZMatLUSolver_GSL( double *A, int dim, int colMajor=0 );
+	ZMatLUSolver_GSL( double *A, int rows, int cols, int colMajor=0 );
 	~ZMatLUSolver_GSL();
 	int decompose();
 	int solve( double *B, double *x );

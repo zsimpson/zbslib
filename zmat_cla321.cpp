@@ -29,9 +29,9 @@ extern "C" {
 //---------------------------------------------------------------------------------------------
 // ZMatLUSolver_GSL
 
-ZMatLUSolver_CLA321::ZMatLUSolver_CLA321( double *A, int dim, int colMajor ) : ZMatLUSolver( A, dim, colMajor ) {
+ZMatLUSolver_CLA321::ZMatLUSolver_CLA321( double *A, int rows, int cols, int colMajor ) : ZMatLinEqSolver( A, rows, cols, colMajor ) {
 	assert( colMajor && "CLA321 must be in colMajor" );
-	ipiv = (int*)malloc( sizeof(int) * dim );
+	ipiv = (int*)malloc( sizeof(int) * rows );
 }
 
 ZMatLUSolver_CLA321::~ZMatLUSolver_CLA321() {
@@ -41,8 +41,8 @@ ZMatLUSolver_CLA321::~ZMatLUSolver_CLA321() {
 	
 int ZMatLUSolver_CLA321::decompose() {
 	//int dgetrf_(integer *m, integer *n, doublereal *a, integer *lda, integer *ipiv, integer *info);
-	int lda=dim,info,err;
-	err = dgetrf_( &dim, &dim, A, &lda, ipiv, &info );
+	int lda=rows,info,err;
+	err = dgetrf_( &rows, &cols, A, &lda, ipiv, &info );
 	return err==0;
 }
 
@@ -56,7 +56,7 @@ int ZMatLUSolver_CLA321::solve( double *B, double *x ) {
 	int nrhs = 1;
 		// columns in B
 	int err, info;
-	err = dgetrs_( &trans, &dim, &nrhs, A, &dim, ipiv, B, &dim, &info );
-	memcpy( x, B, sizeof(double)*dim ); 
+	err = dgetrs_( &trans, &rows, &nrhs, A, &rows, ipiv, B, &rows, &info );
+	memcpy( x, B, sizeof(double)*rows );
 	return err==0;
 }

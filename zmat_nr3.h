@@ -15,6 +15,7 @@ void zmatQRSolve_NR3( ZMat &A, ZMat &B, ZMat &x );
 
 template <class T> class NRmatrix;
 class ZMatLinEqSolver_NR3 : public ZMatLinEqSolver {
+protected:
 	// nr3 stuff common to all solvers
 	NRmatrix<double>* pNRa;
 public:
@@ -55,7 +56,7 @@ public:
 struct QRdcmp;
 class ZMatQRSolver_NR3 : public ZMatLinEqSolver_NR3 {
 	// nr3 stuff
-	QR* pNRdcmp;
+	QRdcmp* pNRqr;
 public:
 	ZMatQRSolver_NR3( ZMat &A, int colMajor=1 ) : ZMatLinEqSolver_NR3( A, colMajor ), pNRqr(0) {}
 	ZMatQRSolver_NR3( double *A, int rows, int cols, int colMajor=0 ) : ZMatLinEqSolver_NR3( A, rows, cols, colMajor), pNRqr(0) {}

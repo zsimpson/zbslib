@@ -22,11 +22,10 @@ void zmatSVD_CLA321( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
 void zmatQRSolve_CLA321( ZMat &A, ZMat &B, ZMat &x );
 */
 
-class ZMatLUSolver_CLA321 : public ZMatLUSolver {
+class ZMatLUSolver_CLA321 : public ZMatLinEqSolver {
 	int *ipiv;
-
 public:
-	ZMatLUSolver_CLA321( double *A, int dim, int colMajor=0 );
+	ZMatLUSolver_CLA321( double *A, int rows, int cols, int colMajor=0 );
 	~ZMatLUSolver_CLA321();
 	int decompose();
 	int solve( double *B, double *x );
