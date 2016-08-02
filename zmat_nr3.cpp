@@ -31,13 +31,15 @@
 // ZMatLinEqSolver_NR3
 
 ZMatLinEqSolver_NR3::ZMatLinEqSolver_NR3( ZMat &_A, int _colMajor ) : ZMatLinEqSolver( _A, _colMajor ) {
-	assert( _A.rows == _A.cols );
 	assert( _A.type = zmatF64 );
 	if( colMajor ) {
 		// NR3 is rowmajor, so transpose to our local copy At
 		zmatTranspose( _A, At );
 		colMajor = 0;
 		A = (double*)At.mat;
+			// Note that we do not change rows and cols: the "shape" of the matrix is as was passed to
+			// us - we have just transposed it and pointed to the newly transposed memory such that
+			// the values are now in row-major order.
 	}
 	pNRa = new MatDoub ( rows, cols, A, 1 );
 
@@ -53,7 +55,7 @@ ZMatLinEqSolver_NR3::~ZMatLinEqSolver_NR3() {
 }	
 
 //---------------------------------------------------------------------------------------------
-// ZMatLU Solver_NR3
+// ZMatLUSolver_NR3
 
 ZMatLUSolver_NR3::~ZMatLUSolver_NR3() {
 	if( pNRlu )
@@ -70,7 +72,7 @@ int ZMatLUSolver_NR3::decompose() {
 int ZMatLUSolver_NR3::solve( double *B, double *x ) {
 	// solve Ax = B, must call decompose() first.
 	VecDoub b( rows, B, 1 );
-	VecDoub _x( rows, x, 1 );
+	VecDoub _x( cols, x, 1 );
 	pNRlu->solve( b, _x );
 	return 1;
 }
@@ -93,7 +95,7 @@ int ZMatSVDSolver_NR3::decompose() {
 int ZMatSVDSolver_NR3::solve( double *B, double *x ) {
 	// solve Ax = B, must call decompose() first.
 	VecDoub b( rows, B, 1 );
-	VecDoub _x( rows, x, 1 );
+	VecDoub _x( cols, x, 1 );
 	pNRsvd->solve( b, _x );
 	return 1;
 }
@@ -131,11 +133,26 @@ int ZMatQRSolver_NR3::decompose() {
 	return 1;
 }
 
-int ZMatQRSolver_NR3::solve( double *B, double *x ) {
-	// solve Ax = B, must call decompose() first.
-	VecDoub b( rows, B, 1 );
-	VecDoub _x( rows, x, 1 );
-	pNRqr->solve( b, _x );
+int ZMatQRSolver_NR3::solve( double *b, double *x ) {
+	// solve Ax = b, must call decompose() first.
+	VecDoub _b( rows, b, 1 );
+	VecDoub _x( cols, x, 1 );
+	pNRqr->solve( _b, _x );
+	return 1;
+}
+
+int ZMatQRSolver_NR3::solveMat( ZMat &B, ZMat &X ) {
+	// solve AX = B, must call decompose() first.
+	// Done by solving one column of B at a time.
+
+	if( X.rows != this->cols || X.cols != B.cols ) {
+		X.alloc( this->cols, B.cols, zmatF64 );
+	}
+
+	for( int i=0; i<B.cols; i++ ) {
+		solve( B.getPtrD(0,i), X.getPtrD(0,i) );
+	}
+	
 	return 1;
 }
 

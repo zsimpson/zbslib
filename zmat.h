@@ -304,6 +304,7 @@ void zmatSortColsByRow0Value( ZMat &mat );
 	// qsorts the cols based on values in row 0
 
 
+/*
 class ZMatLUSolver {
 	// See zmat_gsl, zmat_nr3, zmat_eigen, zmat_cla321 for concrete subclasses.
 protected:
@@ -326,6 +327,7 @@ public:
 	virtual int decompose() = 0;
 	virtual int solve( double *B, double *x ) = 0;
 };
+*/
 
 class ZMatLinEqSolver {
 	// Abstract base class for solving linear equations specified in a matrix.
