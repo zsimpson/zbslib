@@ -9,6 +9,7 @@ void zmatMUL_Eigen( ZMat &aMat, ZMat &bMat, ZMat &cVec );
 	// C = A * B
 
 void zmatSVD_Eigen( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat );
+	// needs further testing.  Add to _labench3 (kintek)
 
 void zmatQRSolve_Eigen( ZMat &A, ZMat &B, ZMat &x );
 

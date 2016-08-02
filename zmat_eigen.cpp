@@ -64,6 +64,8 @@ void zmatMUL_Eigen( ZMat &aMat, ZMat &bMat, ZMat &cMat ) {
 }
 
 void zmatSVD_Eigen( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat ) {
+	// Needs further testing.  Test with _labench3 - see kintek.
+
 	//assert( inputMat.rows >= inputMat.cols );
 		// GSL does not implement a M < N SVD, but Eigen has no problem with this.
 
@@ -77,10 +79,12 @@ void zmatSVD_Eigen( ZMat &inputMat, ZMat &uMat, ZMat &sVec, ZMat &vtMat ) {
 			uMat.alloc( u.rows(), u.cols(), zmatF64 );
 		}
 		memcpy( uMat.mat, u.data(), uMat.rows * uMat.cols * sizeof(double) );
-		if( vtMat.rows != v.rows() || vtMat.cols != v.cols() ) {
-			vtMat.alloc( v.rows(), v.cols(), zmatF64 );
-		}
-		memcpy( vtMat.mat, v.data(), vtMat.rows * vtMat.cols * sizeof(double) );
+
+		ZMat vMat;
+		vMat.alloc( v.rows(), v.cols(), zmatF64 );
+		memcpy( vMat.mat, v.data(), vtMat.rows * vtMat.cols * sizeof(double) );
+		zmatTranspose( vMat, vtMat );
+
 		if( sVec.rows != s.rows() || sVec.cols != 1 ) {
 			sVec.alloc( s.rows(), 1, zmatF64 );
 		}

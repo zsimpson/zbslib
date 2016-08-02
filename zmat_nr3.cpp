@@ -98,6 +98,24 @@ int ZMatSVDSolver_NR3::solve( double *B, double *x ) {
 	return 1;
 }
 
+int ZMatSVDSolver_NR3::rank() {
+	return pNRsvd->rank();
+}
+
+void ZMatSVDSolver_NR3::zmatGet( ZMat &U, ZMat &S, ZMat &Vt ) {
+	U.alloc( pNRsvd->u.nrows(), pNRsvd->u.ncols(), zmatF64 );
+	S.alloc( pNRsvd->w.size(), 1, zmatF64 );
+	Vt.alloc( pNRsvd->v.ncols(), pNRsvd->v.nrows(), zmatF64 );
+
+	memcpy( U.mat, pNRsvd->u.v[0], U.rows*U.cols*sizeof(double) );
+	memcpy( S.mat, pNRsvd->w.v, S.rows*sizeof(double) );
+	memcpy( Vt.mat, pNRsvd->v.v[0], Vt.rows*U.cols*sizeof(double) );
+
+	U.flipOrder();
+	//Vt.flipOrder();
+		// NR3 is row-major, ZMat is col-major, NR presents V, and we want Vt.
+}
+
 //---------------------------------------------------------------------------------------------
 // ZMatQRSolver_NR3
 
