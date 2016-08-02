@@ -60,9 +60,9 @@
 // GSL is GPL'd, so KinTek can't ship it.  (tfb july 2016)
 // @ZBSIF configDefined( "KIN" )
 // the above is for the perl-parsing of files for dependencies.  
-	#include "zmat_eigen.h"
+//	#include "zmat_eigen.h"
 	#include "zmat_nr3.h"
-	#include "zmat_cla321.h"
+//	#include "zmat_cla321.h"
 // @ZBSENDIF
 #endif
 
@@ -882,18 +882,18 @@ void KineticTrace::polyFit() {
 	#ifdef KIN_DEV
 		// for KinTek development build only, allow a choice of what library is used
 		// for linear algebra, so that results can be compared.
-		extern int Kin_simLuLib;
-		switch( Kin_simLuLib ) {
-			case 0: lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 0 ); break;
-			case 1: lu = new ZMatLUSolver_CLA321( (double*)m.mat, 6, 1 ); break;
-			case 2: lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, 1 ); break;
-			case 3: lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 0 ); break;
+		extern int Kin_simLinEqLib;
+		switch( Kin_simLinEqLib ) {
+			case 0: lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 6, 0 ); break;
+			case 1: lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 6, 0 ); break;
+			//case 2: lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, 6, 1 ); break;
+			//case 3: lu = new ZMatLUSolver_CLA321( (double*)m.mat, 6, 6, 1 ); break;
+			default: lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 6, 0 ); break;
 		}
 	#else
 		#ifdef NO_GSL
 			// This is a special #define that plugins may utilize to prevent GPL'd GSL
 			// library from being used.  KinTek non-dev versions use this.
-			//lu = new ZMatLUSolver_Eigen( (double*)m.mat, 6, colMajor );
 			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 0 );
 		#else					
 			// but by default, all non-commercial software uses GSL.

@@ -49,9 +49,9 @@
 // GSL is GPL'd, so KinTek can't ship it.  (tfb july 2016)
 // @ZBSIF configDefined( "KIN" )
 // the above is for the perl-parsing of files for dependencies.  
-	#include "zmat_eigen.h"
+//	#include "zmat_eigen.h"
 	#include "zmat_nr3.h"
-	#include "zmat_cla321.h"
+//	#include "zmat_cla321.h"
 // @ZBSENDIF
 #endif
 
@@ -308,24 +308,28 @@ ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 	yerr = (double *)malloc( dim * sizeof(double) );
 	yout = (double *)malloc( dim * sizeof(double) );
 
-	#ifdef KIN
-		#ifdef KIN_DEV
-			// in the DEV version of KinTek, allow options for comparison.
-			extern int Kin_simLuLib;
-			switch( Kin_simLuLib ) {
-				case 0: luSolver = new ZMatLUSolver_NR3( a, _dim, 0 ); break;
-				case 1: luSolver = new ZMatLUSolver_CLA321( a, _dim, 1 ); break;
-				case 2: luSolver = new ZMatLUSolver_Eigen( a, _dim, 1 ); break;
-				case 3: luSolver = new ZMatLUSolver_GSL( a, _dim, 0 ); break;
-			}
-		#else
-			// in shipping versions of KinTek software, never use GSL.
-			luSolver = new ZMatLUSolver_NR3( a, _dim, 0 );
-		#endif
-
+	#ifdef KIN_DEV
+		// in the DEV version of KinTek, allow options for comparison.
+		extern int Kin_simLinEqLib;
+		switch( Kin_simLinEqLib ) {
+			case 0: luSolver = new ZMatLUSolver_GSL( a, dim, dim, 0 ); break;
+			case 1: luSolver = new ZMatLUSolver_NR3( a, dim, dim, 0 ); break;
+			//case 2: luSolver = new ZMatLUSolver_Eigen( a, dim, dim, 1 ); break;
+			//case 3: luSolver = new ZMatLUSolver_CLA321( a, dim, dim, 1 ); break;
+				// NOTE that we are passing colMajor=1 for the last two, so that
+				// they can operate in their native mode.  To accomplish this we
+				// take care to compose the (double*)a correctly in ::stepper().
+			default: luSolver = new ZMatLUSolver_NR3( a, dim, dim, 0 ); break;
+		}
 	#else
-		// outside of KinTek plugins, always use GSL linear algebra
-		luSolver = new ZMatLUSolver_GSL( a, _dim, 0 );
+		#ifdef NO_GSL
+			// This is a special #define that plugins may utilize to prevent GPL'd GSL
+			// library from being used.  KinTek non-dev versions use this.
+			lu = new ZMatLUSolver_NR3( a, dim, dim, 0 );
+		#else					
+			// but by default, all non-commercial software uses GSL.
+			lu = new ZMatLUSolver_GSL( a, dim, dim, 0 );
+		#endif
 	#endif
 }
 
