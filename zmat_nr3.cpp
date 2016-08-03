@@ -27,6 +27,33 @@
 #include "qrdcmp.h"
 
 
+
+//---------------------------------------------------------------------------------------------
+// Handy debug/utils.
+
+void dump_nrmat( MatDoub &m ) {
+	for( int r=0; r<m.nrows(); r++ ) {
+		for( int c=0; c<m.ncols(); c++ ) {
+			printf( "%+3.2le ", m[r][c] );
+		}
+		printf( "\n" );
+	}	
+}
+
+void copyNRMatToZMat( MatDoub &m, ZMat &z ) {
+	// account for NR3 is rowmajor, ZMat is colmajor.
+	int rows = m.nrows();
+	int cols = m.ncols();
+	if( z.rows != rows || z.cols != cols ) {
+		z.alloc( rows, cols, zmatF64 );
+	}
+	for( int r=0; r<rows; r++ ) {
+		for( int c=0; c<cols; c++ ) {
+			z.putD( r, c, m[r][c] );
+		}
+	}
+}
+
 //---------------------------------------------------------------------------------------------
 // ZMatLinEqSolver_NR3
 
@@ -42,7 +69,6 @@ ZMatLinEqSolver_NR3::ZMatLinEqSolver_NR3( ZMat &_A, int _colMajor ) : ZMatLinEqS
 			// the values are now in row-major order.
 	}
 	pNRa = new MatDoub ( rows, cols, A, 1 );
-
 }
 
 ZMatLinEqSolver_NR3::ZMatLinEqSolver_NR3( double *A, int rows, int cols, int colMajor ) : ZMatLinEqSolver( A, rows, cols, colMajor ) {
@@ -87,7 +113,7 @@ ZMatSVDSolver_NR3::~ZMatSVDSolver_NR3() {
 	
 int ZMatSVDSolver_NR3::decompose() {
 	if( pNRsvd )
-		delete pNRsvd;
+		delete pNRsvd;	
 	pNRsvd = new SVD( *pNRa );
 	return 1;
 }
@@ -105,17 +131,15 @@ int ZMatSVDSolver_NR3::rank() {
 }
 
 void ZMatSVDSolver_NR3::zmatGet( ZMat &U, ZMat &S, ZMat &Vt ) {
-	U.alloc( pNRsvd->u.nrows(), pNRsvd->u.ncols(), zmatF64 );
+	copyNRMatToZMat( pNRsvd->u, U );
+
 	S.alloc( pNRsvd->w.size(), 1, zmatF64 );
-	Vt.alloc( pNRsvd->v.ncols(), pNRsvd->v.nrows(), zmatF64 );
-
-	memcpy( U.mat, pNRsvd->u.v[0], U.rows*U.cols*sizeof(double) );
 	memcpy( S.mat, pNRsvd->w.v, S.rows*sizeof(double) );
-	memcpy( Vt.mat, pNRsvd->v.v[0], Vt.rows*U.cols*sizeof(double) );
+		// w is a NRvector, not a NRMatrix
 
-	U.flipOrder();
-	//Vt.flipOrder();
-		// NR3 is row-major, ZMat is col-major, NR presents V, and we want Vt.
+	ZMat V;
+	copyNRMatToZMat( pNRsvd->v, V );
+	zmatTranspose( V, Vt );
 }
 
 //---------------------------------------------------------------------------------------------
