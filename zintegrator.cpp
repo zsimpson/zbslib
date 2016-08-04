@@ -325,10 +325,10 @@ ZIntegratorRosenbrockStifflyStable::ZIntegratorRosenbrockStifflyStable(
 		#ifdef NO_GSL
 			// This is a special #define that plugins may utilize to prevent GPL'd GSL
 			// library from being used.  KinTek non-dev versions use this.
-			lu = new ZMatLUSolver_NR3( a, dim, dim, 0 );
+			luSolver = new ZMatLUSolver_NR3( a, dim, dim, 0 );
 		#else					
 			// but by default, all non-commercial software uses GSL.
-			lu = new ZMatLUSolver_GSL( a, dim, dim, 0 );
+			luSolver = new ZMatLUSolver_GSL( a, dim, dim, 0 );
 		#endif
 	#endif
 }
