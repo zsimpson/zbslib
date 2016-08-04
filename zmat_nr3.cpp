@@ -118,11 +118,22 @@ int ZMatSVDSolver_NR3::decompose() {
 	return 1;
 }
 
-int ZMatSVDSolver_NR3::solve( double *B, double *x ) {
-	// solve Ax = B, must call decompose() first.
-	VecDoub b( rows, B, 1 );
+int ZMatSVDSolver_NR3::solve( double *b, double *x ) {
+	// solve Ax = b, must call decompose() first.
+	VecDoub _b( rows, b, 1 );
 	VecDoub _x( cols, x, 1 );
-	pNRsvd->solve( b, _x );
+	pNRsvd->solve( _b, _x );
+	return 1;
+}
+
+int ZMatSVDSolver_NR3::solveMat( ZMat &B, ZMat &X ) {
+	// solve Ax = b, must call decompose() first.
+	if( X.rows != this->cols || X.cols != B.cols ) {
+		X.alloc( this->cols, B.cols, zmatF64 );
+	}
+	for( int i=0; i<B.cols; i++ ) {
+		solve( B.getPtrD(0,i), X.getPtrD(0,i) );
+	}
 	return 1;
 }
 
@@ -172,11 +183,9 @@ int ZMatQRSolver_NR3::solveMat( ZMat &B, ZMat &X ) {
 	if( X.rows != this->cols || X.cols != B.cols ) {
 		X.alloc( this->cols, B.cols, zmatF64 );
 	}
-
 	for( int i=0; i<B.cols; i++ ) {
 		solve( B.getPtrD(0,i), X.getPtrD(0,i) );
-	}
-	
+	}	
 	return 1;
 }
 

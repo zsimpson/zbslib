@@ -336,7 +336,7 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 					}
 				#endif
 				float current = color[_ramps[i].component];
-				printf( "startin ramp %d: current color is %.2f,%.2f,%.2f\n", i, color.r, color.g, color.b );
+				//printf( "startin ramp %d: current color is %.2f,%.2f,%.2f\n", i, color.r, color.g, color.b );
 				float delta = ( target - color[_ramps[i].component] ) / (_ramps[i].steps - 1);
 				if( delta < 0 ) delta = -delta;
 				for( int j=0; j<_ramps[i].steps; j++, index++ ) {

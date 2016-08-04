@@ -894,10 +894,10 @@ void KineticTrace::polyFit() {
 		#ifdef NO_GSL
 			// This is a special #define that plugins may utilize to prevent GPL'd GSL
 			// library from being used.  KinTek non-dev versions use this.
-			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 0 );
+			lu = new ZMatLUSolver_NR3( (double*)m.mat, 6, 6, 0 );
 		#else					
 			// but by default, all non-commercial software uses GSL.
-			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 0 );
+			lu = new ZMatLUSolver_GSL( (double*)m.mat, 6, 6, 0 );
 		#endif
 	#endif
 
