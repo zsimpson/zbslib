@@ -153,6 +153,14 @@ void ZMatSVDSolver_NR3::zmatGet( ZMat &U, ZMat &S, ZMat &Vt ) {
 	zmatTranspose( V, Vt );
 }
 
+// Handy free-function
+void zmatSVD_NR3( ZMat &A, ZMat &U, ZMat &S, ZMat &Vt ) {
+	ZMatSVDSolver_NR3 svd( A );
+	svd.decompose();
+	svd.zmatGet( U, S, Vt );
+}
+
+
 //---------------------------------------------------------------------------------------------
 // ZMatQRSolver_NR3
 

@@ -55,6 +55,7 @@ public:
 	int rank();
 	void zmatGet( ZMat &U, ZMat &S, ZMat &Vt );
 };
+void zmatSVD_NR3( ZMat &A, ZMat &U, ZMat &S, ZMat &Vt );
 
 struct QRdcmp;
 class ZMatQRSolver_NR3 : public ZMatLinEqSolver_NR3 {
