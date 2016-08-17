@@ -113,9 +113,17 @@ ZMatSVDSolver_NR3::~ZMatSVDSolver_NR3() {
 	
 int ZMatSVDSolver_NR3::decompose() {
 	if( pNRsvd )
-		delete pNRsvd;	
-	pNRsvd = new SVD( *pNRa );
-	return 1;
+		delete pNRsvd;
+	
+	int success = 1;
+	try {
+		// NR3 may throw() if the decomposition does not converge in some max_iterations
+		pNRsvd = new SVD( *pNRa );
+	}
+	catch(...) {
+		success = 0;
+	}
+	return success;
 }
 
 int ZMatSVDSolver_NR3::solve( double *b, double *x ) {
