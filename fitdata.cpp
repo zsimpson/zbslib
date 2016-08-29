@@ -980,7 +980,7 @@ void FitData::updateParamErrorsFromCovar( double errScale ) {
 		ParamInfo *pi = paramByOrder( i );
 		assert( pi );
 		if( pi->usedByFit() ) {
-			pi->covarStdError2x = covar.getF( pi->fitIndex, pi->fitIndex ) * 2.0 * errScale;
+			pi->covarStdError2x = sqrt(covar.getF( pi->fitIndex, pi->fitIndex )) * 2.0 * errScale;
 		}
 		else {
 			// not used by fit, so bestFit is just initial
