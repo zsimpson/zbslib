@@ -4419,6 +4419,23 @@ int KineticSystem::reactionGetFromReagents( char *_in0, char *_in1, char *_out0,
 	return -1;
 }
 
+int KineticSystem::reactionIspH( int reaction ) {
+	// returns 1 if H+ is bound in forward direction, -1 if reverse, 0 if no pH term.
+	Reaction *r = &reactions[reaction];
+	if( r->in0 != -1 && !strcmp( reagents[r->in0], "pH" ) ) {
+		return 1;
+	}
+	if( r->in1 != -1 && !strcmp( reagents[r->in1], "pH" ) ) {
+		return 1;
+	}
+	if( r->out0 != -1 && !strcmp( reagents[r->out0], "pH" ) ) {
+		return -1;
+	}
+	if( r->out1 != -1 && !strcmp( reagents[r->out1], "pH" ) ) {
+		return -1;
+	}
+	return 0;
+}
 
 char * KineticSystem::reactionGetRateName( int reaction ) {
 	// This function assumes that forward and backward reactions occur in matched
@@ -5459,14 +5476,16 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	int preprocessedLinkedReactionStride = viewInfo.getI( "preprocessedLinkedReactionStride", 1 ) * 2;
 	int preprocessedLinkedReactionCount = viewInfo.getI( "preprocessedLinkedReactionCount" ) * preprocessedLinkedReactionStride;
 	for( int r=0; r<reactionCount(); r++ ) {
+		int pH = reactionIspH( r );
 		KineticParameterInfo info;
 		info.type = PI_REACTION_RATE;
 		info.reaction = r;
 		strcpy( info.name, reactionGetRateName( r ) );
 		char *unique = reactionGetUniqueString( r );
 		saved        = unique ? (SavedKineticParameterInfo*)paramValues->getS( unique, 0 ) : 0;
-		info.value   = saved ? saved->value   : r&1 ? 1.0 : 10.0;
-		info.group   = saved ? saved->group   : 0;
+		double defaultValue = pH ? (r&1 ? 1000 : 10000) : (r&1 ? 1.0 : 10.0);
+		info.value   = saved ? saved->value   : defaultValue;
+		info.group   = saved ? saved->group   : ( pH && !(r&1) ? 1 : 0 );
 		info.fitFlag = saved ? saved->fitFlag : 1;
 		info.qIndex = q++;
 		info.pIndex = p++;
@@ -5581,7 +5600,16 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 							saved=(SavedKineticParameterInfo*)paramValues->getS( unique.s, 0 );
 						}
 
-						info.value   = saved ? saved->value   : ms==0 ? (i<2 ? 1.0 : 0.0) : 0;
+						int pH = !strcmp(info.name,"pH");
+						if( pH ) {
+							if( !saved ) {
+								ke->viewInfo.putI( ZTmpStr( "fixedReagentMix%d%s", ms, info.name ), 1 );
+									// If this is the first time to populate this reagent in the system,
+									// default it's experiment to hold this concentration fixed.
+							}
+						}
+						double defaultVal = !strcmp(info.name,"pH") ? 1e-7 : 1.0;
+						info.value   = saved ? saved->value   : ms==0 ? (i<2 ? defaultVal : 0.0) : 0;
 						info.group   = saved ? saved->group   : 0;
 						info.fitFlag = saved ? saved->fitFlag : 0;
 							// oct 2015: kintek is now allowing fit of initial conditions, but these should
