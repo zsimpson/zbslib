@@ -1705,6 +1705,30 @@ void KineticExperiment::delMixstep( int mixstep ) {
 
 	// System has been reparameterized: parameterInfo needs updating!
 }
+
+int KineticExperiment::getReagentFixedMatrix( ZMat &fixedConc, ZTLVec<int> *ignoreReagents ) {
+	fixedConc.alloc( reagentCount(), mixstepCount, zmatS32 );
+	fixedConc.zero();
+	int hasFixed = 0;
+	for( int i=0; i<fixedConc.rows; i++ ) {
+		if( ignoreReagents && (*ignoreReagents)[i] ) continue;
+		for( int j=0; j<fixedConc.cols; j++ ) {
+			if( viewInfo.has( ZTmpStr( "fixedReagentMix%d%s", j, system->reagentGetName( i ) ) ) ) {
+				fixedConc.putF( i, j, 1 );
+				hasFixed = 1;
+			}
+			if( viewInfo.getI( ZTmpStr( "purgeReagentMix%d%sHold", j, system->reagentGetName( i ) ) ) ) {
+				// This is a case perhaps could be folded into the fixedReagentMix and used in combination
+				// with the purge functionality, but I have written it as it's own case, of doing a 
+				// purge (handled within the mixstepCount loop below), and then holding it fixed by 
+				// this logic here.
+				fixedConc.putF( i, j, 1 );
+				hasFixed = 1;
+			}
+		}
+	}
+	return hasFixed;
+}
 	
 void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int steps ) {
 	zprofBeg( exp_sim );
@@ -1729,28 +1753,11 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	int	temperatureDepends	= system->isDependent( KineticSystem::DT_Temp );
 	int	concentrationDepends = system->isDependent( KineticSystem::DT_Conc );
 
-	int i,j,hasFixed=0;
-	ZMat fixedConc( reagentCount(), mixstepCount, zmatS32 );
-	fixedConc.zero();
-	for( i=0; i<fixedConc.rows; i++ ) {
-		for( j=0; j<fixedConc.cols; j++ ) {
-			if( viewInfo.has( ZTmpStr( "fixedReagentMix%d%s", j, system->reagentGetName( i ) ) ) ) {
-				fixedConc.putF( i, j, 1 );
-				hasFixed = 1;
-			}
-			if( viewInfo.getI( ZTmpStr( "purgeReagentMix%d%sHold", j, system->reagentGetName( i ) ) ) ) {
-				// This is a case perhaps could be folded into the fixedReagentMix and used in combination
-				// with the purge functionality, but I have written it as it's own case, of doing a 
-				// purge (handled within the mixstepCount loop below), and then holding it fixed by 
-				// this logic here.
-				fixedConc.putF( i, j, 1 );
-				hasFixed = 1;
-			}
-		}
-	}
+	ZMat fixedConc;
+	int hasFixed = getReagentFixedMatrix( fixedConc, system->systemFixedReagents );
 
 	double startTime = 0.0;
-	for( i=0; i<mixstepCount; i++ ) {
+	for( int i=0; i<mixstepCount; i++ ) {
 		// CALCULATE startTime/endTime for this step
 
 		double endTime = startTime + mixsteps[i].duration;
@@ -1905,7 +1912,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	
 	// Potentially copy derivative info into data section on a per-row basis
 	// if the [DERIV] command is present in the observable expression.
-	for( i=0; i<observableInstructions.count; i++ ) {
+	for( int i=0; i<observableInstructions.count; i++ ) {
 		char *obs = observableInstructions[ i ];
 		if( !obs ) {
 			trace( "ERROR: observable instruction %d is NULL!\n", i );
@@ -3796,6 +3803,63 @@ int KineticSystem::reagentIsUsedByReaction( int reagentIndex, int reactionIndex 
 		return 1;
 	}
 	return 0;
+}
+
+int KineticSystem::reagentsGetFixedFlag( ZTLVec<int> &fixedReagents ) {
+	// Based on our experiments, are there any reagents that can be held fixed
+	// at the system level (meaning all experiments must hold this reagent fixed
+	// for all mixsteps).  Return the count of system-fixed reagents, as well
+	// as placing a 
+	fixedReagents.setCount( reagents.count );
+	for( int i=0; i<reagents.count; i++ ) {
+		fixedReagents[i] = 1;
+	}
+
+	for( int i=0; i<experiments.count; i++ ) {
+		if( experiments[i]->slaveToExperimentId == -1 ) {
+			// Get a matrix for the experiment that tells us which reagents/mixsteps
+			// have fixed concentrations
+			ZMat fixedConc;
+			int hasFixed = experiments[i]->getReagentFixedMatrix( fixedConc, 0 );
+			if( hasFixed ) {
+				// loop over reagents
+				for( int r=0; r<fixedConc.rows; r++ ) {
+					// only examine this reagent if we haven't already ruled it out for holding 
+					// fixed at the system level.
+					if( fixedReagents[r] == 1 ) {
+						// loop over mixsteps if the first one is fixed
+						if( fixedConc.getI( r, 0 ) ) {
+							for( int m=1; m<fixedConc.cols; m++ ) {
+								if( !fixedConc.getI( r, m ) ) {
+									fixedReagents[r] = 0;
+										// not all mixsteps fixed, so system can't hold this one fixed.
+								}
+							}
+						}
+						else {
+							fixedReagents[r] = 0;
+								// system can't hold this one fixed.
+						}
+					}
+				}
+			}
+			else {
+				return 0;
+					// if even one experiment doesn't hold any reagents fixed, then the system
+					// can't hold any reagent fixed.
+			}
+		}
+	}
+
+	// Now count up any reagents that were held fixed across all experiments and mixsteps.
+	// These are the ones we can hold fixed at the system level.
+	int fixedCount = 0;
+	for( int i=0; i<reagents.count; i++ ) {
+		if( fixedReagents[i] ) {
+			fixedCount++;
+		}
+	}	
+	return fixedCount;
 }
 
 void KineticSystem::reactionAddByNames( char *in0, char *in1, char *out0, char *out1 ) {
@@ -5910,6 +5974,12 @@ void KineticSystem::simulate( int forceAllExp /* =1 */, int steps /* =-1 */) {
 	assert( vmd );
 	ZMat q;
 
+	ZTLVec<int> sysFixedReagents;
+	int hasFixed = reagentsGetFixedFlag( sysFixedReagents );
+	systemFixedReagents = hasFixed ? &sysFixedReagents : 0;
+		// experimental: point to a vector of flags indicating which reagents are
+		// fixed for the entire system, if any are.
+
 	for( int i=0; i<experiments.count; i++ ) {
 		KineticExperiment *e = experiments[ i ];
 		SIMSTATE_LOCK( this );
@@ -5955,7 +6025,6 @@ int KineticSystem::getMasterExperiments( ZTLVec< KineticExperiment* > &exps, int
 	}
 	return count;
 }
-	
 
 void KineticSystem::compile() {
 
@@ -6488,6 +6557,13 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 		}
 	}
 
+	// tfb oct2016: in some situations it is possible that the derivative for a reagent
+	// should be 0 (the reagent is held fixed - across ALL experiment and mixsteps).
+	// This is an optimization over writing the fixed value at each step in integrateD.
+	ZTLVec<int> fixedReagents;
+	fixedReagents.setCount( system->reagents.count );
+	int hasFixedReagents = system->reagentsGetFixedFlag( fixedReagents );
+
 	bytecode.reset();
 	bytecode.grow = 1024;
 
@@ -6518,6 +6594,9 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 		// CHECK each side of the reaction to see if reagent i is involved
 		for( int side=0; side<2; side++ ) {
 			for( int ri=0; ri<reactCounts[side]; ri++ ) {
+				if( fixedReagents[i] ) continue;
+					// derivative will be 0, concentration will be fixed.
+					// TODO: kintek doesn't use H, but this may want to be there as well.
 				r = reacts[side][ri];
 				int in0 = system->reactionGet(r,0,0);
 				int in1 = system->reactionGet(r,0,1);
@@ -6564,6 +6643,9 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 				// CHECK each side of the reaction to see if reagent i is involved
 				for( int side=0; side<2; side++ ) {
 					for( int ri=0; ri<reactCounts[side]; ri++ ) {
+						if( fixedReagents[i] ) continue;
+							// all partial derivs of fixed reagent are 0
+
 						r = reacts[side][ri];
 						int in0 = system->reactionGet(r,0,0);
 						int in1 = system->reactionGet(r,0,1);

@@ -625,6 +625,9 @@ struct KineticExperiment {
 	void mixstepSetDilution( int mixstep, double duration );
 		// set mixstep dilution for this exp and any slaved to it
 
+	int getReagentFixedMatrix( ZMat &fixedConc, ZTLVec<int> *ignoreReagents );
+		// fills a matrix that indicates which reagents/mixsteps have fixed concentrations
+
 	// Equilibirum flags
 	//------------------------------------------------------------
 	//
@@ -949,6 +952,9 @@ struct KineticSystem {
 	//----------------------------------------
 	ZTLPVec<char> reagents;
 		// Holds reagent names
+	
+	ZTLVec<int> *systemFixedReagents;
+		// temp, non-saved, set during ::simulate
 
 	int reagentCount() { return reagents.count; }
 
@@ -970,6 +976,9 @@ struct KineticSystem {
 		// Returns -1 if not found
 
 	int reagentIsUsedByReaction( int reagentIndex, int reactionIndex );
+
+	int reagentsGetFixedFlag( ZTLVec<int> &fixedReagents );
+		// which reagents can be held fixed at the system level (across all experiments/mixsteps)
 
 	// Reactions
 	//----------------------------------------
@@ -1121,6 +1130,13 @@ struct KineticSystem {
 	int getMasterExperiments( ZTLVec< KineticExperiment* > &exps, int plottedOnly=0 );
 		// populate list of the master experiments (those not slaved to
 		// another experiment, returning count added to list.
+
+	void updateSystemReagentHoldFixedForExperiments();
+		// this is a hack to see if we can cause the system to hold a reagent fixed at the
+		// system level, which is possible if all experiments hold the same reagent fixed.
+		// If this is possible, we can cause the reagent to hold fixed by adjusting 
+		// the compilation of KineticVMCodeD; otherwise, we have to reset the reagent value
+		// at each step inside of integrateD.  tfb oct 2016
 	
 	// Hashtables used for general information storage. viewInfo started as a place to store things
 	// used by the render thread, and grew to hold all kinds of stuff.  So viewInfo is used with
