@@ -3844,9 +3844,12 @@ int KineticSystem::reagentsGetFixedFlag( ZTLVec<int> &fixedReagents ) {
 				}
 			}
 			else {
+				// if even one experiment doesn't hold any reagents fixed, then the system
+				// can't hold any reagent fixed.
+				fixedReagents.setCount( 0 );
+				fixedReagents.setCount( reagents.count );
+					// cause all entries to be set to 0
 				return 0;
-					// if even one experiment doesn't hold any reagents fixed, then the system
-					// can't hold any reagent fixed.
 			}
 		}
 	}
