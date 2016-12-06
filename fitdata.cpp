@@ -442,6 +442,15 @@ void FitData::copy( FitData &toCopy, KineticSystem *fit, KineticSystem *jac, boo
 
 //----------------------------------------
 
+int jacSystemHasData( KineticSystem *jac ) {
+	for( int i=0; i<jac->experiments.count; i++ ) {
+		if( jac->experiments[i]->measuredHasAnyData() ) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void FitData::setupKineticSystems( FitData *initFrom, KineticSystem *fs, KineticSystem *js, bool bOwned ) {
 	// this was formerly copyKineticSystem - but I want to be able to
 	// deal in subclassed KintekSystems as well, so I removed the previous
@@ -465,7 +474,7 @@ void FitData::setupKineticSystems( FitData *initFrom, KineticSystem *fs, Kinetic
 	if( bOwned && initFrom ) {
 		fs->copy( *initFrom->fitSystem );
 		fs->compile();
-		js->copy( *fs, 1, 0 );
+		js->copy( *fs, 1, jacSystemHasData(initFrom->jacSystem) );
 		js->compile();
 	}
 
