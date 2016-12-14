@@ -826,15 +826,20 @@ struct KineticExperiment {
 	#ifdef KIN_MULTITHREAD
 		PMutex traceOCMutex;
 		PMutex traceFWMutex;
+		PMutex measuredMutex;
 		#define TRACEOC_LOCK(x)    x->traceOCMutex.lock()
 		#define TRACEOC_UNLOCK(x)  x->traceOCMutex.unlock()
 		#define TRACEFW_LOCK(x)    x->traceFWMutex.lock()
 		#define TRACEFW_UNLOCK(x)  x->traceFWMutex.unlock()
+		#define MEASURED_LOCK(x)    x->measuredMutex.lock()
+		#define MEASURED_UNLOCK(x)  x->measuredMutex.unlock()
 	#else
 		#define TRACEOC_LOCK(x)    
 		#define TRACEOC_UNLOCK(x)  
 		#define TRACEFW_LOCK(x)    
 		#define TRACEFW_UNLOCK(x)  
+		#define MEASURED_LOCK(x)
+		#define MEASURED_UNLOCK(x)
 	#endif
 
 
