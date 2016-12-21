@@ -43,7 +43,7 @@ char * chompWhiteLeading( char *s, int chompTabs ) {
 	// will not point to the starting malloc address!
 
 	while( *s && isspace( *s ) && (chompTabs || *s!='\t')) {
-		*s++;
+		s++;
 			// note that we do not write 0x0 into the string:
 			// we simply increment, and return the pointer to
 			// the first non-space char; see warning.

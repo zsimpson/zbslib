@@ -165,6 +165,11 @@ double KineticTrace::getSigma( int i, int j, normalizeType nt, double defaultVal
 			getBoundsForRow( 0, minData, maxData, 1 );
 			returnVal = maxData;
 			break;
+			
+		case NT_Invalid:
+		case NT_NumTypes:
+			// silence g++ warnings about unhanlded cases.
+		break;
 
 	}
 	if( returnVal == 0.0 ) {
@@ -1216,7 +1221,7 @@ int KineticTrace::getBoundsForRange( int row, double &minY, double &maxY, double
 	for( int r=rbegin; r<rend; r++ ) {
 		double *pval = derivBounds ? (derivs + r) : (data + r); 
 		for( int i=0; i<cols; i++, pval+=rows ) {
-			if( time[i] >= t0 && time[i] <= t1 || doubleeq(time[i],t0) || doubleeq(time[i],t1) ) {
+			if( (time[i] >= t0 && time[i] <= t1) || doubleeq(time[i],t0) || doubleeq(time[i],t1) ) {
 				// the above could be optimized if we assume the time values to be in order
 				maxY = max( maxY, *pval );
 				minY = min( minY, *pval );
@@ -3971,7 +3976,7 @@ char * KineticSystem::expandChainReaction( char *text ) {
 		int len = strlen( first ) + (strlen(a0) + strlen(a1) + 3) * count + lastlen;
 		char *newText = (char *)malloc( len * 2 );
 		
-		sprintf( newText, first );
+		sprintf( newText, "%s", first );
 		strcat( newText, ZTmpStr( "%s=%s", a0, a1 ) );
 
 		for( int i=0; i<count-1; i++ ) {
@@ -4048,7 +4053,7 @@ char * KineticSystem::expandRepeatedReaction( char *text ) {
 	
 			int len = strlen( first ) + strlen(middle) * (count_last-count_first+1) + strlen(last);
 			char *newText = (char *)malloc( len * 2 );
-			sprintf( newText, first );
+			sprintf( newText, "%s", first );
 
 			// Note: zStrReplace uses ZRegExp, so the internal static bufs may get overwritten.
 			// So below we'll be getting "last" and "middle" again before using them.
