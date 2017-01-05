@@ -41,6 +41,13 @@ struct fitDataContext {
 	double time1;
 		// similarly, then end of the section of the function we are fitting - though the last
 		// datapoint may occur before this.
+
+	double *spectraResidual;
+		// experimental - a non-copied, non-saved temporary pointer into memory used 
+		// by a fitter to hold error terms during a fit.  This points to the error terms
+		// for a a given experiment that is being fit to "total 3d spectra", and is used
+		// during jacobian calculation, where we want to look at the derivative of this error
+		// surface.
 	
 	//=========================================================================================
 	// This section tells which which data will be fit -- from here we can retrieve the time
@@ -96,8 +103,7 @@ int dataRow[ FDC_FITOBSERVABLES_MAX ];
 		memset( dataToFit, 0, sizeof(dataToFit) );
 		memset( dataRow, 0, sizeof( dataRow ) );
 		clearEvalTraces();
-		//		memset( functionTrace, 0, sizeof( functionTrace ) );
-//		aFitToSimulatedObsTimeTrace.clear();
+		spectraResidual = 0;
 	}
 
 	int setupFitForExperiment( int typeOfDataToFit, KineticExperiment *e );
