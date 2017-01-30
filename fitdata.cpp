@@ -1057,10 +1057,23 @@ double* FitData::getDataToFit( double *vec /*=0*/ ) {
 //----------------------------------------
 
 void FitData::print() {
+
+	double chi			= sqrt( chi2 );
+	double c			= max( 1, chi / sqrt((double)dof) );
+		// if chi2/dof is >> 1, the error term from covar matrix 
+		// will be too small.  In this case it is common to multiply the error
+		// by chi/sqrt(dof) to compensate.  (according to gsl docs)
+		// see example & docs in Nonlinear LeastSquare Fitting chapter.
+	// 2016 May: if the fit was NOT normalized by known sigma, the chi2/dof metric
+	// is meaningless.
+	if( properties.getI( "errorsScaledBySigma" ) ) {
+		c = 1.0;
+	}
+
 	int count = params.activeCount();
-	trace( "FitData chi2=%g, nData=%d, normalizeType=%s\n", chi2, nDataPointsToFit, getNormalizeTypeString(fitNormalizeType) );
-	trace( " %c %-15s %-12s %-12s\n", ' ', "name", "initial", "bestfit" );
-	char initial[16], bestfit[16];
+	trace( "FitData chi2=%g, c=%g, nData=%d, normalizeType=%s\n", chi2, c, nDataPointsToFit, getNormalizeTypeString(fitNormalizeType) );
+	trace( " %c %-15s %-12s %-12s %-12s\n", ' ', "name", "initial", "bestfit", "stderr2x*c" );
+	char initial[16], bestfit[16], stderr[16];
 	for( int i=0; i<count; i++ ) {
 		ParamInfo *pi = paramByOrder( i );
 		double iVal = pi->initialValue;
@@ -1071,12 +1084,13 @@ void FitData::print() {
 //		}
 		sprintf( initial, "%g", iVal );
 		sprintf( bestfit, "%g", bVal );
-		trace( " %c %-15s %-12s %-12s", pi->constraint==CT_FIXED ? 'X' : 
+		sprintf( stderr, "%g", pi->covarStdError2x * c );
+		trace( " %c %-15s %-12s %-12s %-12s\n", pi->constraint==CT_FIXED ? 'X' : 
 										pi->constraint==CT_NONNEGATIVE ? '+' :
 										pi->constraint==CT_NONPOSITIVE ? '-' :
 										pi->constraint==CT_RATIO ? 'R' :
 										pi->constraint==CT_BOX ? 'B' : ' ',
-										pi->paramName, initial, bestfit );
+										pi->paramName, initial, bestfit, stderr );
 		if( pi->constraint == CT_RATIO ) {
 			printf( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
 		}
