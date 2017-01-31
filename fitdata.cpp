@@ -1073,7 +1073,7 @@ void FitData::print() {
 	int count = params.activeCount();
 	trace( "FitData chi2=%g, c=%g, nData=%d, normalizeType=%s\n", chi2, c, nDataPointsToFit, getNormalizeTypeString(fitNormalizeType) );
 	trace( " %c %-15s %-12s %-12s %-12s\n", ' ', "name", "initial", "bestfit", "stderr2x*c" );
-	char initial[16], bestfit[16], stderr[16];
+	char initial[16], bestfit[16], err[16];
 	for( int i=0; i<count; i++ ) {
 		ParamInfo *pi = paramByOrder( i );
 		double iVal = pi->initialValue;
@@ -1084,13 +1084,13 @@ void FitData::print() {
 //		}
 		sprintf( initial, "%g", iVal );
 		sprintf( bestfit, "%g", bVal );
-		sprintf( stderr, "%g", pi->covarStdError2x * c );
+		sprintf( err, "%g", pi->covarStdError2x * c );
 		trace( " %c %-15s %-12s %-12s %-12s\n", pi->constraint==CT_FIXED ? 'X' : 
 										pi->constraint==CT_NONNEGATIVE ? '+' :
 										pi->constraint==CT_NONPOSITIVE ? '-' :
 										pi->constraint==CT_RATIO ? 'R' :
 										pi->constraint==CT_BOX ? 'B' : ' ',
-										pi->paramName, initial, bestfit, stderr );
+										pi->paramName, initial, bestfit, err );
 		if( pi->constraint == CT_RATIO ) {
 			printf( " ( == %g * %s )", pi->ratio, pi->ratioMasterParamName );
 		}
