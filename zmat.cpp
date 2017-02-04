@@ -1503,3 +1503,18 @@ void zmatSortColsByRow0Value( ZMat &mat ) {
 		// If you want other types, just need to change compareFn below
 	qsort( mat.mat, mat.cols, mat.elemSize * mat.rows, doubleCompare );
 }
+
+void zmatReverseCols( ZMat &mat ) {
+	// This depends on ZMat being column-major
+	int colSize = mat.rows * mat.elemSize;
+	char *tmp = (char*)alloca( colSize );
+	char *begCol = mat.mat;
+	char *endCol = mat.mat + (mat.cols-1) * colSize;
+	for( int i=0; i<mat.cols/2; i++ ) {
+		memcpy( tmp, begCol, colSize );
+		memcpy( begCol, endCol, colSize );
+		memcpy( endCol, tmp, colSize );
+		begCol += colSize;
+		endCol -= colSize;
+	}
+}

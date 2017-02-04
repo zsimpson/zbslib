@@ -303,6 +303,9 @@ void zmatDiagonalMatrixToVector( ZMat &mat, ZMat &vec );
 void zmatSortColsByRow0Value( ZMat &mat );
 	// qsorts the cols based on values in row 0
 
+void zmatReverseCols( ZMat &mat );
+	// reverse order of columns, in place.
+
 
 /*
 class ZMatLUSolver {
