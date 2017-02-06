@@ -24,6 +24,7 @@
 	__declspec(dllimport) void __stdcall OutputDebugStringA( const char *lpOutputString );
 	}
 	#define OutputDebugString OutputDebugStringA
+	#include "malloc.h"
 #endif
 // SDK includes:
 // STDLIB includes:
