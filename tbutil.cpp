@@ -404,48 +404,6 @@ void getSpectralRGB( float val, FVec3 &color, float range1BoundaryValue, int gra
 	}
 }
 
-#include "wingl.h"
-// SDK includes:
-#ifdef __APPLE__
-#include "OpenGL/gl.h"
-#else
-#include "GL/gl.h"
-#endif
-#include "zglfont.h"
-void spectralLegend( float _x, float _y, float width, float height, float minVal, float maxVal, int invert  ) {
-	// SPECTRAL COLOR LEGEND in 2d
-
-	glBegin( GL_QUAD_STRIP );
-	FVec3 colorq;
-	float stepy = height / 64.f;
-	for( int q=0; q<=64; q++ ) {
-		float val = q/64.f;
-		if( invert ) { val = 1.f - val; }
-		getSpectralRGB( val, colorq );
-		glColor3fv( colorq );
-		glVertex2f( _x + 0.f, _y + stepy * q );
-		glVertex2f( _x + width, _y + stepy * q );
-	}
-	glEnd();
-	
-	#define LEGEND_COUNT 5
-	float dstQuart = (maxVal - minVal) / 4.f;
-	float legendValues[LEGEND_COUNT] = { minVal, minVal + dstQuart, minVal + dstQuart*2.f, minVal + dstQuart*3.f, maxVal };
-	ZTmpStr label;
-	stepy = height / ( LEGEND_COUNT - 1 );
-	for( int i=0; i<LEGEND_COUNT; i++ ) {
-		double val = ( legendValues[ i ] - minVal ) / ( maxVal - minVal );
-		if( invert ) { val = 1.0 - val; }
-
-		label.set( "%s", formatFloat( legendValues[ i ], 4 ) );
-
-		getSpectralRGB( (float)val, colorq );
-		glColor3fv( colorq ); 
-		zglFontPrint( label.s, _x + width, _y + stepy*i - 7, "controls" );
-			// -7 is to roughly center the text on the legend value
-	}
-}
-
 //-----------------------------------------------------------------
 // standard plot colors: by tfb, originall for kinexp
 

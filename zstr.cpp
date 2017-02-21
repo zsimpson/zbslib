@@ -506,7 +506,7 @@ ZStr *zStrReadFile( char *file, char *eofTag /*=0*/ ) {
 			last = lineZStr;
 		}
 		fclose( f );
-		delete line;
+		delete [] line;
 		return first;
 	}
 	return 0;

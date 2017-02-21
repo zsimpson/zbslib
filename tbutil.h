@@ -84,11 +84,6 @@ void getSpectralRGB( float val, FVec3 &color, float range1ColorBoundary=-1, int 
 	// in: colorBandSize
 	// out: color -- color in rgb space (for spectral plots)
 
-void spectralLegend( float _x, float _y, float width, float height, float minVal, float maxVal, int invert=1  );
-	// SPECTRAL COLOR LEGEND in 2d
-
-
-
 
 #define PLOTCOLORS_COUNT 12
 extern const unsigned char plotColors[PLOTCOLORS_COUNT][3];
