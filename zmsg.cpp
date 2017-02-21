@@ -34,9 +34,14 @@
 	// Very instructive in realizing the huge number of zui messages due to moving, resizing etc...
 #ifdef TRACEMSG
 	// debug: stuff "tracemsg='blah blah'" into any message and have it traced during dispatch
+// @ZBSIF extraDefines( 'TRACEMSG' )
+// the above is for the perl-parsing of files for dependencies; we don't
+// want the dependency builder to see these includes if TRACEMSG is not
+// defined.  Otherwise you'll get zui, freetype dependencies etc. (tfb)
 	#include "zui.h" 
 	#include "ztmpstr.h"
 	extern void trace( char *msg, ... );
+// @ZBSENDIF
 #endif
 
 static char zMsgTempString[4096*4];
