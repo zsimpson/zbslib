@@ -94,13 +94,13 @@ void ZUIPlot::render() {
 
 	int plotLogX = getI( "plotLogX" );
 	if( plotLogX ) {
-		x0 = (float)getI( "minLogscaleExponentX", 0 );
+		x0 = (float)getD( "minLogscaleExponentX", 0 );
 		x1 = x1 == 0 ? 0 : log10f( x1 );
 		if( x1 <= x0 ) x1 = x0 + 1;
 	}
 	int plotLogY = getI( "plotLogY" );
 	if( plotLogY ) {
-		y0 = (float)getI( "minLogscaleExponentY", 0 );
+		y0 = (float)getD( "minLogscaleExponentY", 0 );
 		y1 = y1 == 0 ? 0 : ceilf( log10f( y1 ) );
 		if( x1 <= x0 ) x1 = x0 + 1;
 	}
