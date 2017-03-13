@@ -1761,8 +1761,13 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	ZMat fixedConc;
 	int hasFixed = getReagentFixedMatrix( fixedConc, system->systemFixedReagents );
 
+	int isEquilibrium = viewInfo.getI( "isEquilibrium" );
+	int computeMixstepCount = isEquilibrium ? mixstepCount-1 : mixstepCount;
+		// If this is a titration/eq experiment with multiple mixsteps, this function
+		// will be called to compute the first n-1 mixsteps for incubation.
+
 	double startTime = 0.0;
-	for( int i=0; i<mixstepCount; i++ ) {
+	for( int i=0; i<computeMixstepCount; i++ ) {
 		// CALCULATE startTime/endTime for this step
 
 		double endTime = startTime + mixsteps[i].duration;
