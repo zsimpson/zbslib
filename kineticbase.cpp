@@ -2092,14 +2092,17 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 					duration -= mixstepDilutionTime;
 				}
 				mixstepsToCreateDataFor = 1;
+
+				if( isEquilibrium && mixstepDomain == mixstepIndexForSeries ) {
+					// This is a special case in which the observable output has nothing to
+					// do with the simulation time or mixtep durations (its domain is concentration).
+					duration = endTime - dataTime - dataToSimulationOffset;
+						// Subtract the mixstepStartTime (here as dataToSim...) because that was
+						// added to the data domain values to produce a sane time array for this
+						// mixed-domain KineticTrace.
+				}
 			}
 
-			if( isEquilibrium ) {
-				// This is a special case in which the observable output has nothing to
-				// do with the simulation time or mixtep durations (its domain is concentration).
-				duration = endTime - dataTime;
-				mixstepsToCreateDataFor = 1;
-			}
 			
 			int dataCreateCount = N * mixstepsToCreateDataFor;
 
@@ -3403,12 +3406,20 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVe
 		if( sigmas ) {
 			sigmas->set( i, normVal );
 		}
+
+		int ignoreMixsteps = viewInfo.getI( "isEquilibrium" );
+			// because equilibrium experiments have data that is really in the
+			// concentration domain, and the mixstep start time is added to this
+			// value to map the data into the correct final titrating mixstep,
+			// we want to ignoreMixsteps when getting the SLERP of the traceOC,
+			// since that is done to align 0-based data with non-0-based mixsteps.
+
 		int mcount = measuredCount( i );
 		double sum = 0.0;
 		for( int j=0; j<mcount; j++ ) {
 			double m = measured[i]->getData( j, 0 );
 			double t = measured[i]->getTime( j );
-			double s = getTraceOCSLERP( t, i );
+			double s = getTraceOCSLERP( t, i, ignoreMixsteps );
 			double err = ( m - s );
 			if( normalize != NT_None ) {
 				if( normalize == NT_Sigma ) {
