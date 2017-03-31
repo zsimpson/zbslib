@@ -177,7 +177,7 @@ char * formatFloat( double val, int sig, char formatCode, int width, bool leftJu
 }
 
 //-----------------------------------------------------------------------------------------
-
+extern char* convertSlashes(char *s, char _dirChar);
 char * addSubfolder( char *filepath, char *subfolder, bool createFolder ) {
 	// e.g. : 
 	// addSubfolder( path, "DEEPER" ) =>  /some/path/filename.txt -> /some/path/DEEPER/filename.txt
@@ -193,6 +193,7 @@ char * addSubfolder( char *filepath, char *subfolder, bool createFolder ) {
 #endif
 	}
 	char *tmp = zFileSpecMake( FS_DRIVE, fs.getDrive(), FS_DIR, fs.getDir(), FS_DIR, subfolder, FS_FILE, fs.getFile(0), FS_EXT, fs.getExt(), FS_END );
+	convertSlashes(tmp, '/' );
 	strncpy( addSubfolderResults, tmp, 512 );
 	addSubfolderResults[511]=0;
 	return addSubfolderResults;
