@@ -9,6 +9,7 @@
 #include "zrgbhsv.h"
 #include "ztmpstr.h"
 #include "zregexp.h"
+#include "zfilespec.h"
 
 // C
 //#define MALLOC_DEBUG
@@ -20,6 +21,13 @@
 #endif
 #include "ctype.h"
 #include "stdio.h"
+
+#ifdef WIN32
+#include "direct.h"
+#else
+#include "sys/stat.h"
+	// mkdir
+#endif
 
 //-----------------------------------------------------------------------------------------
 // dealing with char* whitespace
@@ -169,6 +177,27 @@ char * formatFloat( double val, int sig, char formatCode, int width, bool leftJu
 }
 
 //-----------------------------------------------------------------------------------------
+
+char * addSubfolder( char *filepath, char *subfolder, bool createFolder ) {
+	// e.g. : 
+	// addSubfolder( path, "DEEPER" ) =>  /some/path/filename.txt -> /some/path/DEEPER/filename.txt
+
+	static char addSubfolderResults[512];
+	ZFileSpec fs( filepath );
+	if( createFolder ) {
+		char *sf = zFileSpecMake( FS_DRIVE, fs.getDrive(), FS_DIR, fs.getDir(), FS_DIR, subfolder, FS_END );
+#ifdef WIN32
+		_mkdir( sf );
+#else
+		mkdir( sf, 0777 );
+#endif
+	}
+	char *tmp = zFileSpecMake( FS_DRIVE, fs.getDrive(), FS_DIR, fs.getDir(), FS_DIR, subfolder, FS_FILE, fs.getFile(0), FS_EXT, fs.getExt(), FS_END );
+	strncpy( addSubfolderResults, tmp, 512 );
+	addSubfolderResults[511]=0;
+	return addSubfolderResults;
+}
+
 
 char * replaceExtension( char *filepath, char *newExt, bool lastOnly ) {
 	// SET or REPLACE extension in filepath. This will replace multitple

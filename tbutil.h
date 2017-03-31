@@ -55,6 +55,8 @@ char * formatFloat( double val, int sig=3, char formatCode='g', int width=-1, bo
 extern int FF_USETABS;
 	// a global flag controlling formatFloat space/tab usage;
 
+char * addSubfolder( char *filepath, char *subfolder, bool createFolder=1 );
+	// add a subfolder onto the path, preserving the filename
 
 char * replaceExtension( char *filepath, char *newExt, bool lastOnly=1 );
 	// replace last or multiple extensions with new string. 
