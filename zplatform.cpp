@@ -9,6 +9,7 @@
 	#include "stdlib.h"
 	#include "math.h"
 	#include "Carbon/Carbon.h"
+	#include "sys/sysctl.h"
 #endif
 
 
@@ -191,8 +192,10 @@ int zplatformGetNumProcessors() {
 
 	//---APPLE-----------------------------------------
 	#ifdef __APPLE__
-		// @TODO
-		return 1;
+		int ncpu;
+		size_t bufsize = sizeof( ncpu );
+	    sysctlbyname( "hw.physicalcpu",&ncpu,&bufsize,NULL,0);
+		return ncpu;
 	#endif
 
 	//---LINUX-----------------------------------------
