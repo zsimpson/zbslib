@@ -201,8 +201,10 @@ struct ZUI : ZUIHash {
 	static void orderBelow( ZUI *toMoveZUI, ZUI *referenceZUI );
 	ZUI *findByCoord( float winX, float winY );
 		// Recurses from the caller into the children, returns the top most hit at that coord
-	ZUI *findByCoordWithAttribute( float winX, float winY, char *key, char *val );
+	ZUI *findByCoordWithAttribute( float winX, float winY, char *key, char *val, int searchHidden=1 );
 		// Same, with additional requirement to find some key/val match
+		// june 2017 - additional default param that mimics previous behavior, but allows us
+		// to defeat searching down hidden branches of the zui tree.
 
 	// HIERARCHY
 	ZUI *parent;

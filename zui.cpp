@@ -902,13 +902,15 @@ ZUI *ZUI::findByCoord( float winX, float winY ) {
 	return 0;
 }
 
-ZUI *ZUI::findByCoordWithAttribute( float winX, float winY, char *key, char *val ) {
-	if( !strcmp( name, "zubzub0" ) ) {
-		int d= 1;
+ZUI *ZUI::findByCoordWithAttribute( float winX, float winY, char *key, char *val, int searchHidden/*=1*/ ) {
+	
+	if( hidden && !searchHidden ) {
+		return 0;
 	}
+	
 	// CHECK for children first
 	for( ZUI *o=headChild; o; o=o->nextSibling ) {
-		ZUI *found = o->findByCoordWithAttribute( winX, winY, key, val );
+		ZUI *found = o->findByCoordWithAttribute( winX, winY, key, val, searchHidden );
 		if( found ) {
 			return found;
 		}
@@ -1232,7 +1234,7 @@ void ZUI::updateDragAndDrop() {
 	ZUI *root = ZUI::zuiFindByName( "root" );
 	ZUI *target = 0;
 	if( root ) {
-		dragZuiTarget = root->findByCoordWithAttribute( (float)zMouseMsgX, (float)zMouseMsgY, "dragAcceptObjectType", getS( "dragEmitObjectType" ) );
+		dragZuiTarget = root->findByCoordWithAttribute( (float)zMouseMsgX, (float)zMouseMsgY, "dragAcceptObjectType", getS( "dragEmitObjectType" ), 0 );
 			// find a zui under the mouse that accepts the type of object we emit
 	}
 }
@@ -1243,7 +1245,7 @@ void ZUI::endDragAndDrop() {
 	ZUI *root = ZUI::zuiFindByName( "root" );
 	ZUI *target = 0;
 	if( root ) {
-		target = root->findByCoordWithAttribute( (float)zMouseMsgX, (float)zMouseMsgY, "dragAcceptObjectType", getS( "dragEmitObjectType" ) );
+		target = root->findByCoordWithAttribute( (float)zMouseMsgX, (float)zMouseMsgY, "dragAcceptObjectType", getS( "dragEmitObjectType" ), 0 );
 			// find a zui under the mouse that accepts the type of object we emit
 	}
 	if( target && target != this ) {
