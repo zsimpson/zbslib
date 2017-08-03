@@ -805,9 +805,6 @@ int FitData::createParamVectorFromParams( double **pv, int useBestFitValues /*=0
 
 //----------------------------------------
 
-static ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
-static ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
-
 int FitData::createParamBoundsVectors( double **lb, double **ub ) {
 	//
 	// alloc and populate double* vectors that hold upper and lower bounds
@@ -819,6 +816,9 @@ int FitData::createParamBoundsVectors( double **lb, double **ub ) {
 	}
 	double *l = (double*)malloc( vecsize * sizeof(double) );
 	double *u = (double*)malloc( vecsize * sizeof(double) );
+
+	ZRegExp scaleFactor( "scale_(\\d+)[a-z]" );
+	ZRegExp offsetFactor( "offset_(\\d+)[a-z]" );
 
 	int count = 0;
 	ParamInfo *pi;
