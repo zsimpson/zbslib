@@ -10,6 +10,7 @@
 	#include "math.h"
 	#include "Carbon/Carbon.h"
 	#include "sys/sysctl.h"
+	#include "sys/utsname.h"
 #endif
 
 
@@ -322,4 +323,37 @@ void zPlatformNoErrorBox() {
 	#ifdef WIN32
 		SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX );
 	#endif
+}
+
+void zPlatformGetMachineId( char *buffer, int size ) {
+	// Adapted from https://oroboro.com/unique-machine-fingerprint/
+
+	#ifdef WIN32
+		// use serial number of os disk.
+		DWORD volumeSerialNumber;
+		GetVolumeInformationA(NULL, NULL, NULL, &volumeSerialNumber, NULL, NULL, NULL, NULL);
+		sprintf( buffer, "%X", volumeSerialNumber);
+	#endif
+
+	#ifdef __APPLE__
+		char tmp[256];
+		io_registry_entry_t ioRegistryRoot = IORegistryEntryFromPath(kIOMasterPortDefault, "IOService:/");
+	    CFStringRef uuidCf = (CFStringRef) IORegistryEntryCreateCFProperty(ioRegistryRoot, CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0);
+	    IOObjectRelease(ioRegistryRoot);
+	    CFStringGetCString(uuidCf, tmp, 256, kCFStringEncodingMacRoman);
+	    CFRelease(uuidCf);  
+
+ 	// 	struct utsname u;
+		// char *name = "osx";
+ 	//     if ( uname( &u ) >= 0 ) {
+		// 	name = u.nodename;
+		// }
+		// sprintf( buffer, "%s:%s", name, tmp );
+		strncpy( buffer, tmp, size );
+		buffer[size-1] = 0;
+	 #endif
+
+	 #ifdef __linux__
+	    // TODO
+	 #endif
 }
