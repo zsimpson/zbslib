@@ -1,11 +1,11 @@
 #include "assert.h"
+#include "stdio.h"
 
 #ifdef WIN32
 	#include "windows.h"
 #endif
 
 #ifdef __APPLE__
-	#include "stdio.h"
 	#include "stdlib.h"
 	#include "math.h"
 	#include "Carbon/Carbon.h"
