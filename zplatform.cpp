@@ -98,7 +98,7 @@ void zplatformCopyToClipboard( char *buffer, int size ) {
 	CFDataRef textData = NULL;
 	err = PasteboardCreate( kPasteboardClipboard, &theClipboard );
 	err = PasteboardClear( theClipboard );
-	textData = CFDataCreate( kCFAllocatorDefault, (UInt8*)buffer, size + 1 );
+	textData = CFDataCreate( kCFAllocatorDefault, (UInt8*)buffer, size );
 	err = PasteboardPutItemFlavor( theClipboard, (PasteboardItemID)1, CFSTR("public.utf8-plain-text"), textData, 0 );
 	CFRelease (textData);
 	#endif
