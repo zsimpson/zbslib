@@ -122,9 +122,9 @@ struct ParamInfo {
 		// a copy of the above from the last iteration of the fit, allowing  calculations
 		// to have knowledge of the movement of params from step to step during the fit.
 
-	double covarStdError2x;
+	double covarStdError;
 		// the error estimate on the bestFitValue as computed from the covariance
-		// matrix of fitted parameters (via sqrt of diagonal elements).  times 2.
+		// matrix of fitted parameters (via sqrt of diagonal elements).
 
 	// Member Functions
 	//-----------------

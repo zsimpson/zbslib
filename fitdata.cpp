@@ -51,7 +51,7 @@ ParamInfo::ParamInfo( char *name, double initVal, paramType pt/*=PT_GENERIC*/, c
 	initialValue	= initVal;
 	bestFitValue    = initVal;
 	bestFitValueLast= 0;
-	covarStdError2x = 0;
+	covarStdError = 0;
 	type			= pt;
 	constraint		= ct;
 
@@ -68,7 +68,7 @@ ParamInfo::ParamInfo( ParamInfo &toCopy ) {
 }
 
 //----------------------------------------
-const int ParamInfo_Version = 20151105;
+const int ParamInfo_Version = 20171024;
 int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 	int version;
 	freadEndian( &version, sizeof( version ), 1, f, byteswap );
@@ -85,7 +85,8 @@ int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
 			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
 			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
-			freadEndian( &covarStdError2x, sizeof( covarStdError2x ), 1, f, byteswap );
+			freadEndian( &covarStdError, sizeof( covarStdError ), 1, f, byteswap );
+			covarStdError /= 2.0;
 		}
 		break;
 			
@@ -99,9 +100,24 @@ int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
 			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
 			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
-			freadEndian( &covarStdError2x, sizeof( covarStdError2x ), 1, f, byteswap );
+			freadEndian( &covarStdError, sizeof( covarStdError ), 1, f, byteswap );
+			covarStdError /= 2.0;
 		}
 		break;
+
+		case 20171024: {
+			// identical to above, but no longer dividing covarStdError by 2 because it is
+			// now computed/stored as 1x.
+			freadEndian( paramName, 1, sizeof(paramName), f, byteswap );
+			freadEndian( &initialValue, sizeof( initialValue ), 1, f, byteswap );
+			freadEndian( &type, sizeof( type ), 1, f, byteswap );
+			freadEndian( &constraint, sizeof( constraint ), 1, f, byteswap );
+			freadEndian( ratioMasterParamName, 1, sizeof( ratioMasterParamName ), f, byteswap );
+			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
+			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
+			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
+			freadEndian( &covarStdError, sizeof( covarStdError ), 1, f, byteswap );
+		}
 
 		default:
 			assert( false && "bad ParamInfo version!" );
@@ -124,7 +140,7 @@ void ParamInfo::saveBinary( FILE *f ) {
 	fwrite( &ratio, sizeof( ratio ), 1, f );
 	fwrite( &fitIndex, sizeof( fitIndex ), 1, f );
 	fwrite( &bestFitValue, sizeof( bestFitValue ), 1, f );
-	fwrite( &covarStdError2x, sizeof( covarStdError2x ), 1, f );
+	fwrite( &covarStdError, sizeof( covarStdError ), 1, f );
 }
 
 //----------------------------------------
@@ -138,7 +154,7 @@ void ParamInfo::clear() {
 	ratio					= 1.0;
 	fitIndex				= 0;
 	bestFitValue			= 0.0;
-	covarStdError2x			= 0.0;
+	covarStdError			= 0.0;
 }
 
 //----------------------------------------
@@ -989,11 +1005,11 @@ void FitData::updateParamErrorsFromCovar( double errScale ) {
 		ParamInfo *pi = paramByOrder( i );
 		assert( pi );
 		if( pi->usedByFit() ) {
-			pi->covarStdError2x = sqrt(covar.getF( pi->fitIndex, pi->fitIndex )) * 2.0 * errScale;
+			pi->covarStdError = sqrt(covar.getF( pi->fitIndex, pi->fitIndex )) * errScale;
 		}
 		else {
 			// not used by fit, so bestFit is just initial
-			pi->covarStdError2x = 0.0;
+			pi->covarStdError = 0.0;
 		}
 	}
 }
@@ -1022,7 +1038,7 @@ void FitData::computeRatioParamValues() {
 			// compute param value as ratio of master param (that *is* fit)
 			ParamInfo *master	= paramByName( pi->ratioMasterParamName );
 			pi->bestFitValue	= pi->ratio * master->bestFitValue;
-			pi->covarStdError2x = pi->ratio * master->covarStdError2x; 
+			pi->covarStdError = pi->ratio * master->covarStdError; 
 		}
 	}
 }
@@ -1072,7 +1088,7 @@ void FitData::print() {
 
 	int count = params.activeCount();
 	trace( "FitData chi2=%g, c=%g, nData=%d, normalizeType=%s\n", chi2, c, nDataPointsToFit, getNormalizeTypeString(fitNormalizeType) );
-	trace( " %c %-15s %-12s %-12s %-12s\n", ' ', "name", "initial", "bestfit", "stderr2x*c" );
+	trace( " %c %-15s %-12s %-12s %-12s\n", ' ', "name", "initial", "bestfit", "stderr*c" );
 	char initial[16], bestfit[16], err[16];
 	for( int i=0; i<count; i++ ) {
 		ParamInfo *pi = paramByOrder( i );
@@ -1084,7 +1100,7 @@ void FitData::print() {
 //		}
 		sprintf( initial, "%g", iVal );
 		sprintf( bestfit, "%g", bVal );
-		sprintf( err, "%g", pi->covarStdError2x * c );
+		sprintf( err, "%g", pi->covarStdError * c );
 		trace( " %c %-15s %-12s %-12s %-12s\n", pi->constraint==CT_FIXED ? 'X' : 
 										pi->constraint==CT_NONNEGATIVE ? '+' :
 										pi->constraint==CT_NONPOSITIVE ? '-' :
