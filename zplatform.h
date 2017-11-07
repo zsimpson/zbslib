@@ -24,6 +24,9 @@ void zPlatformGetMachineId( char *buffer, int size );
 	// It may be that this is not unique for images running in the cloud if it
 	// is based on the OS install.
 
+void zPlatformShowWebPage( char *url );
+  // open the url in the default OS browser.
+
 #ifdef __USE_GNU
 	#define atoi64 atoll
 #else

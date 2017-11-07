@@ -357,3 +357,28 @@ void zPlatformGetMachineId( char *buffer, int size ) {
 	    // TODO
 	 #endif
 }
+
+void zPlatformShowWebPage( char *url ) {
+	// Try to open the default browswer for the operating system and show the url.
+	#ifdef WIN32
+		WCHAR wbuffPath[MAX_PATH] = {0};
+		DWORD dwszBuffPath = MAX_PATH;
+		::AssocQueryStringW(0, ASSOCSTR_EXECUTABLE, "http", "open", wbuffPath, &dwszBuffPath);
+		system( ZTmpStr( "%s %s"), wbuffPath, url );
+	#endif
+
+	#ifdef __APPLE__
+		CFStringRef URL =  CFStringCreateWithCString( NULL, url, kCFStringEncodingASCII );
+		CFURLRef pathRef = CFURLCreateWithString( NULL, URL, NULL );
+		if( pathRef ) {
+			LSOpenCFURLRef(pathRef, NULL);
+			CFRelease(pathRef);
+		}
+		CFRelease(URL);
+	#endif
+
+	#ifdef __linux__
+		// TODO
+	#endif
+
+}

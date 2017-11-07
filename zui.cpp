@@ -3155,6 +3155,11 @@ void ZUI::handleMsg( ZMsg *msg ) {
 		if( !key || !*key ) return;
 		putI( key, zmsgI(val) );
 	}
+	else if( zmsgIs(type,ZUISetS) ) {
+		char *key  = zmsgS(key);
+		if( !key || !*key ) return;
+		putS( key, zmsgS(val) );
+	}
 	else if( zmsgIs(type,ZUIHide) ) {
 		if( !(zmsgHas(toZUI) || zmsgHas(toZUIGroup)) ) {
 			return;
@@ -4431,6 +4436,19 @@ ZMSG_HANDLER( zuiDialogOpen ) {
 			trace( "ERROR: user-defined dialog controls %s not found in zuiDialogOpen\n", zmsgS( dlgControlsName ) );
 		}
 	}
+}
+
+ZMSG_HANDLER( zuiPredefinedDialogOpen ) {
+  ZUI *dlg = ZUI::zuiFindByName( zmsgS(dialogName) );
+  if( dlg ) {
+		dlg->hidden = 0;
+  	dlg->modal( 1 );
+  	
+  	char *focus = zmsgS( focusName );
+  	if( focus ) {
+	  	zMsgQueue( "toZUI=%s type=ZUITakeFocus", focus );
+  	}
+  }
 }
 
 ZMSG_HANDLER( zuiDialogClose ) {
