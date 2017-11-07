@@ -3,6 +3,7 @@
 
 #ifdef WIN32
 	#include "windows.h"
+	#include "shlwapi.h"
 #endif
 
 #ifdef __APPLE__
@@ -361,10 +362,13 @@ void zPlatformGetMachineId( char *buffer, int size ) {
 void zPlatformShowWebPage( char *url ) {
 	// Try to open the default browswer for the operating system and show the url.
 	#ifdef WIN32
-		WCHAR wbuffPath[MAX_PATH] = {0};
-		DWORD dwszBuffPath = MAX_PATH;
-		::AssocQueryStringW(0, ASSOCSTR_EXECUTABLE, "http", "open", wbuffPath, &dwszBuffPath);
-		system( ZTmpStr( "%s %s"), wbuffPath, url );
+		char path[MAX_PATH] = {0};
+		char command[MAX_PATH*2];
+		DWORD szPath = MAX_PATH;
+		AssocQueryString(0, ASSOCSTR_EXECUTABLE, "http", "open", path, &szPath);
+			// you'll need to link to shlwapi.lib to get this.
+		sprintf(command, "%s %s", path, url);
+		system(command);
 	#endif
 
 	#ifdef __APPLE__
