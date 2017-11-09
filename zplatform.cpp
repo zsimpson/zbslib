@@ -165,7 +165,7 @@ void zplatformGetTextFromClipboard( char *buffer, int size ) {
 			err = PasteboardCopyItemFlavorData( theClipboard, itemID, flavorType, &flavorData );
 			flavorDataSize = CFDataGetLength( flavorData );
 			flavorDataSize = (flavorDataSize<OSX_FLAVORTEXT_SIZE-2) ? flavorDataSize : OSX_FLAVORTEXT_SIZE-2;
-			for( short dataIndex = 0; dataIndex <= flavorDataSize; dataIndex++ ) {
+			for( short dataIndex = 0; dataIndex < flavorDataSize; dataIndex++ ) {
 				char byte = *(CFDataGetBytePtr( flavorData ) + dataIndex);
 				flavorText[dataIndex] = byte;
 			}
