@@ -118,6 +118,7 @@ int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
 			freadEndian( &covarStdError, sizeof( covarStdError ), 1, f, byteswap );
 		}
+    break;
 
 		default:
 			assert( false && "bad ParamInfo version!" );
