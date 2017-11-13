@@ -47,8 +47,8 @@ double zglfwGetLastActivity() {
 void zglfwCharHandler( int code, int state ) {
 	zglfwTouchLastActivity();
 	if( state ) {
-		static int shift = 0, ctrl = 0, alt = 0;
-		zMouseMsgUpdateKeyModifierState( shift, ctrl, alt );
+		static int shift = 0, ctrl = 0, alt = 0, super = 0;
+		zMouseMsgUpdateKeyModifierState( shift, ctrl, alt, super );
 		ZMsg *msg = new ZMsg;
 		msg->putS( "type", "Key" );
 		msg->putI( "shift", shift?1:0 );
@@ -62,7 +62,10 @@ void zglfwCharHandler( int code, int state ) {
 	}
 }
 
-static int shift = 0, ctrl = 0, alt = 0;
+static int shift = 0, ctrl = 0, alt = 0, super=0;
+	// super is the command-key on osx, windows-key on win.  Added by
+	// tfb nov 2017 to allow command-c/command-v to be used for copy-paste
+	// on a mac.
 
 int zglfwGetShift() {
 	return shift;
@@ -76,6 +79,10 @@ int zglfwGetAlt() {
 	return alt;
 }
 
+int zglfwGetSuper() {
+	return super;
+}
+
 void zglfwKeyHandler( int code, int state ) {
 	zglfwTouchLastActivity();
 	#ifdef __APPLE__
@@ -87,9 +94,13 @@ void zglfwKeyHandler( int code, int state ) {
 	#if GLFW_VERSION_MINOR > 6
 		// In the 2.7.2 version of GLFW we get the LSUPER and RSUPER keys as well: on a mac this is
 		// the command key.  We don't want this for now:
+		// tfb 2017: I want this on a mac, but don't want to break things for other zbslib users on windows,
+		// so for now, continue to early-out if this is not a mac.
+		#ifndef __APPLE__
 		if( code == GLFW_KEY_LSUPER || code == GLFW_KEY_RSUPER ) {
 			return;
 		}
+		#endif
 	#endif
 	
 	static int keyStates[GLFW_KEY_LAST+1] = {0,};
@@ -205,6 +216,18 @@ void zglfwKeyHandler( int code, int state ) {
 					s = charBuf;
 					sendAsChar = 1;
 				}
+				#ifdef __APPLE__  // get cmd-c/v on mac for copy paste, tfb nov 2017
+				else if( super ) {
+					charBuf[0] = 'c';
+					charBuf[1] = 'm';
+					charBuf[2] = 'd';
+					charBuf[3] = '_';
+					charBuf[4] = (char)code;
+					charBuf[5] = 0;
+					s = charBuf;
+					sendAsChar = 1;
+				}
+        #endif
 			}
 			else {
 				strcpy( charBuf, "unknown_key" );
@@ -227,6 +250,10 @@ void zglfwKeyHandler( int code, int state ) {
 			case GLFW_KEY_RCTRL: meta = 1; ctrl &= ~2; break;
 			case GLFW_KEY_LALT: meta = 1; alt &= ~1; break;
 			case GLFW_KEY_RALT: meta = 1; alt &= ~2; break;
+			#ifdef __APPLE__
+			case GLFW_KEY_LSUPER: meta = 1; super &= ~1; break;
+			case GLFW_KEY_RSUPER: meta = 1; super &= ~2; break;
+			#endif
 		}
 	}
 	else if( state == GLFW_PRESS ) {
@@ -240,10 +267,14 @@ void zglfwKeyHandler( int code, int state ) {
 			case GLFW_KEY_RCTRL: meta = 1; ctrl |= 2; break;
 			case GLFW_KEY_LALT: meta = 1; alt |= 1; break;
 			case GLFW_KEY_RALT: meta = 1; alt |= 2; break;
+			#ifdef __APPLE__
+			case GLFW_KEY_LSUPER: meta = 1; super |= 1; break;
+			case GLFW_KEY_RSUPER: meta = 1; super |= 2; break;
+			#endif
 		}
 
 		if( !meta && s && sendAsChar ) {
-			zMsg1 = zMsgQueue( "type=Key shift=%d ctrl=%d alt=%d which='%s'", shift?1:0, ctrl?1:0, alt?1:0, s );
+			zMsg1 = zMsgQueue( "type=Key shift=%d ctrl=%d alt=%d super=%d which='%s'", shift?1:0, ctrl?1:0, alt?1:0, super?1:0, s );
 		}
 	}
 
@@ -257,7 +288,7 @@ void zglfwKeyHandler( int code, int state ) {
 	}
 
 	if( meta ) {
-		zMouseMsgUpdateKeyModifierState( shift, ctrl, alt );
+		zMouseMsgUpdateKeyModifierState( shift, ctrl, alt, super );
 	}
 }
 

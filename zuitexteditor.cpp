@@ -942,7 +942,7 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 			}
 		}
 
-		else if( zmsgIs(which,ctrl_c) ) {
+		else if( zmsgIs(which,ctrl_c) || zmsgIs(which,cmd_c) ) {
 			zMsgUsed();
 			// COPY the mark to clipboard
 			int markLen = markEnd - markBeg;
@@ -952,7 +952,7 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 			zplatformCopyToClipboard( cut, strlen(cut) );
 		}
 
-		else if( zmsgIs(which,ctrl_v) ) {
+		else if( zmsgIs(which,ctrl_v) || zmsgIs(which,cmd_v) ) {
 			zMsgUsed();
 			if( !getI("disabled") ) {
 				// COPY from clipboard
@@ -969,7 +969,7 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 			}
 		}
 
-		else if( zmsgIs(which,ctrl_x) || zmsgIs(which,delete) ) {
+		else if( zmsgIs(which,ctrl_x) || zmsgIs(which,cmd_x) || zmsgIs(which,delete) ) {
 			zMsgUsed();
 			if( !getI("disabled") ) {
 				if( markBeg == markEnd && cursor < len ) {
@@ -981,7 +981,7 @@ void ZUITextEditor::handleMsg( ZMsg *msg ) {
 					markPosUpdate( prevCursor, 0 );
 				}
 				else {
-					if( zmsgIs(which,ctrl_x) ) {
+					if( zmsgIs(which,ctrl_x) || zmsgIs(which,cmd_x) ) {
 						// COPY the mark to clipboard
 						int markLen = markEnd - markBeg;
 						char *cut = (char *)alloca(markLen+1);

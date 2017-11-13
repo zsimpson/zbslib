@@ -85,7 +85,7 @@ int zMouseMsgHook = 0;
 
 
 
-void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt ) {
+void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt, int _super ) {
 	// This is only to be used by the GLFW system
 	assert( 0 );
 }

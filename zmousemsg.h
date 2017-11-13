@@ -50,7 +50,7 @@ int zMouseMsgIsExclusiveDrag();
 void zMouseMsgUpdate();
 	// Must be called once per frame to process the messages
 
-void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt );
+void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt, int _super );
 	// This is used only by the GLFW system to let this system know
 	// the state of the meta keys since GLFW can't query for itself
 

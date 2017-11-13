@@ -84,6 +84,7 @@ int zMouseMsgHook = 0;
 int zMouseShift = 0;
 int zMouseCtrl = 0;
 int zMouseAlt = 0;
+int zMouseSuper = 0;
 
 // GLFW does not have the ability to query the meta keys easily.
 // Instead, the keys are sent as normal key strokes.  So, when
@@ -93,10 +94,11 @@ int zMouseAlt = 0;
 // This is somewhat convoluted but keeps this system independent
 // of the key handler.
 
-void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt ) {
+void zMouseMsgUpdateKeyModifierState( int _shift, int _ctrl, int _alt, int _super ) {
 	zMouseShift = _shift;
 	zMouseCtrl = _ctrl;
 	zMouseAlt = _alt;
+	zMouseSuper = _super;
 }
 
 void zMouseMsgGetKeyModifier(int &shift, int &ctrl, int &alt ) {
