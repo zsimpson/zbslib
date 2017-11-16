@@ -384,5 +384,44 @@ void zPlatformShowWebPage( char *url ) {
 	#ifdef __linux__
 		// TODO
 	#endif
+}
 
+int zPlatformSystem( char *cmd ) {
+	// This is intended as a drop-in replacement for calls to system().  On non-windows
+	// platforms, system() is called directly.  On windows, a more elaborate scheme is 
+	// used, the purpose of which is to prevent the display of a console window.  If
+	// You don't care about the console getting displayed, you can just call system()
+	// instead.  This function blocks until the command is completed, just like 
+	// system() does. If you don't want to block, and want to just launch a new
+	// process instead, see zPlatformSpawnProcess() above.
+
+	// Under windows, if the process was unable to be launched, -1 is returned.
+	// If the process was launched, but the exitCode could not be obtained, -2 is
+	// returned.  Otherwise, he exitcode of the process is returned.
+
+	#ifndef WIN32
+		return system( cmd );
+	#else
+	  PROCESS_INFORMATION p_info;
+	  STARTUPINFO s_info;
+	  
+	  memset(&s_info, 0, sizeof(s_info));
+	  memset(&p_info, 0, sizeof(p_info));
+	  s_info.cb = sizeof(s_info);
+
+	  int returnVal = -1;
+	  if (CreateProcess( NULL, cmd, NULL, NULL, 0, 0, NULL, NULL, &s_info, &p_info))
+	  {
+	    WaitForSingleObject(p_info.hProcess, INFINITE);
+
+	    DWORD exitCode;
+	    if( GetExitCodeProcess( p_info.hProcess, &exitCode ) ) {
+	    	returnVal = (int)exitCode;
+	    }
+	    CloseHandle(p_info.hProcess);
+	    CloseHandle(p_info.hThread);
+	  }
+	  return returnVal;
+
+	#endif
 }

@@ -27,6 +27,10 @@ void zPlatformGetMachineId( char *buffer, int size );
 void zPlatformShowWebPage( char *url );
   // open the url in the default OS browser.
 
+int zPlatformSystem( char *cmd );
+  // drop-in replacement for system(), but under windows uses CreateProcess
+  // to avoid the automatic display of a console window.
+
 #ifdef __USE_GNU
 	#define atoi64 atoll
 #else
