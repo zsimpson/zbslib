@@ -410,7 +410,7 @@ int zPlatformSystem( char *cmd ) {
 	  s_info.cb = sizeof(s_info);
 
 	  int returnVal = -1;
-	  if (CreateProcess( NULL, cmd, NULL, NULL, 0, 0, NULL, NULL, &s_info, &p_info))
+	  if (CreateProcess( NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &s_info, &p_info))
 	  {
 	    WaitForSingleObject(p_info.hProcess, INFINITE);
 
