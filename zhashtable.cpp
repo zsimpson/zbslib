@@ -1105,8 +1105,10 @@ int ZHashTable::has( char *key, int keyLen ) {
 int ZHashTable::getType ( char *key, int keyLen ) {
 	int srcType = 0;
 	int srcLen = 0;
-	bgetb (key, -1, &srcLen, &srcType);
-
+	lock();
+	int alreadyLocked = 1;
+	bgetb (key, -1, &srcLen, &srcType, 0, 0, 0, alreadyLocked );
+	unlock();
 	return srcType;
 }
 

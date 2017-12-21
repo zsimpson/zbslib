@@ -2878,6 +2878,20 @@ int KineticExperiment::loadBinary( FILE *f, int byteswap ) {
 			return 0;
 				// unrecognized version!
 	}
+
+	// The following code is for the 5.2.x 32bit update branch to allow the old 32bit version
+	// to operate with files saved by much newer versions.  One item is to change the type of
+	// the minLogscaleExponentX from double to int, since otherwise the conversion process
+	// on the threadsafe viewInfo hashtable will trigger an assert.
+	if( viewInfo.has("minLogscaleExponentX") ) {
+		if( viewInfo.getType("minLogscaleExponentX") == zhDBL ) {
+			int val = (int)viewInfo.getD("minLogscaleExponentX");
+			viewInfo.del("minLogscaleExponentX");
+			viewInfo.putI("minLogscaleExponentX", val);
+		}
+	}
+	// END 5.2.x 32bit update branch code
+
 	return 1;
 }
 

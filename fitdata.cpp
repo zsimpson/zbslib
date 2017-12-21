@@ -102,6 +102,28 @@ int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 		}
 		break;
 
+		// The following loading code is to load "future" versions - this modification
+		// is part of the kin32_updates branch to allow the old 32bit kintek software
+		// on windows to load newer versions of the save format, but the 32bit version
+		// will continue to save the older format.
+
+		case 20171024: {
+				// identical to above, but using sizeof(paramName) which is now 32.
+			freadEndian( paramName, 1, sizeof(paramName), f, byteswap );
+			freadEndian( &initialValue, sizeof( initialValue ), 1, f, byteswap );
+			freadEndian( &type, sizeof( type ), 1, f, byteswap );
+			freadEndian( &constraint, sizeof( constraint ), 1, f, byteswap );
+			freadEndian( ratioMasterParamName, 1, sizeof( ratioMasterParamName ), f, byteswap );
+			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
+			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
+			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
+			freadEndian( &covarStdError2x, sizeof( covarStdError2x ), 1, f, byteswap );
+			covarStdError2x *= 2.0;
+				// Times 2 because the 2017 version stores 1x stderr, but the older version
+				// works in 2x stderr, as the variable name indicates.
+		}
+		break;
+
 		default:
 			assert( false && "bad ParamInfo version!" );
 			return 0;
