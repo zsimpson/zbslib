@@ -103,6 +103,29 @@ int ParamInfo::loadBinary( FILE *f, int byteswap ) {
 		}
 		break;
 
+		// The following code is for a branch of updates for the 6.3.x line of kintek explorer.
+		// This is necessary to allow the 6.3.x software (USB-key licensed) to load files 
+		// saved with the 7.0+ line, in which some new save formats are introduced.
+		// Note that the 6.3 line still saves in the above older format - we only allow
+		// necessary conversion of newer format to the older one here.
+
+		case 20171024: {
+				// stderr is stored as 1x in this version and beyond, so adjust that
+				// value below.
+			freadEndian( paramName, 1, sizeof(paramName), f, byteswap );
+			freadEndian( &initialValue, sizeof( initialValue ), 1, f, byteswap );
+			freadEndian( &type, sizeof( type ), 1, f, byteswap );
+			freadEndian( &constraint, sizeof( constraint ), 1, f, byteswap );
+			freadEndian( ratioMasterParamName, 1, sizeof( ratioMasterParamName ), f, byteswap );
+			freadEndian( &ratio, sizeof( ratio ), 1, f, byteswap );
+			freadEndian( &fitIndex, sizeof( fitIndex ), 1, f, byteswap );
+			freadEndian( &bestFitValue, sizeof( bestFitValue ), 1, f, byteswap );
+			freadEndian( &covarStdError2x, sizeof( covarStdError2x ), 1, f, byteswap );
+			covarStdError2x *= 2.0;
+				// see comment above.
+		}
+		break;
+
 		default:
 			assert( false && "bad ParamInfo version!" );
 			return 0;
