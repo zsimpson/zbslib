@@ -351,6 +351,7 @@ ZIntegratorRosenbrockStifflyStable::~ZIntegratorRosenbrockStifflyStable() {
 	free( ytemp );
 	free( yerr );
 	free( yout );
+	delete( luSolver );
 }
 
 int ZIntegratorRosenbrockStifflyStable::stepper( double &stepNext ) {
