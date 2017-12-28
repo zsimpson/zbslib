@@ -3926,7 +3926,7 @@ int parseIsEmpty() {
 	return 1;
 }
 	
-static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?][A-Za-z_0-9.~$#:?!]*\\^?)" );
+static ZRegExp parseSymbolRegEx( "^\\s*([A-Za-z_.~$#:?!'\"][A-Za-z_0-9.~$#:?!'\"]*\\^?)" );
 	// allow 'caret' to be used as a 'label' indicator
 static void parseSymbol() {
 	if( parseSymbolRegEx.test(parsePtr) ) {
@@ -5274,7 +5274,7 @@ void KineticSystem::updateConcentrationDependentRatesAtRefConc( double oldRefCon
 }
 
 
-#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || c == '^' || c == '!' || \
+#define VALID_SYMBOLCHAR( c ) ( c == '_' || c == '.' || c == '~' || c == '$' || c == '#' || c == ':' || c == '?' || c == '^' || c == '!' || c == '\'' || c == '"' || \
 			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') )
 	// These were allowed (_.~$#:) in v1 and will be allowed until we invent fancy symbology, if that happens.
 	// NOTE: you must ensure this matches the regex defined int the reaction parser parseSymbolRegEx
