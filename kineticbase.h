@@ -499,6 +499,7 @@ struct KineticExperiment {
 		// when slaved to a master, this index is the reagent index for which the
 		// concentration series is defined.  
 
+	int isMaster() { return slaveToExperimentId == -1; }
 	int getSeries( ZTLVec<KineticExperiment*> &vec, int includeEqOrPC=0 );
 		// return the pointers to experiments in a series; master is always first.
 		// returns count in series (1 if not a series)
