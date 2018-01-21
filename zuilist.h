@@ -10,7 +10,8 @@
 #include "zvec.h"
 
 struct ListItem;
-typedef ZUI * (*itemZuiCreateCallback)( ListItem *li );
+class ZUIList;
+typedef ZUI * (*itemZuiCreateCallback)( ZUIList *list, ListItem *li, ZUI *panel );
 	// creates zui that will be child of the ZUIList; if not set, the 
 	// itemZuiType can be set, or renderItemCallback must render the item, or default to ZUIText
 typedef void (*itemRenderCallback)( ListItem *li, float x, float y, float w, float h, int selected );
@@ -22,24 +23,20 @@ typedef void (*itemSizeCallback)( ListItem *li, float &width, float &height );
 typedef int (*itemCompareCallback)( const void* item1, const void* item2 );
 	// qsort-style callback if the items should be sorted
 
-class ZUIList;
 struct ListItem {
 
 	void *item;
 	int itemId;
 	ZUI *itemZui;
 	int itemType;
-
-	//ListItem *parent;
-	// I had to remove *parent and replace with an index, else when the ZTLVec reallocs,
-	// all the parent points are fucked.
-	ZUIList *list;
 	int parentItemId;
+	ZUIList *list;
 	ListItem *getParent();
 
 	int flags;
 		#define LI_SELECTABLE 0x01
 		#define LI_VISIBLE 0x02
+		#define LI_EXPANDED 0x04
 
 	ListItem() {
 		item	=  0;
@@ -47,29 +44,32 @@ struct ListItem {
 		itemZui	=  0;
 		itemType=  0;
 		flags   = LI_SELECTABLE | LI_VISIBLE;
-		list	= 0;
+		list 	= 0;
 		parentItemId = -1;
 	}
 };
 
 class ZUIList : public ZUIPanel {
 	ZUI_DEFINITION(ZUIList,ZUIPanel);
-
-	//----------------------------------------------
-	// custom properties
+	
+	// ZUIList properties:
 	//
-	// clickMsg		- sent if user clicked an item, with item=<item clicked>
-	// okMsg		- sent if user pressed OK, with item=<item selected>
-	// cancelMsg	- sent if user pressed cancel
-	// itemZuiType  - name of a zui class used to display items in list; 
-	//				  if supplied, and no createItemCallback is set, will be
-	//				  passed to ZUI::factory() to create zuis for items.
-	// 
-	// custom messages
+	// clickMsg: message sent when an item in the list is clicked:
+	//			 zMsgQueue( ZTmpStr( "%s listItem=%ld lastSelected=%ld itemId=%d", clickMsg, (long)item, (long)lastSelected, itemId ) );
 	//
-	// ZUIList_HideChildren - allows tree view, if list item is a ZUIList
-	//					      standard panel indent used to offset child nodes							  
-	// ZUIList_ShowChildren
+	// itemZuiType: can be used to specify what kind of ZUI to create for display of newly added list items, if not using itemZuiCreateCallback.
+	//              
+	// childIndent: int specifies how much to indent child nodes of list (like a treeview)
+	//
+	// scrollYStep: float (property of scrollable panels) -- set this to size of your items for discrete item scrolling
+	//
+	//	treeView: should the listbox provide +/- controls for expanding/collapsing nodes?
+	//
+	//  itemPanelCheckbox: should each panel have a checkbox control (user can supply messages for select/unselect)
+	//
+	// various panel coloring attributes (see factory method)
+	
+	
 
 public:
 	ZTLPVec< ListItem > items;
@@ -94,16 +94,36 @@ public:
 	ListItem* addItem( void *item, int type=0, int parentItemId=-1 );
 	ListItem* getListItemFromId( int id );
 	ListItem* getSelectedListItem();
+	
+	
 	void scrollItemIdToTop( int itemId );
+	void checkScrollY();
+	
 	void setSelectedListItem( ListItem *li, int scrollToTop=0 );
+		// selects given item, optionally scrolls it to top of list
 	void setSelectedUserItem( void *item, int scrollToTop=0 );
 	// void delItem( void *item );
 		// because there is no delete, itemId is known to be also the index of
 		// items in the list.  This is used by scrollItemIdToTop().
-	int showChildren( int itemId, int bShow );
+	
+	int showChildren( int itemId, int bShow, int bRecurse=0 );
 		// show/hide child items; 
+	void expandItem( int itemId, int bExpand );
+		// for treeview functionality
 	void reset();
+	
+	void setItemColorTag( ListItem *li, int color );
+		// set a rgba encoded it as the color for the small rectangular
+		// region at left of listitem (when control panel is present)
 
+	void setCheckboxMessages( ListItem *li, char *selectMsg, char *unselectMsg, int initialState=1 );
+		// if optional itemPanel checkboxes were requested, the client can set 
+		// messages to be sent for the given ListItem
+
+	void setCheckboxState( ListItem *li, int state, int *selectedPtr=0, int defeatMsg=0 );
+		// set initial selection state.  If selectedPtr is passed, this is a pointer that
+		// will control the selected state of the checkbox.  defeatMsg will cause the
+		// sel or unsel msg to NOT get sent next render.
 
 	void dump();
 };
