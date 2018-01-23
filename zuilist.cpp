@@ -180,11 +180,9 @@ void ZUIList::handleMsg( ZMsg *msg ) {
 	if( zmsgIs( type, ZUIMouseClickOn ) ) {
 		// do work here in respond to some click in the listbox,
 		// before the click is received by the child listitem
-		trace( "  * zuilist got a clickon\n" );
 	}
 	else if( zmsgIs( type, ZUIList_ItemClicked ) ) {
 		int itemId = zmsgI( itemId );
-		trace( "ZUIList %s got ItemClicked message (itemId=%d):\n", name, itemId );
 		ListItem *item = getListItemFromId( itemId );
 		if( item && (item->flags & LI_SELECTABLE) ) {
 
@@ -311,8 +309,6 @@ ListItem* ZUIList::addItem( void *item, int itemType, int parentItemId ) {
       	// cause the expander and checkbox to be horizontally centered; cellAlign doesn't
       	// work because checkboxes layout weird.
 
-      trace( "controlsPanel for item %d is %s\n", li->itemId, controlsPanel->name );
-			
 			ZUI *expander = ZUI::factory( 0, "ZUIText" );
 			expander->putI( "layout_forceH", 10 );
 			expander->putI( "expanded", 0 );
@@ -325,13 +321,10 @@ ListItem* ZUIList::addItem( void *item, int itemType, int parentItemId ) {
 					// the current item is a child, so parent needs visible expander.
 			}
 			expander->attachTo( controlsPanel );
-			trace( "expander for item %d is %s\n", li->itemId, expander->name );
-
 			
 			if( getI( "itemPanelCheckbox" ) ) {
 				ZUI *check = ZUI::factory( 0, "ZUICheck" );
 				check->attachTo( controlsPanel );
-				trace( "checkbox for item %d is %s\n", li->itemId, check->name );
 			}
 
 			controlsPanel->attachTo( panel );
@@ -343,7 +336,6 @@ ListItem* ZUIList::addItem( void *item, int itemType, int parentItemId ) {
 			clientPanel->putI( "clipToBounds", 1 );
 			clientPanel->putS( "panelColor", "0" );
 			clientPanel->attachTo( panel );
-			trace( "clientPanel for item %d is %s\n", li->itemId, clientPanel->name );
 
 			// the following are duplicated from what we do with the panel at the top of this fn.
 			// I'm not sure yet how we want to handle the panel/clientPanel distinction here, and
