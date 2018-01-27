@@ -456,14 +456,18 @@ char *zTimeGetLocalTimeString( int includeMils ) {
 	return str;
 }
 
-char *zTimeGetLocalTimeStringNumeric( int includeMils ) {
+char *zTimeGetLocalTimeStringNumeric( int includeMils, char _sep ) {
 	static char str[256];
+	char sep[2];
+	sep[0] = _sep;
+	sep[1] = 0;
+
 	#ifdef WIN32
 		SYSTEMTIME st;
 		GetLocalTime( &st );
-		sprintf( str, "%d%02d%02d %02d:%02d:%02d",
-			st.wYear,
-			st.wMonth,
+		sprintf( str, "%d%s%02d%s%02d %02d:%02d:%02d",
+			st.wYear, sep,
+			st.wMonth, sep,
 			st.wDay,
 			st.wHour,
 			st.wMinute,
@@ -477,9 +481,9 @@ char *zTimeGetLocalTimeStringNumeric( int includeMils ) {
 	#else
 		time_t t = time( 0 );
 		struct tm *timeinfo = localtime( &t );
-		sprintf( str, "%d%02d%02d %02d:%02d:%02d",
-				timeinfo->tm_year + 1900, 
-				timeinfo->tm_mon + 1,
+		sprintf( str, "%d%s%02d%s%02d %02d:%02d:%02d",
+				timeinfo->tm_year + 1900, sep,
+				timeinfo->tm_mon + 1, sep,
 				timeinfo->tm_mday,
 				timeinfo->tm_hour,
 				timeinfo->tm_min,
@@ -492,14 +496,18 @@ char *zTimeGetLocalTimeStringNumeric( int includeMils ) {
 	return str;
 }
 
-char *zTimeGetUTCTimeStringNumeric( int includeMils ) {
+char *zTimeGetUTCTimeStringNumeric( int includeMils, char _sep ) {
 	static char str[256];
+	char sep[2];
+	sep[0] = _sep;
+	sep[1] = 0;
+
 #ifdef WIN32
 	SYSTEMTIME st;
 	GetSystemTime( &st );
-	sprintf( str, "%d%02d%02d %02d:%02d:%02d",
-			st.wYear,
-			st.wMonth,
+	sprintf( str, "%d%s%02d%s%02d %02d:%02d:%02d",
+			st.wYear, sep,
+			st.wMonth, sep,
 			st.wDay,
 			st.wHour,
 			st.wMinute,
@@ -513,9 +521,9 @@ char *zTimeGetUTCTimeStringNumeric( int includeMils ) {
 #else
 	time_t t = time( 0 );
 	struct tm *timeinfo = gmtime( &t );
-	sprintf( str, "%d%02d%02d %02d:%02d:%02d",
-			timeinfo->tm_year + 1900,
-			timeinfo->tm_mon + 1,
+	sprintf( str, "%d%s%02d%s%02d %02d:%02d:%02d",
+			timeinfo->tm_year + 1900, sep,
+			timeinfo->tm_mon + 1, sep,
 			timeinfo->tm_mday,
 			timeinfo->tm_hour,
 			timeinfo->tm_min,
