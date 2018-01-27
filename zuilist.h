@@ -125,6 +125,10 @@ public:
 		// will control the selected state of the checkbox.  defeatMsg will cause the
 		// sel or unsel msg to NOT get sent next render.
 
+	void setCheckboxShow( ListItem *li, int show );
+		// show or hide the checkbox if the zui has one.
+		
+
 	void dump();
 };
 

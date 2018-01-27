@@ -522,6 +522,15 @@ void ZUIList::setCheckboxState( ListItem *li, int state, int *selectedPtr, int d
 	}
 }
 
+void ZUIList::setCheckboxShow( ListItem *li, int show ) {
+	ZUI *child = getCheckBox( this, li );
+	if( child ) {
+		child->putI( "hidden", !show );
+		child->dirty();
+	}
+}
+
+
 void ZUIList::dump() {
 	for( int i=0; i<items.count; i++ ) {
 		//trace( "List %d: itemType=%d, address=%08X, parent=%08X\n", items[i].itemType, &items[i], items[i].parent );
