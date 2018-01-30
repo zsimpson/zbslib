@@ -123,7 +123,7 @@ int ZUIList::showChildren( int itemId, int bShow, int bRecurse ) {
 	ListItem *item = getListItemFromId( itemId );
 	if( itemId == -1 || ( !bShow || item->flags & LI_EXPANDED ) ) {
 		for( int i=0; i<items.count; i++ ) {
-      ListItem *pItem = items[i];
+      		ListItem *pItem = items[i];
 			if( pItem->parentItemId >= 0 && ( itemId < 0 || itemId == pItem->parentItemId ) ) {
 				if( pItem->itemZui ) {
 					pItem->itemZui->putI( "hidden", !bShow );
@@ -151,7 +151,7 @@ void ZUIList::expandItem( int itemId, int bExpand ) {
 	// true if collapsing (in this case, recursive unset visible on children).
 
 	for( int i=0; i<items.count; i++ ) {
-    ListItem *pItem = items[i];
+    	ListItem *pItem = items[i];
 		if( itemId < 0 || pItem->itemId == itemId ) {
 			ZUI* expander=0;
 			if( getI( "treeView" ) || getI( "itemPanelCheckbox" ) ) {
@@ -442,6 +442,10 @@ void ZUIList::setSelectedListItem( ListItem *li, int scrollToTop ) {
 	selectedId = -1;
 	if( li ) {
 		selectedId = li->itemId;
+		ListItem *parent = li->getParent();
+	    if( parent && !(parent->flags & LI_EXPANDED) ) {
+	    	expandItem( li->parentItemId, 1 );
+	    }
 		if( scrollToTop ) {
 			scrollItemIdToTop( selectedId );
 		}
