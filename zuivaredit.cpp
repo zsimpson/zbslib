@@ -16,7 +16,6 @@
 #include "zglfont.h"
 // STDLIB includes:
 #include "assert.h"
-#include "math.h"
 #include "string.h"
 #include "stdlib.h"
 // MODULE includes:
@@ -27,7 +26,7 @@
 #include "zregexp.h"
 #include "zplatform.h"
 #include "zhashtable.h"
-
+#include "zmathtools.h"
 
 // ZUIVarEdit
 //==================================================================================

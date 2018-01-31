@@ -18,7 +18,6 @@
 #endif
 // STDLIB includes:
 #include "string.h"
-#include "math.h"
 #include "assert.h"
 // MODULE includes:
 #include "zuiplot3d.h"
@@ -28,6 +27,7 @@
 #include "zglfont.h"
 #include "zmousemsg.h"
 #include "zglfwtools.h"
+#include "zmathtools.h"
 
 ZUI_IMPLEMENT(ZUIPlot3d,ZUIPanel);
 

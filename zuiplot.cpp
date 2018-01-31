@@ -15,14 +15,13 @@
 #endif
 // STDLIB includes:
 #include "string.h"
-#include "math.h"
 #include "assert.h"
 // MODULE includes:
 #include "zuiplot.h"
 #include "zmousemsg.h"
 // ZBSLIB includes:
 #include "plot.h"
-
+#include "zmathtools.h"
 // STOPFLOW timing
 #include "sfmod.h"
 

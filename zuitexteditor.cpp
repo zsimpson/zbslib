@@ -17,7 +17,6 @@
 // STDLIB includes:
 #include "assert.h"
 #include "string.h"
-#include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "ctype.h"
@@ -32,6 +31,7 @@
 #include "zmsg.h"
 #include "zvars.h"
 #include "zplatform.h"
+#include "zmathtools.h"
 
 // ZUITextEditor
 //--------------------------------------------------------------------------------------------------------------------------------

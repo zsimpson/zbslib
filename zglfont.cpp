@@ -32,13 +32,13 @@
 #include "memory.h"
 #include "stdio.h"
 #include "string.h"
-#include "math.h"
 
 // MODULE includes:
 #include "zglfont.h"
 // ZBSLIB includes:
 #include "zbitmapdesc.h"
 #include "zhashtable.h"
+#include "zmathtools.h"
 
 // For debugging:
 //#include "zgraphfile.h"

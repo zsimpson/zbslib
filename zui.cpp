@@ -49,7 +49,6 @@ ZUIEnable, ZUIDisable, ZUISelect, ZUIDeselect
 // STDLIB includes:
 #include "assert.h"
 #include "string.h"
-#include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "float.h"
@@ -68,7 +67,7 @@ ZUIEnable, ZUIDisable, ZUISelect, ZUIDeselect
 #include "zstr.h"
 #include "zprof.h"
 #include "ztmpstr.h"
-
+#include "zmathtools.h"
 #include "zgltools.h"
 #include "ztime.h"
 #include "zvec.h"

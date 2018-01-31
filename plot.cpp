@@ -28,7 +28,6 @@
 #include "GL/gl.h"
 #endif
 // STDLIB includes:
-#include "math.h"
 #include "float.h"
 // MODULE includes:
 #include "plot.h"
@@ -38,6 +37,7 @@
 #include "zgltools.h"
 #include "ztmpstr.h"
 #include "zglfont.h"
+#include "zmathtools.h"
 
 float gridMajorColor[3] = { 0.2f, 0.2f, 0.2f };
 float gridMinorColor[3] = { 0.75f, 0.75f, 0.75f };

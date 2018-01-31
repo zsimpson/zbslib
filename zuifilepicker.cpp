@@ -24,7 +24,6 @@
 #include "ctype.h"
 #include "assert.h"
 #include "string.h"
-#include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
 #ifdef WIN32
@@ -40,6 +39,7 @@
 #include "zwildcard.h"
 #include "zfilespec.h"
 #include "zuitexteditor.h"
+#include "zmathtools.h"
 
 // Optionally pull in the native file dialog code if defined for this zlab app
 // (to define this for your app, use EXTRA_DEFINES macro in the ZBS header like this:

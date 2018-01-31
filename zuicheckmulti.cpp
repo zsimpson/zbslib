@@ -16,7 +16,6 @@
 // STDLIB includes:
 #include "assert.h"
 #include "string.h"
-#include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
 // MODULE includes:
@@ -24,8 +23,10 @@
 // ZBSLIB includes:
 #include "zglfont.h"
 #include "zgltools.h"
+#include "zmathtools.h"
 #include "zmsg.h"
 #include "zvars.h"
+
 
 // ZUICheck
 //--------------------------------------------------------------------------------------------------------------------------------
