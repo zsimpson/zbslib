@@ -528,7 +528,7 @@ struct KineticExperiment {
 	double getSeriesValue();
 		// return the value for the series, whatever kind it is, as long as a "seriesType" is present.
 
-	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax );
+	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax, int includeZeroData=1 );
 		// useful stats for a collection of experiments in a concentration series
 
 	void updateSeriesFromMaster();

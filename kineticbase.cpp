@@ -2436,7 +2436,7 @@ double KineticExperiment::getSeriesValue() {
 	return -1;
 }
 
-void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax ) {
+void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax, int includeZeroData ) {
 	simulationStepsMin = 100000;
 	simulationStepsMax = 0;
 	measuredCountMin   = 100000;
@@ -2448,8 +2448,11 @@ void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulat
 		simulationStepsMax = max( simulationStepsMax, vec[i]->simulationSteps() );
 		int mcount = vec[i]->measured.count;
 		for( int j=0; j<vec[i]->measured.count; j++ ) {
-			measuredCountMin = min( measuredCountMin, vec[i]->measuredCount( j ) );
-			measuredCountMax = max( measuredCountMax, vec[i]->measuredCount( j ) );
+			int count = vec[i]->measuredCount( j );
+			if( count || includeZeroData ) {
+				measuredCountMin = min( measuredCountMin, count );
+				measuredCountMax = max( measuredCountMax, count );
+			}
 		}
 	}
 }
