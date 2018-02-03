@@ -986,6 +986,10 @@ struct KineticSystem {
 	int reagentsGetFixedFlag( ZTLVec<int> &fixedReagents );
 		// which reagents can be held fixed at the system level (across all experiments/mixsteps)
 
+	int reagentGetSecondOrderComponents( char *reagent, char *&compA, char *&compB );
+		// if reagent is a product of two other reagents, return 1, and return
+		// names of reagents in compA and compB.
+	
 	// Reactions
 	//----------------------------------------
 	struct Reaction {

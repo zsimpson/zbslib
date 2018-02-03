@@ -3889,6 +3889,34 @@ int KineticSystem::reagentsGetFixedFlag( ZTLVec<int> &fixedReagents ) {
 	return fixedCount;
 }
 
+int KineticSystem::reagentGetSecondOrderComponents( char *reagent, char *&compA, char *&compB ) {
+	int success = 0;
+	int reagentIndex = reagentFindByName( reagent );
+	if( reagentIndex != -1 ) {
+		for( int i=0; i<reactions.count; i++ ) {
+			Reaction &r = reactions[i];
+			// if the sum of inputs or outputs is one less than reagentIndex,
+			// it must mean there is only one input or output and the other
+			// is our reagent (-1 means no reagent for an input or output)
+			if( r.in0 + r.in1 == reagentIndex - 1 ) {
+				if( r.out0 != -1 && r.out1 != -1 ) {
+					compA = reagentGetName( r.out0 );
+					compB = reagentGetName( r.out1 );
+					return 1;
+				}
+			}
+			else if( r.out0 + r.out1 == reagentIndex - 1 ) {
+				if( r.in0 != -1 && r.in1 != -1 ) {
+					compA = reagentGetName( r.in0 );
+					compB = reagentGetName( r.in1 );
+					return 1;
+				}
+			}
+		}
+	}
+	return success;
+}
+
 void KineticSystem::reactionAddByNames( char *in0, char *in1, char *out0, char *out1 ) {
 	Reaction reaction;
 	reaction.in0 = reagentFindByName( in0 );
