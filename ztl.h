@@ -501,6 +501,15 @@ class ZTLPVec {
 		return -1;
 	}
 
+	void reverse() {
+		T** scratch = (T**)alloca(count * sizeof(T*));
+		memcpy( scratch, vec, count * sizeof(T*) );
+		for( int i=0; i<count; i++ ) {
+			setWithoutDelete( i, scratch[count-i-1] );
+		}
+	}
+
+
 };
 
 // ZTLStack is just like ZTLVec except stack LIFO
