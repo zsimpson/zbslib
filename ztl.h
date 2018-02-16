@@ -278,6 +278,13 @@ class ZTLPVec {
 		grow = 100;
 	}
 
+	void clearWithoutDelete() {
+		// Avoids deleting the items in the list.
+		// See also setWithoutDelete()
+		count = 0;
+		clear();
+	}
+
 	void setCount( int _count ) {
 		if( _count < count ) {
 			// Getting smaller
@@ -391,6 +398,14 @@ class ZTLPVec {
 		count -= skip;
 	}
 
+	void rotateLeft( int index ) {
+		assert( index < count );
+		T* scratch = (T*)alloca( index * sizeof(T) );
+		memcpy( scratch, vec, index * sizeof(T) );
+		memcpy( vec, vec+index, (count-index)*sizeof(T) );
+		memcpy( vec+count-index, scratch, index * sizeof(T) );
+	}
+
 	void expandAllocBy( int howMuch ) {
 		int origAlloc = alloc;
 		alloc += howMuch;
@@ -420,6 +435,8 @@ class ZTLPVec {
 	T *get( int i ) { return vec[i]; }
 
 	void copy( ZTLPVec<T> &t ) {
+		// This is probably the copy you want, if you want new copies of non-string
+		// objects that will automatically get deleted upon destruction or replacement.
 		clear();
 		count = t.count;
 		alloc = t.alloc;
@@ -434,11 +451,11 @@ class ZTLPVec {
 		}
 	}
 
-	// This is a 'specialization' of copy to be used when ZTLPVec holds pointers
-	// to 0-terminted strings.  Note to really do a specialization for type 'char'
-	// requires us to redefine *all* member fns, and as well rules out the use of
-	// an array of pointers to single characters (ZTLPVec default behavior for char).
 	void copyStrings( ZTLPVec<T> &t ) {
+		// This is a 'specialization' of copy to be used when ZTLPVec holds pointers
+		// to 0-terminted strings.  Note to really do a specialization for type 'char'
+		// requires us to redefine *all* member fns, and as well rules out the use of
+		// an array of pointers to single characters (ZTLPVec default behavior for char).
 		assert( sizeof(T)==1 );
 			// not bullet-proof, but helpful.
 		clear();
@@ -448,6 +465,20 @@ class ZTLPVec {
 		vec = (char **)malloc( sizeof(char*)*alloc );
 		for( int i=0; i<count; i++ ) {
 			vec[i] = strdup( t.vec[i] );
+		}
+	}	
+
+	void copyPointers( ZTLPVec<T> &t ) {
+		// This object must now take care to clearWithoutDelete() before
+		// destruction, and otherwise ensure the objects held are not deleted
+		// multiple times due to use of set() etc.
+		clear();
+		count = t.count;
+		alloc = t.alloc;
+		grow = t.grow;
+		vec = (T **)malloc( sizeof(T*)*alloc );
+		for( int i=0; i<count; i++ ) {
+			vec[i] = t.vec[i];
 		}
 	}	
 
