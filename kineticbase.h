@@ -1055,7 +1055,7 @@ struct KineticSystem {
 		return reactions[which].react[side][ab];
 	}
 
-	char *reactionGetString( int reaction );
+	char *reactionGetString( int reaction, int withSpaces=1 );
 		// return a string that describes the reaction, e.g. "A + B = C"
 
 	char *reactionGetUniqueString( int reaction );

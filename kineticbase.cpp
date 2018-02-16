@@ -4462,9 +4462,10 @@ int KineticSystem::updateGroupAndRateValueForUnlabeledPairings() {
 // end reaction string parser
 //==================================================================================================
 
-char * KineticSystem::reactionGetString( int r ) {
+char * KineticSystem::reactionGetString( int r, int withSpaces ) {
 	static char reactionString[128];
 		// return pointer to this static
+	const char *space = withSpaces ? " " : "";
 
 	reactionString[0]=0;
 	Reaction *re = &reactions[ r ];
@@ -4472,15 +4473,15 @@ char * KineticSystem::reactionGetString( int r ) {
 		strcat( reactionString, reagents[re->in0] );
 	}
 	if( re->in1 >= 0 ) {
-		strcat( reactionString, " + " );
+		strcat( reactionString, ZTmpStr("%s+%s",space,space) );
 		strcat( reactionString, reagents[re->in1] );
 	}
 	if( re->out0 >= 0 ) {
-		strcat( reactionString, " = " );
+		strcat( reactionString, ZTmpStr("%s=%s",space,space) );
 		strcat( reactionString, reagents[re->out0] );
 	}
 	if( re->out1 >= 0 ) {
-		strcat( reactionString, " + " );
+		strcat( reactionString, ZTmpStr("%s+%s",space,space) );
 		strcat( reactionString, reagents[re->out1] );
 	}
 	return reactionString;
