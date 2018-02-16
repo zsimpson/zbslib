@@ -198,10 +198,17 @@ void ZUIList::handleMsg( ZMsg *msg ) {
 				putD( "lastClickTime", now );
 				if( lastClick != 0.0 && item==lastSelected && now - lastClick < getD( "doubleClickThreshhold" ) ) {
 					doubleClick = 1;
-					item->itemZui->putS( "panelColor", "0xE0E0C0FF" );
+					//item->itemZui->putS( "panelColor", "0xE0E0C0FF" );
+				}
+
+				int isSelected=1;
+				if( getI("toggleSelection") ) {
+					if( selectedId == -1 ) {
+						isSelected = 0;
+					}
 				}
 				
-				zMsgQueue( ZTmpStr( "%s listItem=%ld lastSelected=%ld itemId=%d doubleClick=%d", clickMsg, (long)item, (long)lastSelected, itemId, doubleClick ) );
+				zMsgQueue( ZTmpStr( "%s listItem=%ld lastSelected=%ld itemId=%d doubleClick=%d isSelected=%d", clickMsg, (long)item, (long)lastSelected, itemId, doubleClick, isSelected ) );
 					// the above will cause the address of item to be held as a string
 					// in the table, such that the receiver of the message must know to
 					// getS and then convert to a long, and then convert to a pointer.
@@ -440,14 +447,18 @@ void ZUIList::checkScrollY() {
 void ZUIList::setSelectedListItem( ListItem *li, int scrollToTop ) {
 	ListItem *lastSelected = getSelectedListItem();
 	selectedId = -1;
+	int toggleSelection = getI( "toggleSelection" );
+		// toggleSelection means if li was already selected, unselect it.
 	if( li ) {
-		selectedId = li->itemId;
-		ListItem *parent = li->getParent();
-	    if( parent && !(parent->flags & LI_EXPANDED) ) {
-	    	expandItem( li->parentItemId, 1 );
-	    }
-		if( scrollToTop ) {
-			scrollItemIdToTop( selectedId );
+		if( !toggleSelection || (li != lastSelected) ) {
+			selectedId = li->itemId;
+			ListItem *parent = li->getParent();
+		    if( parent && !(parent->flags & LI_EXPANDED) ) {
+		    	expandItem( li->parentItemId, 1 );
+		    }
+			if( scrollToTop ) {
+				scrollItemIdToTop( selectedId );
+			}
 		}
 	}
 	if( getI( "hilightSelected" ) ) {
@@ -456,8 +467,10 @@ void ZUIList::setSelectedListItem( ListItem *li, int scrollToTop ) {
 			lastSelected->itemZui->dirty();
 		}
 		if( li && li->itemZui ) {
-			li->itemZui->putS( "panelColor", getS( "itemPanelSelectedColor" ) );
-			li->itemZui->dirty();
+			if( !toggleSelection || (li != lastSelected) ) {
+				li->itemZui->putS( "panelColor", getS( "itemPanelSelectedColor" ) );
+				li->itemZui->dirty();
+			}
 		}
 	}
 }
@@ -503,8 +516,8 @@ ZUI *getCheckBox( ZUI *list, ListItem *li ) {
 void ZUIList::setCheckboxMessages( ListItem *li, char *selectMsg, char *unselectMsg, int initialState ) {
 	ZUI *child = getCheckBox( this, li );
 	if( child ) {
-		child->putS( "sendMsgOnSelect", selectMsg );
-		child->putS( "sendMsgOnUnselect", unselectMsg );
+		child->putS( "sendMsgOnSelect", ZTmpStr("%s listItem=%ld", selectMsg, (long)li) );
+		child->putS( "sendMsgOnUnselect", ZTmpStr("%s listItem=%ld", unselectMsg, (long)li) );
 		child->putI( "selected", initialState );
 	}
 }
@@ -523,6 +536,7 @@ void ZUIList::setCheckboxState( ListItem *li, int state, int *selectedPtr, int d
 		  child->putI( state ? "sentSelectedMsg" : "sentUnselectedMsg", 1 );
         // defeat sending message on next render
 		}
+    child->dirty();
 	}
 }
 
