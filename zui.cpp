@@ -2756,7 +2756,7 @@ ZUI::ZUILayoutCell *ZUI::layoutTable( float maxW, float maxH, float &width, floa
 			colSizes[i] = (maxW-(cols+1)*layout_padX) / cols;
 		}
 	}
-	else if( getI("table_colWeight1") ) {
+	else if( has("table_colWeight1") ) {
 		// DISTRIBUTE by weight
 		float sum = 0.f;
 		for( i=0; i<cols; i++ ) {
