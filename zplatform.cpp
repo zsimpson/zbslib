@@ -161,18 +161,32 @@ void zplatformGetTextFromClipboard( char *buffer, int size ) {
 		CFIndex                 flavorDataSize;
 		
 		flavorType = (CFStringRef)CFArrayGetValueAtIndex( flavorTypeArray, flavorIndex );
-		if (UTTypeConformsTo(flavorType, CFSTR("public.utf8-plain-text"))) {
+
+		int isUTF8 = UTTypeConformsTo(flavorType, CFSTR("public.utf8-plain-text"));
+		int isUTF16 = UTTypeConformsTo(flavorType, CFSTR("public.utf16-plain-text"));
+
+		if ( isUTF8 || isUTF16 ) {
 			err = PasteboardCopyItemFlavorData( theClipboard, itemID, flavorType, &flavorData );
 			flavorDataSize = CFDataGetLength( flavorData );
-			flavorDataSize = (flavorDataSize<OSX_FLAVORTEXT_SIZE-2) ? flavorDataSize : OSX_FLAVORTEXT_SIZE-2;
-			for( short dataIndex = 0; dataIndex < flavorDataSize; dataIndex++ ) {
-				char byte = *(CFDataGetBytePtr( flavorData ) + dataIndex);
-				flavorText[dataIndex] = byte;
-			}
-			flavorText[flavorDataSize] = '\0';
-			flavorText[flavorDataSize+1] = '\n';
-			CFRelease (flavorData);
-			strncpy( buffer, flavorText, size );
+			// flavorDataSize = (flavorDataSize<OSX_FLAVORTEXT_SIZE-2) ? flavorDataSize : OSX_FLAVORTEXT_SIZE-2;
+			
+			CFStringEncoding enc = isUTF8 ? kCFStringEncodingUTF8 : kCFStringEncodingUTF16;
+			CFStringRef s = CFStringCreateWithBytes( NULL, CFDataGetBytePtr(flavorData), flavorDataSize, enc, false );
+			CFMutableStringRef ms = CFStringCreateMutableCopy( NULL, size, s );
+			CFRelease(flavorData);
+			CFRelease( s );
+
+			// Get rid of strange Unicode line-separator that can show up copying&pasting with MS Word.
+			CFRange range = CFRangeMake( 0, CFStringGetLength(ms) );
+			CFStringFindAndReplace( ms, CFSTR("\U00002028"), CFSTR(""), range, 0 );
+
+			// get rid of \r in favor of \n
+			range = CFRangeMake( 0, CFStringGetLength(ms) );
+			CFStringFindAndReplace( ms, CFSTR("\r"), CFSTR("\n"), range, 0 );
+
+			CFStringGetCString( ms, buffer, size, kCFStringEncodingUTF8 );
+			CFRelease( ms );
+
 			break;
 		}
 	}
