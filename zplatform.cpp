@@ -128,6 +128,14 @@ void zplatformGetTextFromClipboard( char *buffer, int size ) {
 			LPVOID lptstr = GlobalLock (hglb);
 			if( lptstr != NULL ) { 
 				strncpy (buffer, (char*)lptstr, size);
+				int len = strlen(buffer);
+				// some programs like PDF viewers will have \r\n for newlines,
+				// and we only want the \n.
+				for (int i = 0; i < len; i++) {
+					if (buffer[i] == '\r') {
+						buffer[i] = ' ';
+					}
+				}
 				GlobalUnlock (hglb);
 			} 
 		} 
