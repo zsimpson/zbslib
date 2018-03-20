@@ -962,6 +962,12 @@ struct KineticSystem {
 	ZTLVec<int> *systemFixedReagents;
 		// temp, non-saved, set during ::simulate
 
+	ZTLPVec<char> reagentPartials;
+		// experiment to track derivative of reagent concentration due
+		// to particular reactions.  To start we'll append a single reaction
+		// index to the reagent name, so reagent FS may have partial
+		// FS0, which means rate of change of FS due to reaction 0+1 (forward+reverse)
+
 	int reagentCount() { return reagents.count; }
 
 	int reagentAdd( char *name ) {
@@ -979,6 +985,9 @@ struct KineticSystem {
 	}
 	
 	int reagentFindByName( char *r );
+		// Returns -1 if not found
+
+	int reagentPartialFindByName( char *r );
 		// Returns -1 if not found
 
 	int reagentIsUsedByReaction( int reagentIndex, int reactionIndex );
@@ -1375,6 +1384,9 @@ struct KineticVM {
 
 	#define PC (pCount)
 	#define RC (system->reagentCount())
+	#define RPC ( system->reagentPartials.count )
+		// RPC is experimenteal for reagentPartials - I'm not adding this to VMCodeH etc
+		// as those are not used by KinTek software.
 
 	int regIndexConstZero()                { return 0; }
 	int regIndexConstOne()                 { return 1; }
@@ -1391,10 +1403,10 @@ struct KineticVM {
 	int regIndexConc()					   { return 6+PC-1; }
 	
 	int regIndexC( int i )                 { return 6+PC+i; }
-	int regIndexD( int i )                 { return 6+PC+RC+i; }
-	int regIndexG( int i, int p )          { return 6+PC+RC+RC+  p*RC+i; }
-	int regIndexWRT()                      { return 6+PC+RC+RC+ PC*RC; }
-	int regIndexCount()                    { return 6+PC+RC+RC+ PC*RC + 1; }
+	int regIndexD( int i )                 { return 6+PC+RC+RPC+i; }
+	int regIndexG( int i, int p )          { return 6+PC+RC+RC+RPC+RPC+  p*RC+i; }
+	int regIndexWRT()                      { return 6+PC+RC+RC+RPC+RPC+ PC*RC; }
+	int regIndexCount()                    { return 6+PC+RC+RC+RPC+RPC+ PC*RC + 1; }
 
 	double *regConstZero()                 { return &registers.vec[regIndexConstZero()]; }
 	double *regConstOne()                  { return &registers.vec[regIndexConstOne()]; }
@@ -1485,8 +1497,8 @@ struct KineticVMCodeD : KineticVMCode {
 	int blockStart_dD_dC;
 
 	int bcIndex_D( int i )                           { return i; }
-	int bcIndex_dD_dC( int i, int j )                { return RC+ j*RC+i; }
-	int bcIndexCount()                               { return RC+RC*RC; }
+	int bcIndex_dD_dC( int i, int j )                { return RC+RPC+j*(RC+RPC)+i; }
+	int bcIndexCount()                               { return RC+RPC+(RC+RPC)*(RC+RPC); }
 
 	void compile( int includeJacobian=1 );
 	void disassemble( char *ext=0 );
