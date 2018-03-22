@@ -2455,6 +2455,12 @@ void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulat
 			}
 		}
 	}
+	if( simulationStepsMin == 100000 ) {
+		simulationStepsMin = 0;
+	}
+	if( measuredCountMin == 100000 ) {
+		measuredCountMin = 0;
+	}
 }
 
 void KineticExperiment::updateSeriesFromMaster() {
