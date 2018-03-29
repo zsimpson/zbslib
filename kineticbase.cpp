@@ -1857,23 +1857,6 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	zprofEnd();
 	delete integrator;
 
-// DEBUG TFB REAGENT PARTIALS
-#ifdef VM_DISASSEMBLE  
-  if( traceC.rows == 4 ) {
-    trace( "traceC row 4: " );
-    for( int tc=0; tc<10; tc++ ) {
-      double val = traceC.getData(tc, 3);
-      printf( "%g ", val );
-    }
-    printf( "\n  (last 10 entries) --> " );
-    for( int tc=traceC.cols-10; tc<traceC.cols; tc++ ) {
-      double val = traceC.getData(tc, 3);
-      printf( "%g ", val );
-    }
-    printf( "\n" );
-  }
-#endif
-
 	assert( simulationDuration() > 0.0 );
 
 	// COMPUTE the observables: note that we lock a mutex during observable-related computation
@@ -5675,7 +5658,7 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	// experiments by series such that irrespective of the ordering in the experiments
 	// vector, the consants will be grouped by series in the parameters vector
 	
-	// NEW, experimental: also extra any reagent partials.
+	// March 2018: also extracts any reagent partials.
 	reagentPartials.clear();
 
 	ZHashTable obsConstHash;
@@ -6689,8 +6672,8 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 	ZRegExp reagentPartial( "^(\\S+)::(\\d+)$");
 	ZTLVec<int> *reagentToPartial = new ZTLVec<int>[ reagentCount ];
 		// given a reagent index, what partial indices are based on this reagent?
-  int *partialToReaction = (int*)alloca( sizeof(int)*partialsCount );
-  int *partialToReagent = (int*)alloca( sizeof(int)*partialsCount );
+ 	int *partialToReaction = (int*)alloca( sizeof(int)*partialsCount );
+	int *partialToReagent = (int*)alloca( sizeof(int)*partialsCount );
 
 	for( i=0; i<partialsCount; i++ ) {
 		char *partial = system->reagentPartials[i];
@@ -6700,12 +6683,11 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 		char *reagent = reagentPartial.get( 1 );
 		int reagentI = system->reagentFindByName( reagent );
 		assert( reagentI != -1 );
-    partialToReagent[i] = reagentI;
-   // partialToReaction[i] =
+    	partialToReagent[i] = reagentI;
 
 		reagentToPartial[ reagentI ].add( reagentCount + i );
 			// map a given reagent index to a list of partial indices, which
-			// have been added to reagentCount so that that are indices into the
+			// have been added to reagentCount so that they are indices into the
 			// total reagentCount+partialsCount range.
 
 		int react_f = reagentPartial.getI( 2 ) * 2 - 2;
@@ -6723,10 +6705,7 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 		}
 		assert( reagentInMap[ reagentCount+i ].count == 1 );
 		assert( reagentOutMap[ reagentCount+i ].count == 1 );
-			// each partial is specific to one forward and one reverse reaction.
-    
-   // partialToReaction[i] = reagentInMap[ 0 ];
-
+			// each partial is specific to one forward and one reverse reaction.    
 	}
 
 
@@ -6791,36 +6770,6 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 				emit( regIndexP(r) );
 				emit( in0 == -1 ? one : regIndexC( in0 ) );
 				emit( in1 == -1 ? one : regIndexC( in1 ) );
-					// this four-tuple gets multiplied and accumulated in executeMacBlock to arrive at the sum of all
-					// d(reagent i)_dt.  If you wanted to track the production of reagent_i via different
-					// paths, you'd either cause the MAC to interpret the block for bcIndex_D(i) differently, 
-					// and track each individual reaction contribution, or (probably better) you'd insert a 
-					// new entry in D for each of the "paths" you were interested in an accounting for.
-					// For example, in this function, we might check to see if a reagent wants "breakdown" accounting,
-					// and if so, in addition to emitting what we're currently emitting, which is a tuple
-					// for each reaction that each reagent participates in, we'd ALSO emit tuples for the 
-					// "breakdown" reagent that would NOT all be summed (but some might be - you'd probably be interested
-					// in the net product formed, so you'd sum forward and reverse contributions for a given 
-					// reaction.)
-					//
-					// So I need to understand how the output of the MAC is read.
-					//
-					// OR
-					//
-					// What if I could define a kind of virtual reagent, or a "reagent PARTIAL" that would
-					// cause an accounting for a particular reagent, for particular reactions.  For example,
-					// FS(1,2) would mean that, in addition to emitting the normal MAC block for reagent FS,
-					// We'd also emit another block that only tracked contributions from reaction1 and reaction2.
-					//
-					// Of course, a handy way of exposing this would be to allow the user to express this in
-					// an observable, like FS(1,2).  So you can imagine either emitting the special block
-					// as described above, and then having a precomputed entry in C that is already FS(1,2),
-					// or you can imagine ... no, we probably do need to emit the special block, because we
-					// need those d[FS(1,2)]_dt to integrate with...we could find the entries in the block 
-					// for FS to compute our own FS(1,2), but then we'd need to integrate it etc.  So prob
-					// easier to emit a special block for the "partials" of FS that we are interested in.
-					//
-					// see reagentPartials etc in KineticSystem.
 			}
 		}
 
@@ -6835,8 +6784,8 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 		for( j=0; j<reagentCount+partialsCount; j++ ) {
 			// j is the index of the reagent we are differenting with respect to.
 
-			for( i=0; i<reagentCount+partialsCount; i++ ) {
-			
+			for( int i=0; i<reagentCount+partialsCount; i++ ) {
+
 				// @TODO: Optimize this so that for very sparse systems (liek the amorphous computing)
 				// this would not write zeros into all of the zero'd places but would rather encode
 				// the destination address for each block (which would make it a little less efficent for
@@ -6853,44 +6802,29 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 
 				emitStart( bcIndex_dD_dC(i,j) );
 
+				if( ( i<reagentCount && fixedReagents[i] ) ) {
+					// d(fixed_reagent) is 0.
+					emitStop( bcIndex_dD_dC(i,j) );
+					continue;
+				}
+
 				// CHECK each side of the reaction to see if reagent i is involved
 				for( int side=0; side<2; side++ ) {
 					for( int ri=0; ri<reactCounts[side]; ri++ ) {
-						if( i<reagentCount && fixedReagents[i] ) continue;
-							// all partial derivs of fixed reagent are 0
             
-						if( j>=reagentCount && i<reagentCount ) {
-							continue;
-								// derivative Dreagent_dt/d_partial should be 0, I think.
-						}
-
-						// if( i>=reagentCount && j<reagentCount ) {
-						//   continue;
-						//     // we don't want derivatives from partials contributing to the sums for non-partial
-						//     // reagents...
-						// }
-
 						r = reacts[side][ri];
 						int in0 = system->reactionGet(r,0,0);
 						int in1 = system->reactionGet(r,0,1);
             
-						int out1 = system->reactionGet(r,1,0);
-						  //debug only
-
 						// Reagent i is involved on this side of the reaction
 						// If i>=reagentCount, i refers to a reagent "partial", and there will be only
-						// one reaction per side.  When we differentiate w.r.t. reagent j, if j>=reagentCount,
-						// j is also reagent partial, and we'll need to translate in0/in1 to reagentPartial
-						// index, and ensure
+						// one reaction per side.  
 
 						int dimer = system->reactionGet(r,side,0) == system->reactionGet(r,side,1);
 						int signConstant = dimer ? ( side==0?minusTwo:two ) : ( side==0?minusOne:one );
 							// For input, sign constant == -1 (register 2), for output sign constant == +1 (register 1)
 							
 						int emittedSomething = 0;
-
-						// When j>=reagentCount, it means j refers to a reagent "partial", which is the reagent
-						// considering only a particular reaction.
 
 						// CASE 1: Two inputs to reaction r
 						if( in0 != -1 && in1 != -1 ) {
@@ -6932,30 +6866,12 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 
 							// Term 1 of the square brackets above which is non-zero only when in0 == j
 							if( in0 == j || (j>=reagentCount && partialToReagent[j-reagentCount]==in0 && reagentInMap[j][0]==r) ) {
-								// trace( "Di=%d, D_reagent=%d, reaction=%d, in0=%s, out1=%s emitting %d p%d\n", i, j, r, system->reagents[in0], system->reagents[out1], signConstant==1?1:-1, r );
-								// if( j>=reagentCount ) {
-								// 	trace( "  partial %d is reagent %d, reaction %d\n", j-reagentCount, in0, r );
-								// }
 								emit( signConstant );
 								emit( regIndexP(r) );
 								emit( one );
 								emit( one );
 								emittedSomething++;
 							}
-//              else if( j>=reagentCount ) {
-//                if( partialToReagent)
-//
-//                int partialIndex = reagentToPartial[in0].getIndex( j );
-//                if( partialIndex != -1 ) {
-//                  if( partialToReaction[reagentToPartial[in0][partialIndex]] == r ) {
-//                    emit( signConstant );
-//                    emit( regIndexP(r) );
-//                    emit( one );
-//                    emit( one );
-//                    emittedSomething++;
-//                  }
-//                }
-//              }
 
 							// Term 2 of the square brackets above is always zero
 						}
