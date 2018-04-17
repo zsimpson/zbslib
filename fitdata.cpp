@@ -1007,6 +1007,16 @@ void FitData::updateParamErrorsFromCovar( double errScale ) {
 		assert( pi );
 		if( pi->usedByFit() ) {
 			pi->covarStdError = sqrt(covar.getF( pi->fitIndex, pi->fitIndex )) * errScale;
+
+			if( pi->covarStdError == 0.0 ) {
+				// New April 2018: when the covar entries are 0, we display "ND" (not determined)
+				// in the fit-results UI, but when those results are exported to the data-repository, e.g.
+				// in the case to rate-v-conc dialog, having a sigma of 0 is problematic.  So if the error
+				// is truly unknown, which is how we interpret 0.0, then set it to 2x the parameter value.
+				// As a hint to human eyes that this is a special case, I'm going to round this up
+				// to an even number.
+				pi->covarStdError = ceil( fabs( pi->bestFitValue * 2.0 ) );
+			}
 		}
 		else {
 			// not used by fit, so bestFit is just initial
