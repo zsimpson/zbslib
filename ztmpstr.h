@@ -12,7 +12,7 @@
 //
 // new File( TmpStr( "%s.dat", filename ) );
 //
-#define ZTMPSTR_MAXS 1024
+#define ZTMPSTR_MAXS 2048
 struct ZTmpStr {
 	char s[ZTMPSTR_MAXS];
 	ZTmpStr( char *fmt, ... );
