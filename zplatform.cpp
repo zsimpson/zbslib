@@ -423,7 +423,10 @@ int zPlatformSystem( char *cmd, char *logfile/*=0*/ ) {
 
 	#ifndef WIN32
 		if( logfile ) {
-			return system( ZTmpStr( "%s >>%s 2>&1", cmd, logfile ) );
+			char buffer[1024];
+			assert( strlen(cmd) + strlen(logfile) + 8 < 1024 );
+			sprintf( buffer, "%s >>%s 2>&1", cmd, logfile );
+			return system( buffer );
 		}
 		return system( cmd );
 	#else
