@@ -408,7 +408,7 @@ void zPlatformShowWebPage( char *url ) {
 	#endif
 }
 
-int zPlatformSystem( char *cmd ) {
+int zPlatformSystem( char *cmd, char *logfile/*=0*/ ) {
 	// This is intended as a drop-in replacement for calls to system().  On non-windows
 	// platforms, system() is called directly.  On windows, a more elaborate scheme is 
 	// used, the purpose of which is to prevent the display of a console window.  If
@@ -422,28 +422,57 @@ int zPlatformSystem( char *cmd ) {
 	// returned.  Otherwise, he exitcode of the process is returned.
 
 	#ifndef WIN32
+		if( logfile ) {
+			return system( ZTmpStr( "%s >>%s 2>&1", cmd, logfile ) );
+		}
 		return system( cmd );
 	#else
-	  PROCESS_INFORMATION p_info;
-	  STARTUPINFO s_info;
-	  
-	  memset(&s_info, 0, sizeof(s_info));
+		PROCESS_INFORMATION p_info;
+		STARTUPINFO s_info;
+		SECURITY_ATTRIBUTES sa;
+		HANDLE h=INVALID_HANDLE_VALUE;
+
+		memset(&s_info, 0, sizeof(s_info));
 	  memset(&p_info, 0, sizeof(p_info));
 	  s_info.cb = sizeof(s_info);
+	
+	  if( logfile ) {
+	  	memset(&sa, 0, sizeof(sa));
+		  sa.nLength = sizeof(sa);
+		  sa.lpSecurityDescriptor = NULL;
+		  sa.bInheritHandle = TRUE;      
+		  h = CreateFile( logfile,
+						  FILE_APPEND_DATA,
+						  FILE_SHARE_WRITE | FILE_SHARE_READ,
+						  &sa,
+						  OPEN_ALWAYS,
+						  FILE_ATTRIBUTE_NORMAL,
+						  NULL );
 
-	  int returnVal = -1;
-	  if (CreateProcess( NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &s_info, &p_info))
-	  {
-	    WaitForSingleObject(p_info.hProcess, INFINITE);
-
-	    DWORD exitCode;
-	    if( GetExitCodeProcess( p_info.hProcess, &exitCode ) ) {
-	    	returnVal = (int)exitCode;
-	    }
-	    CloseHandle(p_info.hProcess);
-	    CloseHandle(p_info.hThread);
-	  }
-	  return returnVal;
+			if( h != INVALID_HANDLE_VALUE ) {
+				s_info.dwFlags |= STARTF_USESTDHANDLES;
+				s_info.hStdInput = NULL;
+				s_info.hStdError = h;
+				s_info.hStdOutput = h;
+			}
+		}
+	  
+		int returnVal = -1;
+		if (CreateProcess( NULL, cmd, NULL, NULL, h!=INVALID_HANDLE_VALUE, CREATE_NO_WINDOW, NULL, NULL, &s_info, &p_info)) {
+			returnVal = -2;
+			WaitForSingleObject(p_info.hProcess, INFINITE);
+			DWORD exitCode;
+			if( GetExitCodeProcess( p_info.hProcess, &exitCode ) ) {
+				returnVal = (int)exitCode;
+			}
+			CloseHandle(p_info.hProcess);
+			CloseHandle(p_info.hThread);
+			if( h != INVALID_HANDLE_VALUE ) {
+				CloseHandle(h);
+					// is this necessary, or is it already closed as part of the process?
+			}
+		}
+		return returnVal;
 
 	#endif
 }

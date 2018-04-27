@@ -27,9 +27,11 @@ void zPlatformGetMachineId( char *buffer, int size );
 void zPlatformShowWebPage( char *url );
   // open the url in the default OS browser.
 
-int zPlatformSystem( char *cmd );
+int zPlatformSystem( char *cmd, char *logfile=0 );
   // drop-in replacement for system(), but under windows uses CreateProcess
   // to avoid the automatic display of a console window.
+  // Added optional logfile param to append to the given filename if desired,
+  // captures both stdout and stderr appending to logfile.
 
 #ifdef __USE_GNU
 	#define atoi64 atoll
