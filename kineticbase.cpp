@@ -1248,6 +1248,28 @@ int KineticTrace::getBoundsRowCoords( double &minRC, double &maxRC, int initBoun
 	return retval;
 }
 
+int KineticTrace::getCountInRange( double t0, double t1, int *i0, int *i1 ) {
+	// Assumes time is montonically increasing or constant
+	int count=0;
+	if( i0 ) *i0=-1;
+	if( i1 ) *i1=-1;
+	for( int i=0; i<cols; i++ ) {
+		if( (time[i] >= t0 && time[i] <= t1) || doubleeq(time[i],t0) || doubleeq(time[i],t1) ) {
+			count++;
+			if( i0 && *i0==-1 ) {
+				*i0 = i;
+			}
+			if( i1 ) {
+				*i1 = i;
+			}
+		}
+		else if( time[i] > t1 ) {
+			break;
+		}
+	}
+	return count;
+}
+
 
 int KineticTrace::sameTimeEntries( KineticTrace &t ) {
 	
@@ -2057,16 +2079,18 @@ void KineticExperiment::measuredCreateFake( int numSteps, double variance ) {
 	}
 }
 
-void KineticExperiment::measuredCreateFakeForMixsteps( int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
+int KineticExperiment::measuredCreateFakeForMixsteps( int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
 	// Create synthetic experimental data for fit analysis etc, for the current mixstepDomain.
-	measuredCreateFakeForMixsteps( measured, N, sigma, offset, logTime, timeRefs, errType, errP1, errP2 );
+	return measuredCreateFakeForMixsteps( measured, N, sigma, offset, logTime, timeRefs, errType, errP1, errP2 );
 }
 
-void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &genTraces, int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
+int KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &genTraces, int N, double sigma, double offset, int logTime, double **timeRefs, int errType, double errP1, double errP2 ) {
 	// Create synthetic experimental data for fit analysis etc, for the current mixstepDomain.
 
 	int isEquilibrium = viewInfo.getI( "isEquilibrium" );
 	int isPulseChase  = viewInfo.getI( "isPulseChase" );
+
+	int dataCreateCount = 0;
 	
 	for( int i=0; i<observablesCount(); i++ ) {
 		if( viewInfo.getI( ZTmpStr("obs%d-plot",i) ) ) {
@@ -2104,7 +2128,22 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 			}
 
 			
-			int dataCreateCount = N * mixstepsToCreateDataFor;
+			dataCreateCount = N * mixstepsToCreateDataFor;
+			int variableStep = 0;
+      		int variableStepBeginIndex;
+			if( N < 0 ) {
+				// N is to be taken from the simulation - we'll create data that match 
+				// the time-domain of the integrator, variable step-size.
+				assert( !logTime );
+				variableStep = 1;
+				dataTime = dataToSimulationOffset;
+				dataCreateCount = traceOC.getCountInRange( dataTime, dataTime + duration, &variableStepBeginIndex );
+				N = dataCreateCount;
+				mixstepsToCreateDataFor = 1;
+					// even if the range spans multiple mixsteps, we're no longer in the business
+					// of creating N datapoints for each mixstep, we're now just creating a datapoint
+					// for each simulation point.
+			}
 
 			// REALLOC the matrix if required, preserving any data outside of the current domain.
 			if( !genTraces[i] ) {
@@ -2176,9 +2215,15 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 						// existing trace.
 						time = timeRefs[i][n];
 					}
-
 					double simulationTime = time + dataToSimulationOffset;
 
+					if( variableStep ) {
+						// In this case, we want to use the exact time points the simulation uses.
+						simulationTime = traceOC.getTime( variableStepBeginIndex + n );
+						time = simulationTime - dataToSimulationOffset;
+					}
+
+					
 					//
 					// Compute error term - we've always used zrandGaussianF() but below
 					// I'm using some info stuffed into viewInfo to allow playing with
@@ -2215,6 +2260,7 @@ void KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &
 			}
 		}
 	}
+	return dataCreateCount;
 }
 
 int KineticExperiment::measuredHasAnyData() {
@@ -6802,7 +6848,7 @@ void KineticVMCodeD::compile( int includeJacobian ) {
 
 				emitStart( bcIndex_dD_dC(i,j) );
 
-				if( ( i<reagentCount && fixedReagents[i] ) ) {
+				if( ( i<reagentCount && fixedReagents[i] ) || i>=reagentCount || j>=reagentCount ) {
 					// d(fixed_reagent) is 0.
 					emitStop( bcIndex_dD_dC(i,j) );
 					continue;

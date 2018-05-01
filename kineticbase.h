@@ -286,6 +286,10 @@ struct KineticTrace {
 	int getBoundsRowCoords( double &min, double &max, int initBounds=1 );
 		// max/min for rowCoords
 
+	int getCountInRange( double t0, double t1, int *i0=0, int *i1=0 );
+		// how many columns exist in the range [t0,t1]?
+		// if i0, i1 are (either) non-NULL, return first/last indices of range.
+
 	int sameTimeEntries( KineticTrace &t );
 		// does t have same entries for time as we do?
 
@@ -798,10 +802,10 @@ struct KineticExperiment {
 	void measuredCreateFake( int numSteps, double variance );
 		// Create pretend data for the experiment
 
-	void measuredCreateFakeForMixsteps( int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
+	int measuredCreateFakeForMixsteps( int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
 		// create synthetic data, respecting mixstep settings
 
-	void measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &traces, int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
+	int measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &traces, int n, double sigma, double offset, int logTime, double **timeRefs=0, int errType=0, double errP1=0, double errP2=0 );
 		// create synthetic data, respecting mixstep settings
 
 	int measuredCount( int i ) { return i<measured.count ? (measured[i] ? measured[i]->cols : 0) : 0; }
