@@ -2136,7 +2136,8 @@ int KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &g
 				// the time-domain of the integrator, variable step-size.
 				assert( !logTime );
 				variableStep = 1;
-				dataTime = dataToSimulationOffset;
+				dataTime = dataToSimulationOffset + offset;
+				duration -= offset;
 				dataCreateCount = traceOC.getCountInRange( dataTime, dataTime + duration, &variableStepBeginIndex );
 				N = dataCreateCount;
 				mixstepsToCreateDataFor = 1;
