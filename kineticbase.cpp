@@ -3566,6 +3566,7 @@ KineticSystem::~KineticSystem() {
 void KineticSystem::copy( KineticSystem &k, int copyExperiments /*=1*/, int copyData /*=1*/ ) {
 	clear();
 	reagents.copyStrings( k.reagents );
+	reagentPartials.copyStrings( k.reagentPartials );
 	reactions.copy( k.reactions );
 
 	if( copyExperiments ) {
