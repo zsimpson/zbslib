@@ -335,7 +335,7 @@ void ZHashTable::dump( int toStdout ) {
 	unlock();
 }
 
-char *ZHashTable::dumpToString() {
+char *ZHashTable::dumpToString( int formatZMsg /*=0*/ ) {
 	int len = 0;
 	char *string = 0;
 	lock();
@@ -366,9 +366,20 @@ char *ZHashTable::dumpToString() {
 					strncpy( keybuf, hashTable[i]->key, 255 );
 				}
 
-				int type = hashTable[i]->type;
-				char typeCode[] = { 'b', 's', 'i', 'u', 'l', 'f', 'd', 'p', 'o' };
-				sprintf( buf, "%s = (%c)%s\n", keybuf, typeCode[type], getValS(i) );
+				if( !formatZMsg ) {
+					int type = hashTable[i]->type;
+					char typeCode[] = { '?', 'b', 's', 'i', 'u', 'l', 'f', 'd', 'p', 'o' };
+					sprintf( buf, "%s = (%c)%s\n", keybuf, typeCode[type], getValS(i) );
+				}
+				else {
+					// formatZMsg is useful to dump a ZMsg into a string that can be resent as a message.
+					if( hashTable[i]->type==zhSTR ) {
+						sprintf( buf, "%s='%s' ", keybuf, getValS(i) );
+					} 
+					else {
+						sprintf( buf, "%s=%s ", keybuf, getValS(i) );
+					}
+				}
 
 				if( pass==0 ) {
 					len += strlen( buf );

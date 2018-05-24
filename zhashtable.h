@@ -325,7 +325,7 @@ class ZHashTable {
 
 	void dump( int toStdout=0 );
 		// Dumps the contents to OutputDebugString in Win32 or stdout in UNIX
-	char *dumpToString();
+	char *dumpToString( int formatZMsg=0 );
 		// Mallocs a string to dump into
 
 	char **getKeys( int &count );
