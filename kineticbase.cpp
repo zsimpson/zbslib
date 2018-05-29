@@ -1744,11 +1744,9 @@ int KineticExperiment::getReagentFixedMatrix( ZMat &fixedConc, ZTLVec<int> *igno
 				fixedConc.putF( i, j, 1 );
 				hasFixed = 1;
 			}
-			if( viewInfo.getI( ZTmpStr( "purgeReagentMix%d%sHold", j, system->reagentGetName( i ) ) ) ) {
-				// This is a case perhaps could be folded into the fixedReagentMix and used in combination
-				// with the purge functionality, but I have written it as it's own case, of doing a 
-				// purge (handled within the mixstepCount loop below), and then holding it fixed by 
-				// this logic here.
+			else if( viewInfo.getI( ZTmpStr( "purgeReagentMix%d%sHold", j, system->reagentGetName( i ) ) ) ) {
+				// respect legacy attribute.  holding a purged reagent fixed has been rolled into fixedReagentMix...
+				// may2018
 				fixedConc.putF( i, j, 1 );
 				hasFixed = 1;
 			}
