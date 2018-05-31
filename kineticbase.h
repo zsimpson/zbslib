@@ -535,6 +535,14 @@ struct KineticExperiment {
 	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax, int includeZeroData=1 );
 		// useful stats for a collection of experiments in a concentration series
 
+	int seriesParamVaries( int type, int mixstepIndex, int paramIndex=0 );
+		// does the reagent/temp/voltage/solvent-conc vary on this mixstep for this series?
+		// If mixstep is -1, does this series param vary on any mixstep at all?
+
+	int seriesParamVariesAndExclusively( int type, int mixstepIndex, int paramIndex=0 );
+		// does this seriesParam vary at this mixstep, and is it the ONLY param that
+		// varies across all mixsteps?  i.e. is this the reason this is a series?
+
 	void updateSeriesFromMaster();
 		// update the series with information from the master; typically UI writes to the master
 		// only with regard to concentrations, mixstepDomains, etc...  SO prior to simulation,

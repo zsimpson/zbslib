@@ -2508,6 +2508,75 @@ void KineticExperiment::getStatsForSeries( int &simulationStepsMin, int &simulat
 	}
 }
 
+int KineticExperiment::seriesParamVaries( int type, int mixstepIndex, int paramIndex/*=0*/ ) {
+	// Does the reagent/temp/voltage/solvent-conc vary on this mixstep for this series?
+	// If mixstep is -1, does this series param vary on any mixstep at all?
+	// paramIndex is the reagentIndex if type==PI_INIT_COND
+	ZTLVec< KineticExperiment* > series;
+	int count = getSeries( series, 1 );
+	if( count > 1 ) {
+		int msStart = mixstepIndex==-1 ? 0 : mixstepIndex;
+		int msEnd = mixstepIndex==-1 ? mixstepCount : mixstepIndex+1;
+		for( int ms=msStart; ms<msEnd; ms++ ) {
+			KineticParameterInfo *pi = system->paramGet( type, 0, getExperimentIndex(), ms );
+			if( pi ) {
+				double val = pi[paramIndex].value;
+				for( int i=1; i<count; i++ ) {
+					pi = system->paramGet( type, 0, series[i]->getExperimentIndex(), ms );
+					assert(pi);
+					if( pi[paramIndex].value != val ) {
+						return 1;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+int KineticExperiment::seriesParamVariesAndExclusively( int type, int mixstepIndex, int paramIndex ) {
+	// does this seriesParam vary at only this mixstep, and is it the ONLY param that
+	// varies across all mixsteps?  i.e. is this param/mixstep the only reason this is a series?
+	int variesExlcusively=0;
+	ZTLVec< KineticExperiment* > series;
+	int count = getSeries( series, 1 );
+	if( count > 1 && seriesParamVaries(type, mixstepIndex, paramIndex) ) {
+		// our param does vary at the prescribed mixstep.  Now check other mixsteps.
+		for( int ms=0; ms<mixstepCount; ms++ ) {
+			if( ms==mixstepIndex ) continue;
+			if( seriesParamVaries(type, ms, paramIndex) ) {
+				return 0;
+					// this param also varies at another mixstep
+			}
+		}
+		variesExlcusively = 1;
+			// start by assuming it does vary exclusively.
+
+		// Now check all the other params to see if they varies, returning 0
+		// early if so.  If we don't return early, the above value is returned.
+
+		int types[4] = { PI_INIT_COND, PI_TEMPERATURE, PI_VOLTAGE, PI_SOLVENTCONC };
+		for( int ti=0; ti<4; ti++ ) {
+			int t = types[ti];
+			if( t == type && type != PI_INIT_COND ) continue;
+				// if type is voltage etc, there is only one paramIndex; no more to check.
+			int nParams = t==PI_INIT_COND ? reagentCount() : 1;
+				// for initial condition, check all reagents; else check the single voltage, temp, etc.
+			for( int pi=0; pi<nParams; pi++ ) {
+				if( type==PI_INIT_COND && t==type && pi==paramIndex ) continue;
+					// this was the reagent we checked initially.
+				if( seriesParamVaries(t, -1, pi) ) {
+					// if this param varies on any mixstep then exclusivity fails.
+					return 0;
+				}
+			}
+		}
+		KineticParameterInfo *pi = system->paramGet( PI_INIT_COND, 0, getExperimentIndex(), mixstepIndex );
+	}
+	return variesExlcusively;
+}
+
+
 void KineticExperiment::updateSeriesFromMaster() {
 	ZTLVec< KineticExperiment* > series;
 	int count = getSeries( series, 1 );
@@ -4743,8 +4812,6 @@ void KineticSystem::delSeriesExperiments( int masterExpIndex ) {
 KineticExperiment * KineticSystem::addSeriesExperiment( int masterExpIndex, int reagentIndex /*=-1*/, int mixstepIndex /*=-1*/, int type/*=0*/ ) {
 	KineticExperiment *master = experiments[masterExpIndex];
 	int masterID = master->id;
-	int currentSeriesType = master->viewInfo.getI( "seriesType", -1 );
-	assert( currentSeriesType == -1 || currentSeriesType == type );
 	master->viewInfo.putI( "seriesType", type );
 	KineticExperiment *s = copyExperiment( master, 1, 0 );
 	s->slaveToExperimentId = masterID;
