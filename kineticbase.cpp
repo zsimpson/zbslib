@@ -2380,37 +2380,17 @@ int KineticExperiment::getSeries( ZTLVec<KineticExperiment*> &vec, int includeEq
 	return count;
 }
 
-KineticParameterInfo * KineticExperiment::getSeriesParameterInfo() {
-	KineticParameterInfo *pi = 0;
-
-	int seriesType = viewInfo.getI( "seriesType" );
-	switch( seriesType ) {
-		case SERIES_TYPE_REAGENTCONC: {
-			if( reagentIndexForSeries == -1 ) {
-				return 0;
-			}
-			pi = system->paramGet( PI_INIT_COND, 0, getExperimentIndex(), mixstepIndexForSeries );
-			assert( pi );
-			pi += reagentIndexForSeries;
-			break;
-		}
-		case SERIES_TYPE_VOLTAGE: {
-			pi = system->paramGet( PI_VOLTAGE, 0, getExperimentIndex(), mixstepIndexForSeries );
-			assert( pi );
-			break;
-		}
-		case SERIES_TYPE_TEMPERATURE: {
-			pi = system->paramGet( PI_TEMPERATURE, 0, getExperimentIndex(), mixstepIndexForSeries );
-			assert( pi );
-			break;
-		}
-		case SERIES_TYPE_SOLVENTCONC: {
-			pi = system->paramGet( PI_SOLVENTCONC, 0, getExperimentIndex(), mixstepIndexForSeries );
-			assert( pi );
-			break;
-		}
+char *KineticExperiment::getAttributeNameForParamType( int paramType ) {
+	// These values are stored in object hashtables as keys and are named
+	// for legacy static strings that have been used for years, so must
+	// be maintained.
+	switch( paramType ) {
+		case PI_INIT_COND: return "concentration";
+		case PI_TEMPERATURE: return "temperature";
+		case PI_VOLTAGE: return "voltage";
+		case PI_SOLVENTCONC: return "solventconc";
 	}
-	return pi;
+	return "unknown";
 }
 
 char * KineticExperiment::getNameForSeriesType( int abbreviated ) {
@@ -2433,48 +2413,133 @@ char * KineticExperiment::getNameForSeriesType( int abbreviated ) {
 	return NULL;
 }
 
-double KineticExperiment::getSeriesConcentration() {
-	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_REAGENTCONC ) {
-		KineticParameterInfo *pi = getSeriesParameterInfo();
-		if( pi ) {
-			return pi->value;
+KineticParameterInfo * KineticExperiment::getSeriesParameterInfo( int type, int mixstepIndex, int paramIndex ) {
+	KineticParameterInfo *pi = 0;
+
+	switch( type ) {
+		case PI_INIT_COND: {
+			pi = system->paramGet( PI_INIT_COND, 0, getExperimentIndex(), mixstepIndex );
+			assert( pi );
+			pi += paramIndex;
+			break;
 		}
+		case PI_VOLTAGE: {
+			pi = system->paramGet( PI_VOLTAGE, 0, getExperimentIndex(), mixstepIndexForSeries );
+			assert( pi );
+			break;
+		}
+		case PI_TEMPERATURE: {
+			pi = system->paramGet( PI_TEMPERATURE, 0, getExperimentIndex(), mixstepIndexForSeries );
+			assert( pi );
+			break;
+		}
+		case PI_SOLVENTCONC: {
+			pi = system->paramGet( PI_SOLVENTCONC, 0, getExperimentIndex(), mixstepIndexForSeries );
+			assert( pi );
+			break;
+		}
+	}
+	return pi;
+}
+
+KineticParameterInfo* KineticExperiment::getPrimarySeriesParameterInfo() {
+	// If the seriesType/mixstepIndexForSeries/reagentIndexForSeries appear to reflect
+	// a series variable as the exp was initially setup, return these.  The exception
+	// here is for concentration series - here we have some special logic we want
+	// to employ in case there are multiple reagents that vary in the series.
+	
+	int reagent, mixstep;
+	int type = viewInfo.getI( "seriesType", -1 );
+	if( type != -1 && type != SERIES_TYPE_REAGENTCONC ) {
+		mixstep = mixstepIndexForSeries;
+		reagent = reagentIndexForSeries;
+		int paramTypes[4] = { PI_INIT_COND, PI_TEMPERATURE, PI_VOLTAGE, PI_SOLVENTCONC };
+			// these are parameter types that correspond to the seriesType indicies
+		type = paramTypes[ type ];
+		if( seriesParamVaries( type, mixstep, reagent ) ) {
+			return getSeriesParameterInfo( type, mixstep, reagent );
+		}
+	}
+
+	// Find a series param that varies.  In most cases, we return the first one found,
+  // but may emply other logic, e.g. see reagent concentrations.
+	
+	for( mixstep=0; mixstep<mixstepCount; mixstep++ ) {
+		// check reagents - if more than one varies, return the highest concentration
+    //
+		type = PI_INIT_COND;
+    double maxSeriesValue = DBL_MIN;
+    KineticParameterInfo *maxSeriesParam=0;
+		for( reagent=0; reagent<system->reagentCount(); reagent++ ) {
+			if( seriesParamVaries( type, mixstep, reagent ) ) {
+        KineticParameterInfo *kpi = getSeriesParameterInfo( type, mixstep, reagent );
+        if( kpi->value > maxSeriesValue ) {
+          maxSeriesValue = kpi->value;
+          maxSeriesParam = kpi;
+        }
+			}
+		}
+    if( maxSeriesParam ) {
+      return maxSeriesParam;
+    }
+    
+
+		// check voltage
+		type = PI_VOLTAGE;
+		if( seriesParamVaries( type, mixstep ) ) {
+			return getSeriesParameterInfo( type, mixstep );
+		}
+
+		// check temp
+		type = PI_TEMPERATURE;
+		if( seriesParamVaries( type, mixstep ) ) {
+			return getSeriesParameterInfo( type, mixstep );
+		}
+
+		// solvent conc
+		type = PI_SOLVENTCONC;
+		if( seriesParamVaries( type, mixstep ) ) {
+			return getSeriesParameterInfo( type, mixstep );
+		}
+	}
+
+	return 0;
+}
+
+double KineticExperiment::getSeriesConcentration( int mixstepIndex, int reagentIndex ) {
+	KineticParameterInfo *pi = getSeriesParameterInfo( PI_INIT_COND, mixstepIndex, reagentIndex );
+	if( pi ) {
+		return pi->value;
 	}
 	return -1.0;
 }
 
-double KineticExperiment::getSeriesVoltage() {
-	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_VOLTAGE ) {
-		KineticParameterInfo *pi = getSeriesParameterInfo();
-		if( pi ) {
-			return pi->value;
-		}
+double KineticExperiment::getSeriesVoltage( int mixstepIndex ) {
+	KineticParameterInfo *pi = getSeriesParameterInfo( PI_VOLTAGE, mixstepIndex );
+	if( pi ) {
+		return pi->value;
 	}
 	return -1.0;
 }
 
-double KineticExperiment::getSeriesTemperature() {
-	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_TEMPERATURE ) {
-		KineticParameterInfo *pi = getSeriesParameterInfo();
-		if( pi ) {
-			return pi->value;
-		}
+double KineticExperiment::getSeriesTemperature( int mixstepIndex ) {
+	KineticParameterInfo *pi = getSeriesParameterInfo( PI_TEMPERATURE, mixstepIndex );
+	if( pi ) {
+		return pi->value;
 	}
 	return -1.0;
 }
 
-double KineticExperiment::getSeriesSolventConcentration() {
-	if( viewInfo.getI( "seriesType" ) == SERIES_TYPE_SOLVENTCONC ) {
-		KineticParameterInfo *pi = getSeriesParameterInfo();
-		if( pi ) {
-			return pi->value;
-		}
+double KineticExperiment::getSeriesSolventConcentration( int mixstepIndex ) {
+	KineticParameterInfo *pi = getSeriesParameterInfo( PI_SOLVENTCONC, mixstepIndex );
+	if( pi ) {
+		return pi->value;
 	}
 	return -1.0;
 }
 
-double KineticExperiment::getSeriesValue() {
-	KineticParameterInfo *pi = getSeriesParameterInfo();
+double KineticExperiment::getSeriesValue( int type, int mixstepIndex, int paramIndex ) {
+	KineticParameterInfo *pi = getSeriesParameterInfo( type, mixstepIndex, paramIndex );
 	if( pi ) {
 		return pi->value;
 	}

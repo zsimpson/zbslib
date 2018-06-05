@@ -511,26 +511,34 @@ struct KineticExperiment {
 	int seriesCount( int includeEqOrPC=0 );
 		// return count in this series (1 if not a series at all)
 
-	KineticParameterInfo * getSeriesParameterInfo();
-		// return the paramterInfo for the parameter that is unique for this experiment in the series
+	char *getAttributeNameForParamType( int paramType );
+		// return string for parameter type to be used as keys in hashtables.
 
 	char *getNameForSeriesType( int abbreviated );
 		// return a string naming the type of series, or NULL of not a series.
 
-	double getSeriesConcentration();
+	KineticParameterInfo * getSeriesParameterInfo( int type, int mixstepIndex, int paramIndex=0 );
+		// return the paramterInfo for the series parameter if it exists
+
+	KineticParameterInfo * getPrimarySeriesParameterInfo();
+		// Now that any reagent, voltage, temp, or solvent conc can vary in any mixstep of
+		// a series, we need an easy way to ask for the 'primary' variable for the series,
+		// for the purpose of plotting rate vs concentration, among other things.
+
+	double getSeriesConcentration( int mixstepIndex, int paramIndex );
 		// return the reagent concentration for this exp in a series or -1 if not a conc series.
 
-	double getSeriesVoltage();
+	double getSeriesVoltage( int mixstepIndex );
 		// return the voltage for this exp in a series or -1 if not a volt series.
 
-	double getSeriesTemperature();
+	double getSeriesTemperature( int mixtepIndex );
 		// return the temperature for this exp in a series or -1 if not a temp series.
 
-	double getSeriesSolventConcentration();
+	double getSeriesSolventConcentration( int mixstepIndex );
 		// return the solvent conc for this exp in a series or -1 if not a solventconc series.
 
-	double getSeriesValue();
-		// return the value for the series, whatever kind it is, as long as a "seriesType" is present.
+	double getSeriesValue( int type, int mixstepIndex, int paramIndex=0 );
+		// return the value for the series, whatever kind it is
 
 	void getStatsForSeries( int &simulationStepsMin, int &simulationStepsMax, int &measuredCountMin, int &measuredCountMax, int includeZeroData=1 );
 		// useful stats for a collection of experiments in a concentration series
