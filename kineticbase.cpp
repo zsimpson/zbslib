@@ -2468,7 +2468,7 @@ KineticParameterInfo* KineticExperiment::getPrimarySeriesParameterInfo() {
 		// check reagents - if more than one varies, return the highest concentration
     //
 		type = PI_INIT_COND;
-    double maxSeriesValue = DBL_MIN;
+    double maxSeriesValue = -1;
     KineticParameterInfo *maxSeriesParam=0;
 		for( reagent=0; reagent<system->reagentCount(); reagent++ ) {
 			if( seriesParamVaries( type, mixstep, reagent ) ) {
