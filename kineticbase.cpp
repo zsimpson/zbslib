@@ -2583,7 +2583,7 @@ int KineticExperiment::seriesParamVaries( int type, int mixstepIndex, int paramI
 		int msStart = mixstepIndex==-1 ? 0 : mixstepIndex;
 		int msEnd = mixstepIndex==-1 ? mixstepCount : mixstepIndex+1;
 		for( int ms=msStart; ms<msEnd; ms++ ) {
-			KineticParameterInfo *pi = system->paramGet( type, 0, getExperimentIndex(), ms );
+			KineticParameterInfo *pi = system->paramGet( type, 0, series[0]->getExperimentIndex(), ms );
 			if( pi ) {
 				double val = pi[paramIndex].value;
 				for( int i=1; i<count; i++ ) {
