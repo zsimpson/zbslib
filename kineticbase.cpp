@@ -2580,6 +2580,9 @@ int KineticExperiment::seriesParamVaries( int type, int mixstepIndex, int paramI
 	ZTLVec< KineticExperiment* > series;
 	int count = getSeries( series, 1 );
 	if( count > 1 ) {
+		if( viewInfo.getI( "isEquilibrium") && reagentIndexForSeries==paramIndex && mixstepIndexForSeries==mixstepIndex ) {
+			return 1;
+		}
 		int msStart = mixstepIndex==-1 ? 0 : mixstepIndex;
 		int msEnd = mixstepIndex==-1 ? mixstepCount : mixstepIndex+1;
 		for( int ms=msStart; ms<msEnd; ms++ ) {
