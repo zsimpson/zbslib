@@ -177,6 +177,9 @@ struct KineticTrace {
 	double getLastData( int row ) { return cols ? getData( cols-1, row ) : 0; }
 		// Fetch data on last column
 
+	void growColsAlloced( int count, int forceAllocSigma=0 );
+		// realloc if necessary prior to adding column(s) of data
+
 	void addCol( double *vector );
 		// Add column, where vector[0] is time.  Length of vector should be rows+1 (1 for time)
 
@@ -632,6 +635,14 @@ struct KineticExperiment {
 
 	void mixstepInfo( int mixstep, double &startTime, double &endTime, double &dilution );
 		// Get information about the mixstep extracted from the mixsteps array
+
+	void eqMixstepInfo( int mixstep, double &domainStartTime, double &domainEndTime );
+	    // get the "startTime" for a mixstep whose domain is really concentration.
+	    // This may include an incubation time whose domain is time.  The goal is 
+	    // to arrange domain values such that they are ascending from mixstep to mixstep,
+	    // to allow correct plotting etc.  This was simpler before we allowed additional
+	    // mixsteps AFTER the titration, in which case we just added the incubation time
+	    // to the eqStart.
 
 	void newMixstep( double *ics, double dilution, double duration );
 		// create new mixstep entry, and add parameters to the system that describe

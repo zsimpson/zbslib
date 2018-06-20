@@ -213,15 +213,26 @@ normalizeType KineticTrace::getSigmaBestNormalizeTypeAvailable() {
 	return bestType;
 }
 
-void KineticTrace::addCol( double *vec ) {
-	// Assumes that vec[0] is time
-	assert( rows && "addCol called with 0 rows!" );
-	if( cols >= colsAlloced ) {
+void KineticTrace::growColsAlloced( int count, int allocSigma ) {
+	// So that you may grow an existing trace in order that the ::set functions
+	// may be used rather than needing to ::add columns in order.  Also called
+	// by the ::add functionals to grow if necessary.
+	
+	if( cols + count > colsAlloced ) {
 		colsAlloced = max( colsAlloced*2, 1024 );
 		time = (double *)realloc( time, colsAlloced * sizeof(double) );
 		data = (double *)realloc( data, rows * colsAlloced * sizeof(double) );
-		derivs = (double *)realloc( derivs, rows * colsAlloced * sizeof(double) );
+		if( sigma || allocSigma ) {
+			sigma = (double *)realloc( sigma, rows * colsAlloced * sizeof(double) );
+		}
+		derivs = (double *)realloc( derivs, rows * colsAlloced * sizeof(double) );		
 	}
+}
+
+void KineticTrace::addCol( double *vec ) {
+	// Assumes that vec[0] is time
+	assert( rows && "addCol called with 0 rows!" );
+	growColsAlloced( 1 );
 	time[cols] = vec[0];
 	memcpy( &data[cols*rows], &vec[1], rows * sizeof(double) );
 	cols++;
@@ -230,15 +241,7 @@ void KineticTrace::addCol( double *vec ) {
 void KineticTrace::add( double _time, double *vec, double *_derivs, double *_sigma ) {
 	// vec has rows in it
 	assert( rows && "add called with 0 rows!" );
-	if( cols >= colsAlloced ) {
-		colsAlloced = max( colsAlloced*2, 1024 );
-		time = (double *)realloc( time, colsAlloced * sizeof(double) );
-		data = (double *)realloc( data, rows * colsAlloced * sizeof(double) );
-		if( _sigma ) {
-			sigma = (double *)realloc( sigma, rows * colsAlloced * sizeof(double) );
-		}
-		derivs = (double *)realloc( derivs, rows * colsAlloced * sizeof(double) );
-	}
+	growColsAlloced( 1, _sigma!=0 );
 	time[cols] = _time;
 	memcpy( &data[cols*rows], &vec[0], rows * sizeof(double) );
 	if( _sigma ) {
@@ -1687,6 +1690,51 @@ void KineticExperiment::mixstepInfo( int mixstep, double &startTime, double &end
 	dilution = mixsteps[ mixstep ].dilution;
 }
 
+void KineticExperiment::eqMixstepInfo( int mixstep, double &domainStart, double &domainEnd ) {
+  assert( viewInfo.getI( "isEquilibrium" ) );
+
+  double unused;
+  mixstepInfo( mixstep, domainStart, domainEnd, unused );
+
+  if( mixstep < mixstepIndexForSeries ) {
+    // domainStart already set to actual starting time for the conventional mixstep
+    return;
+  }
+
+  // First find any incubation time, in actual time domain, that happens before
+  // the titration mixstep.
+  if( mixstep != mixstepIndexForSeries ) {
+    mixstepInfo( mixstepIndexForSeries, domainStart, domainEnd, unused );
+  }
+
+  #define TITRATION_DOMAIN_GAP 1e-10
+  	// this is the same a mixstepDilutionTime, and serves somewhat the same purpose,
+  	// to prevent datapoints at the boundaries of mixsteps from having precisely the
+  	// same domain value.
+
+  double incubateTime = domainStart;
+  if( incubateTime != 0.0 ) {
+    incubateTime += TITRATION_DOMAIN_GAP;
+  }
+
+  double eqEnd = viewInfo.getD( "eqEnd" );
+
+  domainStart = incubateTime + (eqEnd+TITRATION_DOMAIN_GAP) * ( mixstep - mixstepIndexForSeries );
+  domainEnd = domainStart + eqEnd;
+
+  // Goal is to spread out data points for multiple titration mixsteps after incubation
+  // 
+  // eqSize = eqEnd - eqStart
+  //
+  //                  gap                gap
+  //   |-------------|   |--------------|   |--------------|
+  //    incubateTime          eqEnd              eqEnd
+  //                     ^                  ^
+  //                     |                  |
+  //                 domainStart0       domainStart1
+  //
+}
+
 void KineticExperiment::newMixstep( double *ics, double dilution, double duration ) {
 	assert( mixstepCount < MAX_MIX_STEPS );
 	mixsteps[ mixstepCount ].dilution = dilution;
@@ -1782,7 +1830,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	int hasFixed = getReagentFixedMatrix( fixedConc, system->systemFixedReagents );
 
 	int isEquilibrium = viewInfo.getI( "isEquilibrium" );
-	int computeMixstepCount = isEquilibrium ? mixstepCount-1 : mixstepCount;
+	int computeMixstepCount = isEquilibrium ? mixstepIndexForSeries : mixstepCount;
 		// If this is a titration/eq experiment with multiple mixsteps, this function
 		// will be called to compute the first n-1 mixsteps for incubation.
 
@@ -1887,7 +1935,7 @@ void KineticExperiment::simulate( struct KineticVMCodeD *vmd, double *pVec, int 
 	zprofEnd();
 
 	zprofBeg( computeOC );
-	if( mixstepCount==1 /*|| (!voltageDepends && !temperatureDepends && !concentrationDepends)*/ ) {
+	if( mixstepCount==1 || isEquilibrium /*|| (!voltageDepends && !temperatureDepends && !concentrationDepends)*/ ) {
 		// tfb commented above 10july2015 because for a series we want those PI_INIT_COND values
 		// or CONC function doesn't work right.
 		computeOC( pVec );
@@ -2105,26 +2153,28 @@ int KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &g
 			int mixstepsToCreateDataFor = mixstepCount;
 				// how many mixsteps will be create data for?  We want to generate N points for each mixstep.
 			if( mixstepDomain >= 0 ) {
-				double unused;
-				mixstepInfo( mixstepDomain, dataToSimulationOffset, unused, unused );
-				duration = mixsteps[ mixstepDomain ].duration;
-				if( mixstepDomain+1 < mixstepCount ) {
-					// note: this is only strictly necessary in the case that 
-					// duration/N < epsilon (used below in call to zmatInsertRange)
-					duration -= mixstepDilutionTime;
-				}
 				mixstepsToCreateDataFor = 1;
 
-				if( isEquilibrium && mixstepDomain == mixstepIndexForSeries ) {
-					// This is a special case in which the observable output has nothing to
-					// do with the simulation time or mixtep durations (its domain is concentration).
-					duration = endTime - dataTime - dataToSimulationOffset;
-						// Subtract the mixstepStartTime (here as dataToSim...) because that was
-						// added to the data domain values to produce a sane time array for this
-						// mixed-domain KineticTrace.
+				double unused;
+				if( isEquilibrium && mixstepDomain >= mixstepIndexForSeries ) {
+					// We are generating data for a titration or post-titration mixstep,
+					// which means the domain is the concentrations of this titration.  We want
+					// the data to be generated for the range of the titration.
+					dataTime = viewInfo.getD( "eqStart" );
+					endTime = viewInfo.getD( "eqEnd" );
+          duration = endTime;
+					eqMixstepInfo( mixstepDomain, dataToSimulationOffset, unused );
+				}
+				else {
+					mixstepInfo( mixstepDomain, dataToSimulationOffset, unused, unused );
+					duration = mixsteps[ mixstepDomain ].duration;
+					if( mixstepDomain+1 < mixstepCount ) {
+						// note: this is only strictly necessary in the case that 
+						// duration/N < epsilon (used below in call to zmatInsertRange)
+						duration -= mixstepDilutionTime;
+					}					
 				}
 			}
-
 			
 			dataCreateCount = N * mixstepsToCreateDataFor;
 			int variableStep = 0;
@@ -2580,8 +2630,8 @@ int KineticExperiment::seriesParamVaries( int type, int mixstepIndex, int paramI
 	ZTLVec< KineticExperiment* > series;
 	int count = getSeries( series, 1 );
 	if( count > 1 ) {
-		if( viewInfo.getI( "isEquilibrium") && reagentIndexForSeries==paramIndex && mixstepIndexForSeries==mixstepIndex ) {
-			return 1;
+    if( viewInfo.getI( "isEquilibrium") ) {
+      return ( reagentIndexForSeries==paramIndex && mixstepIndexForSeries==mixstepIndex );
 		}
 		int msStart = mixstepIndex==-1 ? 0 : mixstepIndex;
 		int msEnd = mixstepIndex==-1 ? mixstepCount : mixstepIndex+1;
