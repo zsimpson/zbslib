@@ -3501,15 +3501,16 @@ void KineticExperiment::observablesGetMinMax( double &minVal, double &maxVal, in
 	double timeEnd   = simulationDuration();
 	if( mixstepDomain >= 0 ) {
 		double unused;
-		mixstepInfo( mixstepDomain, timeBegin, timeEnd, unused );
-		if( mixstepDomain+1 < mixstepCount ) {
-			timeEnd -= mixstepDilutionTime;
-				// if subsequent mixsteps exist, don't include endpoint
+		if( viewInfo.getI( "isEquilibrium" ) ) {
+			eqMixstepInfo( mixstepDomain, timeBegin, timeEnd );
 		}
-	}
-	if( viewInfo.getI( "isEquilibrium" ) ) {
-		timeEnd = traceOC.getLastTime();
-			// because the traceOC.time array contains *concentrations* which we plot against...
+		else {
+			mixstepInfo( mixstepDomain, timeBegin, timeEnd, unused );
+			if( mixstepDomain+1 < mixstepCount ) {
+				timeEnd -= mixstepDilutionTime;
+					// if subsequent mixsteps exist, don't include endpoint
+			}
+		}
 	}
 
 	ZTLVec< KineticExperiment* > series;
