@@ -3645,7 +3645,7 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVe
 				}
 			}
 		}
-		if( sigmas ) {
+		if( sigmas && normalize != NT_Sigma ) {
 			sigmas->set( i, normVal );
 		}
 
@@ -3667,6 +3667,10 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVe
 				if( normalize == NT_Sigma ) {
 					if( measured[i]->sigma ) {
 						normVal = measured[i]->getSigma( j, 0, NT_Sigma );
+						if( sigmas && j==0) {
+							sigmas->set( i, normVal );
+								// Note, we're only storing the first per-data sigma here.
+						}
 					}
 					else {
 						normVal = 1.0;
