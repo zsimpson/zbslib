@@ -3580,7 +3580,7 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVe
 		traceOCResiduals.add( res );
 	}
 
-	double normVal = 0.0;
+	double normVal = 1.0;
 	normalizeType normalize;
 	for( int i=0; i<traceOC.rows; i++ ) {
 		ssePerObservable.set( i, 0.0 );
@@ -3649,7 +3649,7 @@ void KineticExperiment::computeSSEPerObservable( normalizeType _normalize, ZTLVe
 			sigmas->set( i, normVal );
 		}
 
-		int ignoreMixsteps = viewInfo.getI( "isEquilibrium" );
+		int ignoreMixsteps = viewInfo.getI( "isEquilibrium" ) || viewInfo.getI( "isPulseChase" );
 			// because equilibrium experiments have data that is really in the
 			// concentration domain, and the mixstep start time is added to this
 			// value to map the data into the correct final titrating mixstep,
