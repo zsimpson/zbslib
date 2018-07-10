@@ -1723,6 +1723,8 @@ void KineticExperiment::eqMixstepInfo( int mixstep, double &domainStart, double 
   domainEnd = domainStart + eqEnd;
 
   // Goal is to spread out data points for multiple titration mixsteps after incubation
+  // Note the eqStart does not figure into this!  This is because each domain segment
+  // starts at 0, and data for that domain will start at eqStart within that domain.
   // 
   // eqSize = eqEnd - eqStart
   //
@@ -2162,8 +2164,17 @@ int KineticExperiment::measuredCreateFakeForMixsteps( ZTLVec< KineticTrace* > &g
 					// the data to be generated for the range of the titration.
 					dataTime = viewInfo.getD( "eqStart" );
 					endTime = viewInfo.getD( "eqEnd" );
-          duration = endTime;
+          duration = endTime - dataTime;
 					eqMixstepInfo( mixstepDomain, dataToSimulationOffset, unused );
+
+					if( !strcmp(system->reagents[reagentIndexForSeries],"pH" ) ) {
+						// a pH titration holds values as hydrogen-ion concentration, but we'd like
+						// to generate data on the pH scale, so convert appropriately.
+            double tmp = dataTime;
+						dataTime = -log10( endTime / 1e6 );
+						endTime = -log10( tmp / 1e6 );
+						duration = endTime - dataTime;
+					}
 				}
 				else {
 					mixstepInfo( mixstepDomain, dataToSimulationOffset, unused, unused );
@@ -2631,7 +2642,7 @@ int KineticExperiment::seriesParamVaries( int type, int mixstepIndex, int paramI
 	int count = getSeries( series, 1 );
 	if( count > 1 ) {
     if( viewInfo.getI( "isEquilibrium") ) {
-      return ( reagentIndexForSeries==paramIndex && mixstepIndexForSeries==mixstepIndex );
+      return ( reagentIndexForSeries==paramIndex && (mixstepIndexForSeries==mixstepIndex||mixstepIndex==-1) );
 		}
 		int msStart = mixstepIndex==-1 ? 0 : mixstepIndex;
 		int msEnd = mixstepIndex==-1 ? mixstepCount : mixstepIndex+1;
