@@ -163,7 +163,7 @@ enum dataType { DT_NONE=0, DT_SIMULATED, DT_EMPIRICAL };
 	//               to approximate real-world data collected via experiments.
 
 enum funcType { FT_NONE=0, FT_LINEAR, FT_EXP1, FT_EXP2, FT_EXP3, FT_EXP4, FT_BURST1, FT_BURST2, FT_BURST3,
-				FT_POLY, FT_HYPERBOLA, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_MODEL };
+				FT_POLY, FT_HYPERBOLA, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_MODEL, FT_NUMAFUNCS=FT_MODEL };
 	// Which mathematical model to fit data to:
 	//			K*t+C
 	//			a1*e^(-k1*t)+c
@@ -179,6 +179,9 @@ enum funcType { FT_NONE=0, FT_LINEAR, FT_EXP1, FT_EXP2, FT_EXP3, FT_EXP4, FT_BUR
 	//					   where quadratic = ((Kd+E0+t) - sqrt((Kd+E0+t)^2 - 4*E0*t)) / (2*E0)
 	//			Hill equation: y(t) = a * t^n/(Kd^n+t^n) + c 
 	//          (fit using model -- see func_model_piecewise in kinfit.cpp)
+
+extern char* funcTypeParamNames[(int)FT_NUMAFUNCS][9];
+extern int funcTypeNumParams[(int)FT_NUMAFUNCS];
 
 // during fitting, residuals may be normalized in various ways:
 enum normalizeType { NT_Invalid = -1,
