@@ -4806,22 +4806,36 @@ int KineticSystem::reactionGetFromReagents( char *_in0, char *_in1, char *_out0,
 	return -1;
 }
 
-int KineticSystem::reactionIspH( int reaction ) {
+int KineticSystem::reactionIspH( int reaction, KineticParameterInfo **kOn, KineticParameterInfo **kOff ) {
 	// returns 1 if H+ is bound in forward direction, -1 if reverse, 0 if no pH term.
+	// Returns the KineticParamInfo for the on rate and off rate in kOn, kOff if those are non-null
 	Reaction *r = &reactions[reaction];
+	int returnVal = 0;
 	if( r->in0 != -1 && !strcmp( reagents[r->in0], "pH" ) ) {
-		return 1;
+		returnVal = 1;
 	}
-	if( r->in1 != -1 && !strcmp( reagents[r->in1], "pH" ) ) {
-		return 1;
+	else if( r->in1 != -1 && !strcmp( reagents[r->in1], "pH" ) ) {
+		returnVal = 1;
 	}
-	if( r->out0 != -1 && !strcmp( reagents[r->out0], "pH" ) ) {
-		return -1;
+	else if( r->out0 != -1 && !strcmp( reagents[r->out0], "pH" ) ) {
+		returnVal = -1;
 	}
-	if( r->out1 != -1 && !strcmp( reagents[r->out1], "pH" ) ) {
-		return -1;
+	else if( r->out1 != -1 && !strcmp( reagents[r->out1], "pH" ) ) {
+		returnVal = -1;
 	}
-	return 0;
+
+	if( returnVal != 0 && kOn && kOff ) {
+		KineticParameterInfo *kpi = paramGet( PI_REACTION_RATE );
+		if( returnVal == 1) {
+			*kOn = kpi + reaction;  // This reaction binds H
+			*kOff = reaction&1 ? kpi + reaction - 1 : kpi + reaction + 1;
+		}
+		else {
+			*kOff = kpi + reaction;  // This reaction unbinds H
+			*kOn = reaction&1 ? kpi + reaction - 1 : kpi + reaction + 1;
+		}
+	}
+	return returnVal;
 }
 
 char * KineticSystem::reactionGetRateName( int reaction ) {
@@ -5879,13 +5893,14 @@ void KineticSystem::allocParameterInfo( ZHashTable *paramValues ) {
 	int preprocessedLinkedReactionCount = viewInfo.getI( "preprocessedLinkedReactionCount" ) * preprocessedLinkedReactionStride;
 	for( int r=0; r<reactionCount(); r++ ) {
 		int pH = reactionIspH( r );
+			// pH is 1 if protons bound forward, -1 if bound reverse
 		KineticParameterInfo info;
 		info.type = PI_REACTION_RATE;
 		info.reaction = r;
 		strcpy( info.name, reactionGetRateName( r ) );
 		char *unique = reactionGetUniqueString( r );
 		saved        = unique ? (SavedKineticParameterInfo*)paramValues->getS( unique, 0 ) : 0;
-		double defaultValue = pH ? (r&1 ? 1000 : 10000) : (r&1 ? 1.0 : 10.0);
+		double defaultValue = pH ? (pH==1 ? 10000 : 1000) : (r&1 ? 1.0 : 10.0);
 		info.value   = saved ? saved->value   : defaultValue;
 		info.group   = saved ? saved->group   : ( pH && !(r&1) ? 1 : 0 );
 		info.fitFlag = saved ? saved->fitFlag : 1;

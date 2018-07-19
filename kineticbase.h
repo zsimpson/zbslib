@@ -1107,7 +1107,7 @@ struct KineticSystem {
 	int reactionGetFromReagents( char *in0, char *in1, char *out0, char *out1 );
 		// return reaction index if reaction is found matching reagents.
 
-	int reactionIspH( int reaction );
+	int reactionIspH( int reaction, KineticParameterInfo **kOn=0, KineticParameterInfo **kOff=0 );
 		// is this reaction a binding to protons, i.e. H+, meaning a reagent is named "pH"
 
 	static char *reactionGetRateName( int reaction );
