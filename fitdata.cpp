@@ -419,6 +419,10 @@ void FitData::clear() {
 	covar.clear();
 	properties.clear();
 
+	params.clear();
+	orderedParams.clear();
+	fitIndexToParamInfo.clear();
+
 	fitterJacobian = 0;
 	fitOptionLnRates = 0;
 	fitOptionNegErr = 0;
