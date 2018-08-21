@@ -1110,6 +1110,9 @@ struct KineticSystem {
 	int reactionIspH( int reaction, KineticParameterInfo **kOn=0, KineticParameterInfo **kOff=0 );
 		// is this reaction a binding to protons, i.e. H+, meaning a reagent is named "pH"
 
+	int reactionsAreLinear();
+		// helper for visualization of this system of reactions
+
 	static char *reactionGetRateName( int reaction );
 		// return a string that names the rate which controls this reaction, e.g. "k+1"
 

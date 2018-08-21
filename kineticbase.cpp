@@ -4838,6 +4838,24 @@ int KineticSystem::reactionIspH( int reaction, KineticParameterInfo **kOn, Kinet
 	return returnVal;
 }
 
+int KineticSystem::reactionsAreLinear() {
+	// To be called "linear", which is used as a helper for default visualization
+	// of the system, we mean that non-ligand reagents appear in only one forward
+	// reaction -- otherwise there is some branching or cycling present.  By convention,
+	// the second reagent in a 2nd-order reaction is called the ligand.  Thus this
+	// depends very much on the order of reagents/reactions as entered by the user.
+
+	ZHashTable forwardReactionReagents;
+	for( int i=0; i<reactions.count; i+=2 ) {
+		Reaction &r = reactions[i];
+		if( forwardReactionReagents.has( reagents[r.in0] ) ) {
+			return 0;
+		}
+		forwardReactionReagents.putI( reagents[r.in0], 1 );
+	}
+	return 1;
+}
+
 char * KineticSystem::reactionGetRateName( int reaction ) {
 	// This function assumes that forward and backward reactions occur in matched
 	// pairs, one after the other.  So reaction 0 returns "k+1", reaction 1 returns "k-1",
