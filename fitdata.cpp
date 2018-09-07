@@ -50,9 +50,11 @@ char* funcTypeParamNames[(int)FT_NUMAFUNCS][9]  = {
 	{ "a","Kd","E","c","","","","","" },// FT_QUADRATIC
 	{ "a","Kd","n","c","","","","","" },// FT_HILL
 	{ "a","K1","K2","c","","","","","" },// FT_2SBINDING
+	{ "a","K1","K2","K3","c","","","","" },// FT_3SBINDING
+	{ "a","K1","K2","K3","K4","c","","","" },// FT_4SBINDING
 };
 int funcTypeNumParams[(int)FT_NUMAFUNCS]  = {
-	0, 2, 3, 5, 7, 9, 4, 6, 8, 0, 3, 4, 4, 4
+	0, 2, 3, 5, 7, 9, 4, 6, 8, 0, 3, 4, 4, 4, 5, 6
 };
 
 

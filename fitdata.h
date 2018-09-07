@@ -163,7 +163,7 @@ enum dataType { DT_NONE=0, DT_SIMULATED, DT_EMPIRICAL };
 	//               to approximate real-world data collected via experiments.
 
 enum funcType { FT_NONE=0, FT_LINEAR, FT_EXP1, FT_EXP2, FT_EXP3, FT_EXP4, FT_BURST1, FT_BURST2, FT_BURST3,
-				FT_POLY, FT_HYPERBOLA, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_MODEL, FT_NUMAFUNCS=FT_MODEL };
+				FT_POLY, FT_HYPERBOLA, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_3SBINDING, FT_4SBINDING, FT_MODEL, FT_NUMAFUNCS=FT_MODEL };
 	// Which mathematical model to fit data to:
 	//			K*t+C
 	//			a1*e^(-k1*t)+c
