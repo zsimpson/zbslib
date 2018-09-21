@@ -10,7 +10,7 @@
 //			zGraphFileLoad( "test.png", &bits );
 //		}
 //		*PORTABILITY win32
-//		*SDK_DEPENDS freeimage
+//		*SDK_DEPENDS freeimage-3.18
 //		*REQUIRED_FILES zgraphfile.cpp zgraphfile.h
 //		*VERSION 2.0
 //		+HISTORY {

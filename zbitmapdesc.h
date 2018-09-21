@@ -171,10 +171,14 @@ struct ZBitmapDesc {
 		}
 	#endif
 
-	#ifdef _WINDOWS_
+	#ifdef _WINDOWS_H
 		// If you include the windows.h before this header, we know that you are 
 		// using the Windows libraries and it is safe to include this conversion
 		// Note that this will not deal with palettes
+		//
+		// TFB changed _WINDOWS_ to _WINDOWS_H to explicity look for windows.h
+		// inclusion, since _WINDOWS_ is defined in FreeImage.h for ALL platforms
+		// in FreeImage 3.18
 
 		BITMAPINFO *getBitmapInfo() {
 			if( !bitmapInfoHeader ) {
