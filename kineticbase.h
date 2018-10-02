@@ -229,6 +229,8 @@ struct KineticTrace {
 		// Used for interpolation, finds the closest column given the time
 		// Bounded so it will return the last or first if you are later or earlier respecitvely.
 
+	int findClosestDataCol( double val, int row );
+
 	double getElemLERP( double time, int row );
 		// Linear interpolation of reagent row at time
 

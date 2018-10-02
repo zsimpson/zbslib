@@ -636,6 +636,21 @@ int KineticTrace::findClosestTimeCol( double _time ) {
 	return last;
 }
 
+int KineticTrace::findClosestDataCol( double val, int row ) {
+	// naive impl linear search not cached
+	int minDistI = -1;
+  double minDist = DBL_MAX;
+  for( int i=0; i<cols; i++ ) {
+    double d = fabs( val - getData(i,row) );
+    if( d < minDist ) {
+      minDist = d;
+      minDistI = i;
+    }
+  }
+	return minDistI;
+}
+
+
 double KineticTrace::getElemLERP( double _time, int row ) {
 	if( cols == 0 ) {
 		// Special case: an empty trace always returns 0
