@@ -47,6 +47,8 @@ char* funcTypeParamNames[(int)FT_NUMAFUNCS][9]  = {
 	{ "A1","b1","A2","b2","A3","b3","b4","C","" },// FT_BURST3
 	{ "","","","","","","","","" },// FT_POLY
 	{ "a","Kd","c","","","","","","" },// FT_HYPERBOLA
+	{ "kcat","Km","","","","","","","" },// FT_MM
+	{ "kon","kcat","","","","","","","" },// FT_MM2
 	{ "a","Kd","E","c","","","","","" },// FT_QUADRATIC
 	{ "a","Kd","n","c","","","","","" },// FT_HILL
 	{ "a","K1","K2","c","","","","","" },// FT_2SBINDING
@@ -54,7 +56,7 @@ char* funcTypeParamNames[(int)FT_NUMAFUNCS][9]  = {
 	{ "a","K1","K2","K3","K4","c","","","" },// FT_4SBINDING
 };
 int funcTypeNumParams[(int)FT_NUMAFUNCS]  = {
-	0, 2, 3, 5, 7, 9, 4, 6, 8, 0, 3, 4, 4, 4, 5, 6
+	0, 2, 3, 5, 7, 9, 4, 6, 8, 0, 3, 2, 2, 4, 4, 4, 5, 6
 };
 
 

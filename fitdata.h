@@ -163,7 +163,7 @@ enum dataType { DT_NONE=0, DT_SIMULATED, DT_EMPIRICAL };
 	//               to approximate real-world data collected via experiments.
 
 enum funcType { FT_NONE=0, FT_LINEAR, FT_EXP1, FT_EXP2, FT_EXP3, FT_EXP4, FT_BURST1, FT_BURST2, FT_BURST3,
-				FT_POLY, FT_HYPERBOLA, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_3SBINDING, FT_4SBINDING, FT_MODEL, FT_NUMAFUNCS=FT_MODEL };
+				FT_POLY, FT_HYPERBOLA, FT_MM, FT_MM2, FT_QUADRATIC, FT_HILL, FT_2SBINDING, FT_3SBINDING, FT_4SBINDING, FT_MODEL, FT_NUMAFUNCS=FT_MODEL };
 	// Which mathematical model to fit data to:
 	//			K*t+C
 	//			a1*e^(-k1*t)+c
@@ -174,7 +174,9 @@ enum funcType { FT_NONE=0, FT_LINEAR, FT_EXP1, FT_EXP2, FT_EXP3, FT_EXP4, FT_BUR
 	//			a1*e^(-k1*t)+a2*e^(-k2*t)+k3*t+c
 	//			a1*e^(-k1*t)+a2*e^(-k2*t)+a3*e^(-k3*t)+k4*t+c
 	//			polynomial
-	//			Hyperbola: y(t) = a * ( t / (t+Kd) ) + c
+	//			Hyperbola: y(t) = a * (t / (t+Kd)) + c
+	//			MM: y(t) = kcat * t / (Km+t)
+	//			MM2: y(t) = kon * t / (1 + kon*t/kcat )
 	//			Quadratic: y(t) = a * quadratic(Kd,E0,t) + c 
 	//					   where quadratic = ((Kd+E0+t) - sqrt((Kd+E0+t)^2 - 4*E0*t)) / (2*E0)
 	//			Hill equation: y(t) = a * t^n/(Kd^n+t^n) + c 
