@@ -486,6 +486,7 @@ void ZUIPlot::handleMsg( ZMsg *msg ) {
 				putF( "scaleY", getF( "orgScaleY" ) );
 				del( "transX" );
 				del( "transY" );
+				del( "boxZoomCachedExtents" );
 			}
 		}
 	}
