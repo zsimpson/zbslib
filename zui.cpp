@@ -4262,7 +4262,7 @@ void zuiDialog( char *type, char *title, int modal, char *okMsg, char *cancelMsg
 	zuiNamedDialog(0,type,title,modal,okMsg,cancelMsg,dlgParams,controlParams,initMsg,okText,cancelText,clonedInterior);
 }
 
-void zuiMessageBox( char *title, char *msg, int colorError, char *okMsg, char *cancelMsg, char *okText, char *cancelText ) {
+void zuiMessageBox( char *title, char *msg, int colorError, char *okMsg, char *cancelMsg, char *okText, char *cancelText, char *name ) {
 	// many params optional; see declaration; for now default to modal messagebox
 	static char dlgParams[256];
 	static char ctlParams[256];
@@ -4282,7 +4282,7 @@ void zuiMessageBox( char *title, char *msg, int colorError, char *okMsg, char *c
 	ZTmpStr initMsg( "type=zuiMsgBoxInit zuiTextName='%s' text='%s'", dlgType, escapeQuotes( msg, 1 ) );
 		// the init message that will allow our messagebox to get initialized with user-passed information
 	
-	zuiNamedDialog( 0, (char*)dlgType, title, 1, okMsg, cancelMsg, dlgParams[0] ? dlgParams : 0, ctlParams[0] ? ctlParams : 0, initMsg, okText, cancelText );
+	zuiNamedDialog( name, (char*)dlgType, title, 1, okMsg, cancelMsg, dlgParams[0] ? dlgParams : 0, ctlParams[0] ? ctlParams : 0, initMsg, okText, cancelText );
 }
 
 void zuiProgressBox( char *name, char *title, char *msg, char *cancelMsg, char *cancelText ) {

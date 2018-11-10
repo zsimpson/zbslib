@@ -37,7 +37,7 @@ void zuiDialog( char *type, char *title, int modal=1, char *okMsg=0, char *cance
 	// clonedInterior: normally a user's interior UI is cloned to allow multiple dialogs of the
 	// same type, but in some cases it is most convenient to have a single named copy if the user
 	// knows there will only ever by one instance.
-void zuiMessageBox( char *title, char *msg, int colorError=0, char *okMsg=0, char *cancelMsg=0, char *okText=0, char *cancelText=0 );
+void zuiMessageBox( char *title, char *msg, int colorError=0, char *okMsg=0, char *cancelMsg=0, char *okText=0, char *cancelText=0, char *name=0 );
 	// defined in zui.cpp; if colorError msgbox is red; optional msgs on ok/cancel; optional button text to replace "ok"/"cancel"
 void zuiProgressBox( char *name, char *title, char *msg, char *cancelMsg=0, char *cancelText=0 );
 	// defined in zui.cpp; if colorError msgbox is red; optional msgs on ok/cancel; optional button text to replace "ok"/"cancel"
